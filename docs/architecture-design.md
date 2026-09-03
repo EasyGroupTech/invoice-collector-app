@@ -594,7 +594,9 @@ interactions (a live list/detail preview, an inline manual-capture form driven b
 data) are exactly the kind of thing a flat form schema can't express. Since there's no
 custom-component escape hatch, the declarative schema itself has to be expressive enough to cover
 cases like this from the start — list/detail views, row selection, an inline capture form driven
-by the selected row's data — not just single-screen field forms.
+by the selected row's data — not just single-screen field forms. (The list/detail preview itself
+is in current use, §14.1 US4/1.12; the manual-capture form specifically is backlog, §14.3 — the
+primitives are built either way, since a live list/detail preview alone already needed them.)
 
 **A ListDescriptor's rows are never embedded in the descriptor itself** — a plugin implements the
 SDK's optional `WizardDataSourceProvider.resolveListData(ctx, { dataSource, fieldValues, sessionId },
@@ -860,8 +862,7 @@ here is speculative.
 
 | # | Story | Provided by |
 |---|---|---|
-| US4 | As an operator, I want an email-based source that scans a mailbox for invoice attachments, so vendors who only send invoices by email are covered too. | `ic-email-to-downloads` |
-| US5 | As an operator, I want to manually teach the app field-rules for an email template it can't parse automatically, so future emails of that template get handled without code changes. | `ic-email-to-downloads` |
+| US4 | As an operator, I want an email-based source that scans a mailbox for invoice attachments and parses them with a fixed set of built-in field-extraction rules, so vendors who only send invoices by email are covered too. | `ic-email-to-downloads` |
 | US7 | As an operator, I want a zero-setup local "Downloads" folder destination, so I can start collecting with no destination configuration at all. | `ic-email-to-downloads` |
 | US8 | As an operator, I want many sources to share one destination, so I only configure a destination once. | `ic-core` (generic `PluginBackedRecord.destinationId`, §5 — plugin-agnostic) |
 
@@ -921,6 +922,15 @@ here is speculative.
 | US29 | As a developer evaluating this project, I want the core app and its bundled email/local-folder plugin fully open source under a permissive license, so I can inspect, audit, or contribute without asking permission. | `ic-core`, `ic-email-to-downloads`, `invoice-collector-plugin-sdk` (MIT, §2) |
 | US30 | As a user, I want a plugin update that fails to automatically roll back rather than leave things half-broken, so a bad release from any plugin author never costs me working functionality. | `ic-core` (§5) |
 | US31 | As a user uninstalling a plugin, I want my sources/destinations and their history preserved, so reinstalling (or upgrading) it later restores everything with no data loss. | `ic-core` (§5) |
+
+### 14.3 Backlog — deferred past the first release
+
+Not scheduled a phase number yet, unlike the rest of this document — kept here rather than dropped
+so the decision to defer, and why, isn't lost.
+
+| # | Story | Provided by | Why deferred |
+|---|---|---|---|
+| US5 | As an operator, I want to manually teach the app field-rules for an email template it can't parse automatically, so future emails of that template get handled without code changes. | `ic-email-to-downloads` | Phase 1.14 ships `ic-email-to-downloads` with a fixed set of **built-in** field-extraction rules only (US4) — real coverage for the common case, without the added surface of a manual-capture UI (persisting user-authored rules, migrating them across a plugin update, §8's list/detail wizard-step plumbing that UI would need) before a first release even exists. Picking this up later is additive: `ic-email-to-downloads`'s `wizard`/`settingsPanel` can grow a `ListDescriptor`/`DetailDescriptor` step for it without a breaking change, using primitives §8 already ships for exactly this reason. |
 
 ## 15. Open questions / action items
 

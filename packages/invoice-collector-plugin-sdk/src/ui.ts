@@ -3,9 +3,10 @@
  * renderer-side code (§8); this is data describing a form/list/detail layout, not markup.
  *
  * Beyond flat field forms, this includes list/detail/selection primitives specifically because a
- * flat form schema can't express real cases this SDK already has to support — e.g.
- * `ic-email-to-downloads`'s mail-message preview list and its inline manual-field-rule capture
- * form, driven by whichever row is selected.
+ * flat form schema can't express real cases this SDK needs to support — e.g.
+ * `ic-email-to-downloads`'s mail-message preview list (in current use) and its inline
+ * manual-field-rule capture form (backlog, deferred past the first release — see
+ * docs/architecture-design.md §14.3 in the app repo), both driven by whichever row is selected.
  */
 
 export type FieldType = 'text' | 'password' | 'number' | 'select' | 'checkbox' | 'textarea';
