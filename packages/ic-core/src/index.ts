@@ -7,3 +7,5 @@ export * from './profiles.js';
 export * from './encryptor.js';
 export * from './session-store.js';
 export * from './sessions-registry.js';
+export * from './log-sanitize.js';
+export * from './http-client.js';

@@ -362,3 +362,41 @@ describe('microsoftEntraDelegatedDeviceCodeSessionPlugin.test', () => {
     expect(result).toBe('error');
   });
 });
+
+describe('microsoftEntraDelegatedDeviceCodeSessionPlugin.applyAuth', () => {
+  const secret: MicrosoftEntraDelegatedDeviceCodeSecret = {
+    accessToken: 'at-1',
+    refreshToken: 'rt-1',
+    deviceAuthorizationEndpoint: 'https://login.example.com/device',
+    tokenEndpoint: 'https://login.example.com/token',
+    clientId: 'client-1',
+    scope: 'Mail.Read',
+  };
+
+  it('attaches the access token as a Bearer Authorization header', () => {
+    const request = microsoftEntraDelegatedDeviceCodeSessionPlugin.applyAuth(secret, {
+      url: 'https://graph.microsoft.com/v1.0/me/messages',
+    });
+    expect(request).not.toBeInstanceOf(Promise);
+    expect(request).toMatchObject({
+      url: 'https://graph.microsoft.com/v1.0/me/messages',
+      headers: { Authorization: 'Bearer at-1' },
+    });
+  });
+
+  it('preserves any headers already set on the request', () => {
+    const request = microsoftEntraDelegatedDeviceCodeSessionPlugin.applyAuth(secret, {
+      url: 'https://graph.microsoft.com/v1.0/me/messages',
+      headers: { Accept: 'application/json' },
+    });
+    expect(request).toMatchObject({
+      headers: { Accept: 'application/json', Authorization: 'Bearer at-1' },
+    });
+  });
+
+  it('rejects a secret that is not this session type\'s own shape', () => {
+    expect(() =>
+      microsoftEntraDelegatedDeviceCodeSessionPlugin.applyAuth({ notThis: true }, { url: 'https://example.com' }),
+    ).toThrow(/not a microsoft-entra-delegated-device-code secret/i);
+  });
+});

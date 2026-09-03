@@ -1,4 +1,5 @@
 import type { PluginContext } from '../context.js';
+import type { HttpRequestInput } from '../http.js';
 import type { Session, SessionCreateResult, SessionPlugin, SessionRefreshResult } from '../session.js';
 
 /**
@@ -268,5 +269,12 @@ export const microsoftEntraDelegatedDeviceCodeSessionPlugin: SessionPlugin = {
       return 'error';
     }
     return new Date(session.expiresAt).getTime() > Date.now() ? 'ok' : 'expired';
+  },
+
+  applyAuth(secret: unknown, request: HttpRequestInput): HttpRequestInput {
+    if (!isStoredSecret(secret)) {
+      throw new Error('applyAuth called with a secret that is not a microsoft-entra-delegated-device-code secret');
+    }
+    return { ...request, headers: { ...request.headers, Authorization: `Bearer ${secret.accessToken}` } };
   },
 };

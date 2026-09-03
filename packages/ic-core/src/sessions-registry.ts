@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import {
   KNOWN_BUILT_IN_SESSION_TYPE_IDS,
+  type HttpRequestInput,
   type PluginContext,
   type Session,
   type SessionPlugin,
@@ -34,6 +35,17 @@ export interface SessionsRegistry {
    * boot, after registering every available SessionPlugin. */
   startScheduler(): Promise<void>;
   stopScheduler(): void;
+  /**
+   * Internal primitives for HttpApi (§7) — not part of the plugin-facing SessionsApi. A plugin
+   * never calls these directly; HttpApi's own implementation does, once per outbound request that
+   * names a sessionId.
+   */
+  attachAuth(pluginId: string, sessionId: string, request: HttpRequestInput): Promise<HttpRequestInput>;
+  /** Reactive counterpart to the proactive scheduler's own refresh — same underlying mechanism
+   * (SessionPlugin.refresh()), triggered by a 401 instead of a timer. Throws if the session isn't
+   * visible to `pluginId`, has no refresh() mechanism, or the refresh attempt itself fails (in
+   * which case the session is still persisted as `needs-reconnect` before the throw). */
+  recoverSession(pluginId: string, sessionId: string): Promise<Session>;
 }
 
 function isBuiltInSessionType(sessionTypeId: string): boolean {
@@ -109,18 +121,23 @@ export function createSessionsRegistry(options: SessionsRegistryOptions): Sessio
     return { ...options.createPluginServices(pluginId), sessions: forPlugin(pluginId) };
   }
 
-  async function runScheduledRefresh(sessionId: string): Promise<void> {
-    const current = await state();
-    const stored = current.sessions.find((s) => s.id === sessionId);
-    const plugin = stored ? plugins.get(stored.sessionTypeId) : undefined;
-    if (!stored || !plugin?.refresh) return;
+  type RefreshOutcome =
+    | { kind: 'no-refresh-method' }
+    | { kind: 'unchanged'; updated: StoredSession }
+    | { kind: 'refreshed'; updated: StoredSession }
+    | { kind: 'failed'; updated: StoredSession };
+
+  /** Shared by the proactive scheduler and the reactive (401-triggered) recovery path — both
+   * ultimately just call SessionPlugin.refresh() once and interpret the result the same way. */
+  async function attemptRefresh(stored: StoredSession): Promise<RefreshOutcome> {
+    const plugin = plugins.get(stored.sessionTypeId);
+    if (!plugin?.refresh) return { kind: 'no-refresh-method' };
 
     const ctx = buildContext(stored.createdByPluginId);
     try {
       const result = await plugin.refresh(ctx, toPublicSession(stored), new AbortController().signal);
       if (result === 'unchanged') {
-        scheduleFor(stored);
-        return;
+        return { kind: 'unchanged', updated: stored };
       }
       const updated: StoredSession = {
         ...stored,
@@ -129,14 +146,66 @@ export function createSessionsRegistry(options: SessionsRegistryOptions): Sessio
         expiresAt: result.expiresAt,
         secretCiphertext: encryptField(options.encryptor, JSON.stringify(result.secret)),
       };
-      await persist({ ...(await state()), sessions: upsert((await state()).sessions, updated) });
-      scheduleFor(updated);
+      return { kind: 'refreshed', updated };
     } catch {
       const failed: StoredSession = { ...stored, status: 'needs-reconnect', updatedAt: now().toISOString() };
-      await persist({ ...(await state()), sessions: upsert((await state()).sessions, failed) });
-      // Deliberately not rescheduled — a session with no working refresh mechanism only recovers
-      // via a user-facing Reconnect from here on.
+      return { kind: 'failed', updated: failed };
     }
+  }
+
+  async function runScheduledRefresh(sessionId: string): Promise<void> {
+    const current = await state();
+    const stored = current.sessions.find((s) => s.id === sessionId);
+    if (!stored) return;
+
+    const outcome = await attemptRefresh(stored);
+    if (outcome.kind === 'no-refresh-method') return;
+
+    const latest = await state();
+    await persist({ ...latest, sessions: upsert(latest.sessions, outcome.updated) });
+
+    // 'failed' is deliberately not rescheduled — a session whose refresh attempt just failed only
+    // recovers via a user-facing Reconnect from here on.
+    if (outcome.kind !== 'failed') {
+      scheduleFor(outcome.updated);
+    }
+  }
+
+  async function attachAuth(pluginId: string, sessionId: string, request: HttpRequestInput): Promise<HttpRequestInput> {
+    const current = await state();
+    const stored = current.sessions.find((s) => s.id === sessionId);
+    if (!stored || !visibleTo(stored, pluginId)) {
+      throw new Error(`Session not found: ${sessionId}`);
+    }
+    const plugin = plugins.get(stored.sessionTypeId);
+    if (!plugin) {
+      throw new Error(`No SessionPlugin registered for session type "${stored.sessionTypeId}"`);
+    }
+    const secret = JSON.parse(decryptField(options.encryptor, stored.secretCiphertext)) as unknown;
+    return plugin.applyAuth(secret, request);
+  }
+
+  async function recoverSession(pluginId: string, sessionId: string): Promise<Session> {
+    const current = await state();
+    const stored = current.sessions.find((s) => s.id === sessionId);
+    if (!stored || !visibleTo(stored, pluginId)) {
+      throw new Error(`Session not found: ${sessionId}`);
+    }
+
+    const outcome = await attemptRefresh(stored);
+    if (outcome.kind === 'no-refresh-method') {
+      throw new Error(`Session ${sessionId} has no refresh mechanism — reconnect required`);
+    }
+
+    const latest = await state();
+    await persist({ ...latest, sessions: upsert(latest.sessions, outcome.updated) });
+
+    if (outcome.kind === 'failed') {
+      throw new Error(`Failed to refresh session ${sessionId} — reconnect required`);
+    }
+
+    scheduleFor(outcome.updated);
+    return toPublicSession(outcome.updated);
   }
 
   function forPlugin(pluginId: string): SessionsApi {
@@ -239,5 +308,8 @@ export function createSessionsRegistry(options: SessionsRegistryOptions): Sessio
         clearTimerFor(sessionId);
       }
     },
+
+    attachAuth,
+    recoverSession,
   };
 }
