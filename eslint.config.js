@@ -11,8 +11,13 @@ export default tseslint.config(
   {
     rules: {
       // Allows `const { unwanted, ...rest } = obj` where only `rest` is used — a legitimate,
-      // common way to build a "same object minus one field" test fixture.
-      '@typescript-eslint/no-unused-vars': ['error', { ignoreRestSiblings: true }],
+      // common way to build a "same object minus one field" test fixture. Also allows a
+      // deliberately unused parameter when explicitly prefixed `_` — e.g. an interface requires
+      // a signal/ctx a given implementation genuinely doesn't need.
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        { ignoreRestSiblings: true, argsIgnorePattern: '^_' },
+      ],
     },
   },
 );

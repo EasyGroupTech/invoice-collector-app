@@ -55,3 +55,9 @@ export type {
 
 export type { ValidationResult } from './validate.js';
 export { validateManifest, validateSessionRequirements } from './validate.js';
+
+export { oauth2DelegatedDeviceCodeSessionPlugin } from './builtin/oauth2-delegated-device-code.js';
+export type {
+  OAuth2DelegatedDeviceCodeCreateInput,
+  OAuth2DelegatedDeviceCodeSecret,
+} from './builtin/oauth2-delegated-device-code.js';

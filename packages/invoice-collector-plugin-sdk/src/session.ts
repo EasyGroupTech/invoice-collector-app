@@ -45,15 +45,21 @@ export interface SessionRefreshResult {
 /** A plugin implements this once per session type it knows how to establish. */
 export interface SessionPlugin {
   sessionTypeId: string;
-  create(ctx: PluginContext, input: unknown): Promise<SessionCreateResult>;
+  /**
+   * `signal` matters here specifically because some session types (device-code flows) can take
+   * minutes of real waiting on a human — this wasn't in the interface's first pass (§5's
+   * discover()/fetchContent()/upload() all take a trailing signal; this was the missed one),
+   * added once actually implementing the device-code built-in made the gap concrete.
+   */
+  create(ctx: PluginContext, input: unknown, signal: AbortSignal): Promise<SessionCreateResult>;
   /**
    * Called reactively (on a 401 during discover()/fetchContent()/upload()) AND proactively (on
    * the schedule expiresAt/keepAliveIntervalMs implies). Omit entirely if this session type has
    * no renewal mechanism at all (e.g. a one-time pasted API key) — it then only ever recovers
    * via a user-facing Reconnect.
    */
-  refresh?(ctx: PluginContext, session: Session): Promise<SessionRefreshResult | 'unchanged'>;
-  test(ctx: PluginContext, session: Session): Promise<'ok' | 'expired' | 'error'>;
+  refresh?(ctx: PluginContext, session: Session, signal: AbortSignal): Promise<SessionRefreshResult | 'unchanged'>;
+  test(ctx: PluginContext, session: Session, signal: AbortSignal): Promise<'ok' | 'expired' | 'error'>;
 }
 
 export interface SessionRequirement {
@@ -85,6 +91,6 @@ export interface SessionsApi {
   list(sessionTypeId?: string): Promise<Session[]>;
   get(sessionId: string): Promise<{ session: Session; secret: unknown } | undefined>;
   /** Delegates to whichever registered SessionPlugin implements sessionTypeId. */
-  create(sessionTypeId: string, input: unknown): Promise<Session>;
-  reconnect(sessionId: string): Promise<Session>;
+  create(sessionTypeId: string, input: unknown, signal?: AbortSignal): Promise<Session>;
+  reconnect(sessionId: string, signal?: AbortSignal): Promise<Session>;
 }
