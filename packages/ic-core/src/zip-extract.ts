@@ -6,7 +6,8 @@ import { unzipSync } from 'fflate';
  * Extracts a zip archive's bytes into targetDir, defending against Zip Slip (an entry path that
  * escapes the target directory via `../` or an absolute path) — a real, unfixed vulnerability
  * class found in at least one popular Node zip-extraction library while building this (see
- * docs/architecture-redesign.md §9.4/phase 1.8's notes). Deliberately low-level: fflate's
+ * docs/architecture-design.md §9.4/implementation-plan.md phase 1.8's notes). Deliberately
+ * low-level: fflate's
  * unzipSync only ever returns file bytes keyed by their in-archive path, so this function is the
  * *entire* trust boundary between untrusted archive content and the real filesystem — every write
  * goes through the same validated-path check, and nothing here ever calls `symlink()`.

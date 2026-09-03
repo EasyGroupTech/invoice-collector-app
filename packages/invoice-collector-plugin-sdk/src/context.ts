@@ -26,13 +26,6 @@ export interface PluginProgressApi {
   report(message: string, data?: Record<string, unknown>): void;
 }
 
-/** What a captured browser session yields — a cookie jar and/or a bearer token, whichever the
- * provider's real request actually used. */
-export interface CapturedBrowserSession {
-  cookies?: Array<{ domain: string; name: string; value: string }>;
-  authorization?: string;
-}
-
 /**
  * Scoped, not a security boundary (plugins run in-process) — but the contract every plugin is
  * expected to use rather than reaching past it.
@@ -43,9 +36,4 @@ export interface PluginContext {
   http: HttpApi;
   log: PluginLogApi;
   progress: PluginProgressApi;
-  /**
-   * Source plugins only, and only relevant to a browser-session-style source: opens a popup,
-   * lets the user sign in themselves, and resolves once a captured session is available.
-   */
-  openBrowserWindow?(loginUrl: string, signal?: AbortSignal): Promise<CapturedBrowserSession>;
 }

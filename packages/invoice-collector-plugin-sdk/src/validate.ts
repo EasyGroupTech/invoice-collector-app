@@ -9,7 +9,7 @@ const REQUIRED_MANIFEST_STRING_FIELDS = ['id', 'name', 'version', 'pluginApiVers
 
 /**
  * The load-time manifest shape check core applies to every plugin, OSS or commercial, before
- * installing it — the same hard-gate rigor §16 already applies to a missing `sbom` specifically,
+ * installing it — the same hard-gate rigor §13 already applies to a missing `sbom` specifically,
  * generalized here to the whole manifest shape.
  */
 export function validateManifest(manifest: unknown): ValidationResult {
