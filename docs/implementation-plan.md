@@ -1,0 +1,73 @@
+# Implementation plan
+
+Execution roadmap for `docs/architecture-design.md` — that document is the *why/what was decided*;
+this one is *in what order to actually build it*. Section references below (`§n`) point back into
+`architecture-design.md` unless stated otherwise.
+
+Configuration/account tasks (things only a human can do — no code) are pulled out to the front,
+rather than interleaved with build phases.
+
+## 0. Configuration tasks — do these yourself, before (or alongside) the phases below starting
+
+None of these are code. Each is a one-time external action; do them whenever convenient, but
+nothing below that depends on one can start until it's done (noted per item).
+
+**Status as of this revision: mostly complete. Windows signing (step 4) is deliberately postponed,
+not abandoned** — see its note below for why and what unblocks it. Step 3 (npm publish) is still
+genuinely outstanding (checked against the live registry, not assumed) and isn't blocking anything
+yet, but isn't done either.
+
+1. ✅ **Done** — GitHub repo created under `EasyGroupTech` (§2, §3), public, empty history.
+2. ✅ **Done, confirmed working** — branch protection is active on `main`: it rejected a direct
+   push mid-implementation, which is exactly the point.
+3. ⬜ **Not done yet** — publish `invoice-collector-plugin-sdk` to npm (verified via a live
+   registry check: still 404, unclaimed). Not blocking anything below today since nothing outside
+   this monorepo depends on it yet, but worth doing before some other project claims the name, per
+   §4's reasoning for why only this one of the three package names matters.
+4. ⏸️ **Postponed** — SignPath Foundation application for free OSS code signing (§3). SignPath
+   requires the project to be identifiable by a Google search of its name before applying, and
+   this repo was too new/thin for that yet (indexing + a real README were the first fix, done in a
+   separate PR). Plan: let that settle for a bit, then apply. Doesn't block any phase below — only
+   blocks producing a *trusted-signed* Windows build, which is phase 1.16 territory, well ahead of
+   where implementation actually is right now.
+5. **Assumed fine, not separately reconfirmed here** — the personal Apple Developer Program
+   membership already in use for macOS signing under this project's own app identity
+   `tech.easygroup.invoicecollector`. Nothing below so far has needed this yet (electron-builder
+   config doesn't exist until phase 1.16) — revisit for real once that phase starts.
+6. ✅ **Done** — LICENSE copyright line decided as "Copyright (c) 2026 Mikhail Bobkov" (the
+   maintainer's own name, not an unregistered business name) and is already in this repo's
+   `LICENSE` file.
+7. ✅ **Done, confirmed working** — `EasyGroupTech` org GitHub admin access; used directly to
+   create the repo, configure branch protection, and merge PRs so far.
+
+Nothing outstanding here blocks continuing. Windows signing specifically only gates producing a
+*trusted-signed* release build — a real gap, but not one that stops building the app itself.
+
+## Phases: feature by feature, TDD
+
+Ordered so each phase's tests can actually run against something real — no phase depends on a
+later one. "Tests first" per §10 means: each phase below starts by writing the tests that describe
+its behavior, then the implementation.
+
+**Status key**: ✅ merged to `main` · 🔄 PR open, not yet merged · ⬜ not started.
+
+| Phase | Status | Deliverable | Architecture ref |
+|---|---|---|---|
+| 1.1 | ✅ | Monorepo scaffold: npm workspaces for `ic-core`/`invoice-collector-plugin-sdk`/`ic-email-to-downloads`, shared tsconfig/lint config, CI workflow (typecheck + build + test on every PR) | §4, §10 |
+| 1.2 | ✅ | SDK: core types — `PluginManifest`, `SourcePlugin`/`DestinationPlugin`/`PluginLifecycle`, `SessionRequirement`, `DiscoveredInvoice`/`InvoiceContent`/`UploadResult`, `WizardStepDescriptor`/`SettingsPanelDescriptor` (including list/detail/selection primitives, §8) | §5, §6, §8 |
+| 1.3 | ✅ | SDK: `microsoft-entra-delegated-device-code` built-in `SessionPlugin` — the one real runtime implementation the SDK ships (device-code request/poll/refresh), tested against a mocked token endpoint. Along the way, fixed a real gap phase 1.2 missed: `SessionPlugin`'s methods had no `AbortSignal`, needed since a device-code wait can take real minutes and must be cancellable. Renamed from `oauth2-delegated-device-code` once implementation surfaced it was actually Microsoft-specific, and fixed a hardcoded session label the rename surfaced | §6.1 |
+| 1.4 | ✅ | SDK: `generate-sbom` build helper (wraps `@cyclonedx/cyclonedx-npm`, enforces the MIT-compatibility gate). **Real finding, resolved**: a live run caught `@cyclonedx/cyclonedx-npm`'s own transitive deps failing the exact gate it enforces — reviewed each one individually and widened the allowlist for the genuinely permissive ones (`BlueOak-1.0.0`, `CC0-1.0`, `Python-2.0`); `CC-BY-3.0` (and any real Creative Commons license, not `CC0`) instead gets a new third outcome, "requires manual review." **Second finding, also resolved**: `cyclonedx-npm` itself moved from `dependencies` to `devDependencies`, version pinned at its `npx` call site — closes the risk of its own transitive tree shipping inside a downstream plugin's real artifact. Confirmed empirically: re-scanning the SDK's own dependency tree afterward now reports zero violations at all (was 14, then 3, now 0) | §13 |
+| 1.5 | ✅ | `ic-core`: config store — `PluginBackedRecord`, profiles, password-protected export/import (Sessions excluded from export, §14.1 US17). `profiles.ts` implemented as a `createProfileManager(baseDir)` factory (not a module-level singleton), so it's a testable library instead of assuming a single Electron main-process lifetime. **Real finding, resolved**: `npm run <script> --workspaces` iterates `packages/*` alphabetically, not in dependency order — `ic-core`'s new dependency on the SDK meant its build/typecheck ran before the SDK's own on a truly fresh checkout, caught by CI (a local check against a supposedly-clean install missed it, since a stale `dist/` survived `rm -rf node_modules`). Fixed by building the SDK explicitly before the workspace-wide loop in both scripts | §5 |
+| 1.6 | ✅ | `ic-core`: Sessions registry — `SessionsApi` (create/get/list/reconnect), `safeStorage`-backed secret storage (via an injected `Encryptor`, so the registry itself stays testable without Electron), proactive refresh scheduling (`expiresAt`/`keepAliveIntervalMs`). Cross-plugin sharing rule enforced via the SDK's `KNOWN_BUILT_IN_SESSION_TYPE_IDS`; same-package sharing deferred to 1.8 (no package identity exists yet). `ctx.http`/`storage`/`log`/`progress` are supplied by an injected `createPluginServices(pluginId)` factory — real implementations land in 1.7/1.9/1.11, this phase only needed to be able to call into a `SessionPlugin`. **Real finding, resolved**: real fs I/O inside a `setTimeout` callback silently breaks Vitest's fake-timer advance tracking (a disk write was dropped entirely, not delayed) — scheduler tests swap in an in-memory session-store stand-in via `vi.spyOn`, other tests still exercise the real file store | §6 |
+| 1.7 | ✅ | `ic-core`: `HttpApi` — sanitized logging, 401 recover-then-retry, throttling retry with Advanced Settings (1s base / 3 retries / increasing delay defaults, re-read per request for live changes). **Real gap found and closed first**: added `SessionPlugin.applyAuth(secret, request)` to the SDK — §6 (phase 1.3) never said how a session's secret becomes actual request auth, and that's inherently session-type-specific (bearer header vs. real per-request request signing), so `HttpApi` can't derive it generically. `sessions-registry.ts` gained two internal (non-`SessionsApi`) primitives HttpApi needs — `attachAuth`/`recoverSession` — sharing a new `attemptRefresh()` helper with the scheduler | §7 |
+| 1.8 | ✅ | `ic-core`: plugin install pipeline — resolve URL/token → download → validate (manifest, `pluginApiVersion` two-major window, `sbom`, `sessionRequirements`) → GitHub Artifact Attestation check (`sigstore` npm package) for the OSS path → trust-tier warning UI → load in-process. **Two real gaps closed first** (§9.4): the plugin package format (zip archive) and `PluginManifest.main` (entry-module path) were never actually specified. **Real security finding, resolved before shipping**: the initially-chosen `extract-zip` library has an unfixed Zip Slip/symlink advisory (GHSA-jmr9-qjv8-65gv) — extracting untrusted downloaded packages made this a real, not theoretical, risk. Switched to `fflate` (low-level) with a hand-written `extractZipSafely()`, verified against a real crafted `../../evil.txt` entry. Also found `sigstore@5.0.0` needs Node ≥22.22/24.15/26, incompatible with this project's `>=20` floor — pinned `^4.1.1`. One true end-to-end test (real zip, real dynamic `import()`, real registration) proves the whole pipeline works, not just its parts | §9, §9.1, §9.2 |
+| 1.9 | 🔄 | `ic-core`: job runner — `discover()` → per-item dedup check → `fetchContent()` → `upload()` pipeline (§14), progress streaming, cancellation, one-collect-job-at-a-time. Added `PluginBackedRecord.collectFromDate` (§5) — needed to enforce US11's per-destination backfill-cutoff guardrail, no field for it existed. **Scope note, not silently dropped**: this phase's row also originally listed "plugin update staging/rollback" (§5) — deliberately not attempted alongside the job runner itself, since it's a re-validate → snapshot → `migrate()` → commit-or-rollback mechanism that shares far more with the install pipeline (1.8) than with running a collect job. Follow-up, not yet scheduled a phase number | §5, §14 |
+| 1.10 | ⬜ | `ic-core`: invoice history — dedup database `discover()`/`fetchContent()` actually check against, retention pruning | §14.1 US13/US14 |
+| 1.11 | ⬜ | `ic-core`: Electron shell — main/preload/shared IPC contracts collapsed to generic plugin-routed channels, `safeStorage` encryptor, `tech.easygroup.invoicecollector` app identity (+ `.dev` variant) | §3 |
+| 1.12 | ⬜ | `ic-core`: renderer — Collect/Settings pages rendering `WizardStepDescriptor`/`SettingsPanelDescriptor` declaratively, Sessions UI (list/reconnect/permission-disclosure), Plugins page (install/enable/disable/uninstall + trust warning), SBOM/licenses screen, Advanced Settings | §6, §8, §9, §13 |
+| 1.13 | ⬜ | `ic-core`: reporting — HTML/Excel export of a Collect run | §14.1 US20 |
+| 1.14 | ⬜ | `ic-email-to-downloads`: Graph Mail source — `discover()`/`fetchContent()`, mail parsing + manual field-rule capture UI (needs 1.12's list/detail primitives), signs in via the SDK's built-in session type. **Tests use only freshly-written synthetic fixtures — no real captured data** (§10) | §14.1 US4/US5 |
+| 1.15 | ⬜ | `ic-email-to-downloads`: local folder destination — `upload()` with its own (trivial, filesystem-based) already-exists override behavior | §14.1 US7 |
+| 1.16 | 🔄 partial | Build & release pipeline — `electron-builder` config, `ic-email-to-downloads` bundled into the packaged app, per-package SBOM generation wired into the build, `LICENSE` files, signing via SignPath Foundation (through OSSign, §3), this repo's own README. **`LICENSE` and README landed early, out of phase order** — pulled forward to help satisfy SignPath Foundation's Google-searchability requirement (§0 item 4); the rest of this phase (electron-builder, signing wiring, SBOM generation) hasn't started | §3, §11, §13 |
+| 1.17 | ⬜ | E2E tests (mocked `ipcMain`) — install flow, Collect flow, Sessions UI, trust-tier warning | §10 |
+| 1.18 | ⬜ | First public release — tag, publish `invoice-collector-plugin-sdk` to npm, release `ic-email-to-downloads` as a standalone downloadable build artifact (GitHub Release, not npm), cut signed Windows/macOS app bundles | §11 |
