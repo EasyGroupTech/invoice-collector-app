@@ -46,6 +46,13 @@ export interface SessionsRegistry {
    * visible to `pluginId`, has no refresh() mechanism, or the refresh attempt itself fails (in
    * which case the session is still persisted as `needs-reconnect` before the throw). */
   recoverSession(pluginId: string, sessionId: string): Promise<Session>;
+  /**
+   * Every session, unscoped by the cross-plugin sharing rule — not part of the plugin-facing
+   * SessionsApi. For core's own Sessions UI (§6: "lists established sessions, their status... and
+   * which Source/Destination records currently use each"), which needs the full picture, not one
+   * plugin's own view of it. A plugin never gets this; only core's own IPC layer does.
+   */
+  listAll(): Promise<Session[]>;
 }
 
 function isBuiltInSessionType(sessionTypeId: string): boolean {
@@ -322,5 +329,10 @@ export function createSessionsRegistry(options: SessionsRegistryOptions): Sessio
 
     attachAuth,
     recoverSession,
+
+    async listAll() {
+      const current = await state();
+      return current.sessions.map(toPublicSession);
+    },
   };
 }

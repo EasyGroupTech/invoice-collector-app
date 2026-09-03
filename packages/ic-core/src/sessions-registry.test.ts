@@ -233,6 +233,33 @@ describe('SessionsRegistry', () => {
     await expect(other.reconnect(created.id)).rejects.toThrow(/session not found/i);
   });
 
+  describe('listAll (internal, for core\'s own Sessions UI)', () => {
+    it('returns every session regardless of which plugin created it', async () => {
+      registry.registerSessionPlugin(fakeSessionPlugin(BUILT_IN_TYPE));
+      registry.registerSessionPlugin(fakeSessionPlugin(CUSTOM_TYPE));
+      const a = await registry.forPlugin('ic-email-to-downloads').create(BUILT_IN_TYPE, { label: 'A' });
+      const b = await registry.forPlugin('commercial-aws-plugin').create(CUSTOM_TYPE, { label: 'B' });
+
+      const all = await registry.listAll();
+
+      expect(all.map((s) => s.id).sort()).toEqual([a.id, b.id].sort());
+    });
+
+    it('returns an empty array when no sessions exist', async () => {
+      expect(await registry.listAll()).toEqual([]);
+    });
+
+    it('never exposes the secret', async () => {
+      registry.registerSessionPlugin(fakeSessionPlugin(BUILT_IN_TYPE));
+      await registry.forPlugin('ic-email-to-downloads').create(BUILT_IN_TYPE, { label: 'A' });
+
+      const all = await registry.listAll();
+
+      expect(all[0]).not.toHaveProperty('secret');
+      expect(all[0]).not.toHaveProperty('secretCiphertext');
+    });
+  });
+
   describe('attachAuth (internal, used by HttpApi)', () => {
     it('resolves the session, decrypts its secret, and delegates to the SessionPlugin.applyAuth()', async () => {
       const plugin = fakeSessionPlugin(BUILT_IN_TYPE);
