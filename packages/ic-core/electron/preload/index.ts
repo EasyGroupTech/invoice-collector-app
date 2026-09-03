@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import {
   Channels,
+  type AdvancedSettings,
   type ConfigImportResult,
   type CreateRecordInput,
   type CreateSessionInput,
@@ -21,6 +22,8 @@ import {
   type ResolveWizardListDataInput,
   type RunCollectInput,
   type RunCollectResult,
+  type SbomEntry,
+  type SbomExportResult,
   type Session,
   type WizardListDataResult,
 } from '../shared/ipcContracts.js';
@@ -68,6 +71,13 @@ contextBridge.exposeInMainWorld('api', {
 
   historyListForMonth: (issuedMonth: string): Promise<InvoiceHistoryRecord[]> =>
     ipcRenderer.invoke(Channels.HistoryListForMonth, issuedMonth),
+
+  sbomList: (): Promise<SbomEntry[]> => ipcRenderer.invoke(Channels.SbomList),
+  sbomExport: (id: string): Promise<SbomExportResult> => ipcRenderer.invoke(Channels.SbomExport, id),
+
+  settingsGetAdvanced: (): Promise<AdvancedSettings> => ipcRenderer.invoke(Channels.SettingsGetAdvanced),
+  settingsSaveAdvanced: (settings: AdvancedSettings): Promise<AdvancedSettings> =>
+    ipcRenderer.invoke(Channels.SettingsSaveAdvanced, settings),
 
   onJobProgress,
   onJobDone,

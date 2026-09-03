@@ -36,3 +36,10 @@ export function pluginsDir(baseDir: string): string {
 export function appLogFile(baseDir: string): string {
   return path.join(baseDir, 'logs', 'app.log');
 }
+
+/** Advanced Settings (§7's HTTP retry policy today) — an app-behavior preference, not profile
+ * data, so it lives here rather than in ProfilePaths: switching profiles shouldn't change how
+ * retries behave. */
+export function advancedSettingsFile(baseDir: string): string {
+  return path.join(baseDir, 'advanced-settings.json');
+}
