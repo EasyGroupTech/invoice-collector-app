@@ -20,3 +20,6 @@ export * from './job-runner.js';
 export * from './collect-pipeline.js';
 export * from './collect-job-guard.js';
 export * from './invoice-history.js';
+export * from './paths.js';
+export * from './plugin-storage.js';
+export * from './plugin-log.js';

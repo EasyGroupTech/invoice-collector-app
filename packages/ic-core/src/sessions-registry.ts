@@ -117,8 +117,19 @@ export function createSessionsRegistry(options: SessionsRegistryOptions): Sessio
     timers.set(stored.id, timer);
   }
 
-  function buildContext(pluginId: string): PluginContext {
-    return { ...options.createPluginServices(pluginId), sessions: forPlugin(pluginId) };
+  function buildContext(
+    pluginId: string,
+    onProgress?: (message: string, data?: Record<string, unknown>) => void,
+  ): PluginContext {
+    const services = options.createPluginServices(pluginId);
+    return {
+      ...services,
+      sessions: forPlugin(pluginId),
+      // A caller-supplied reporter (create()/reconnect() called interactively, e.g. from a job)
+      // takes priority over whatever generic progress sink createPluginServices provides — the
+      // device-code built-in's "enter this code at this URL" has to actually reach that caller.
+      progress: onProgress ? { report: onProgress } : services.progress,
+    };
   }
 
   type RefreshOutcome =
@@ -228,13 +239,13 @@ export function createSessionsRegistry(options: SessionsRegistryOptions): Sessio
         };
       },
 
-      async create(sessionTypeId, input, signal) {
+      async create(sessionTypeId, input, signal, onProgress) {
         const plugin = plugins.get(sessionTypeId);
         if (!plugin) {
           throw new Error(`No SessionPlugin registered for session type "${sessionTypeId}"`);
         }
 
-        const ctx = buildContext(pluginId);
+        const ctx = buildContext(pluginId, onProgress);
         const result = await plugin.create(ctx, input, signal ?? new AbortController().signal);
         const timestamp = now().toISOString();
         const stored: StoredSession = {
@@ -257,7 +268,7 @@ export function createSessionsRegistry(options: SessionsRegistryOptions): Sessio
         return toPublicSession(stored);
       },
 
-      async reconnect(sessionId, signal) {
+      async reconnect(sessionId, signal, onProgress) {
         const current = await state();
         const stored = current.sessions.find((s) => s.id === sessionId);
         if (!stored || !visibleTo(stored, pluginId)) {
@@ -270,7 +281,7 @@ export function createSessionsRegistry(options: SessionsRegistryOptions): Sessio
         }
 
         const input = JSON.parse(decryptField(options.encryptor, stored.createInputCiphertext)) as unknown;
-        const ctx = buildContext(stored.createdByPluginId);
+        const ctx = buildContext(stored.createdByPluginId, onProgress);
         const result = await plugin.create(ctx, input, signal ?? new AbortController().signal);
 
         const updated: StoredSession = {

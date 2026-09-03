@@ -63,8 +63,22 @@ export interface CollectPipelineDeps {
 
 const CANCELLED_MESSAGE = 'Collect run was cancelled';
 
-function buildContext(deps: CollectPipelineDeps, pluginId: string): PluginContext {
-  return { ...deps.createPluginServices(pluginId), sessions: deps.sessionsApiForPlugin(pluginId) };
+function buildContext(
+  deps: CollectPipelineDeps,
+  pluginId: string,
+  report: ProgressReporter,
+  correlationSourceId: string,
+): PluginContext {
+  const services = deps.createPluginServices(pluginId);
+  return {
+    ...services,
+    sessions: deps.sessionsApiForPlugin(pluginId),
+    // The run's own live report(), not whatever generic progress sink createPluginServices
+    // provides — so a plugin's own ctx.progress.report() calls (e.g. "found 5 invoices") reach
+    // the same place this pipeline's own report() calls already do (the same reasoning
+    // sessions-registry.ts's onProgress threading applies to SessionPlugin.create()).
+    progress: { report: (message, data) => report({ message, sourceId: correlationSourceId, data }) },
+  };
 }
 
 function errorMessage(err: unknown): string {
@@ -136,10 +150,10 @@ export async function runCollectPipeline(
         continue;
       }
 
-      const ctx = buildContext(deps, source.pluginId);
+      const sourceCtx = buildContext(deps, source.pluginId, report, source.id);
 
       try {
-        for await (const discovered of sourcePlugin.discover(ctx, source, selection.period, signal)) {
+        for await (const discovered of sourcePlugin.discover(sourceCtx, source, selection.period, signal)) {
           if (signal.aborted) throw new Error(CANCELLED_MESSAGE);
 
           const alreadyHave = await deps.dedup.has(source.id, discovered.id);
@@ -155,8 +169,13 @@ export async function runCollectPipeline(
           }
 
           try {
-            const content = await sourcePlugin.fetchContent(ctx, source, discovered, signal);
-            const uploadResult = await destinationPlugin.upload(ctx, destination, { ...discovered, ...content }, signal);
+            const content = await sourcePlugin.fetchContent(sourceCtx, source, discovered, signal);
+            // Its own ctx, scoped to destination.pluginId — not sourceCtx. A destination plugin's
+            // sessions/storage must never be attributed to the source plugin that happened to
+            // discover this particular invoice (§6's cross-plugin scoping cares about exactly
+            // this: createdByPluginId has to be the plugin that actually created a session).
+            const destinationCtx = buildContext(deps, destination.pluginId, report, source.id);
+            const uploadResult = await destinationPlugin.upload(destinationCtx, destination, { ...discovered, ...content }, signal);
             await deps.dedup.record(source.id, destinationId, discovered, uploadResult.status);
             outcomes.push({
               sourceId: source.id,
