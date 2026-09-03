@@ -5,10 +5,12 @@
   "description": "Invoice Collector core app shell — no built-in source/destination integrations",
   "type": "module",
   "license": "MIT",
+  "main": "dist/main/index.cjs",
   "scripts": {
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc -p electron --noEmit && tsc -p renderer --noEmit",
     "build": "tsc -p tsconfig.build.json",
-    "test": "vitest run"
+    "test": "vitest run",
+    "electron:dev": "electron-vite dev"
   },
   "dependencies": {
     "invoice-collector-plugin-sdk": "*",
@@ -17,6 +19,8 @@
     "sigstore": "^4.1.1"
   },
   "devDependencies": {
-    "@types/semver": "^7.8.0"
+    "@types/semver": "^7.8.0",
+    "electron": "^43.2.0",
+    "electron-vite": "^5.0.0"
   }
 }

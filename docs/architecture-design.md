@@ -409,11 +409,12 @@ interface SessionsApi {
                                                       // returns a session created under another
                                                       // plugin's own custom SessionPlugin
   get(sessionId: string): Promise<{ session: Session; secret: unknown } | undefined>;
-  create(sessionTypeId: string, input: unknown, signal?: AbortSignal): Promise<Session>; // delegates
-                                                                    // to whichever registered
-                                                                    // SessionPlugin implements
-                                                                    // that type
-  reconnect(sessionId: string, signal?: AbortSignal): Promise<Session>;
+  // Delegates to whichever registered SessionPlugin implements sessionTypeId. onProgress
+  // surfaces that SessionPlugin's own ctx.progress.report() calls while establishing the session
+  // (e.g. the device-code built-in's "enter this code at this URL") back to the caller — without
+  // it there'd be no way for a device-code sign-in's own instructions to reach anyone driving it.
+  create(sessionTypeId: string, input: unknown, signal?: AbortSignal, onProgress?: (message: string, data?: Record<string, unknown>) => void): Promise<Session>;
+  reconnect(sessionId: string, signal?: AbortSignal, onProgress?: (message: string, data?: Record<string, unknown>) => void): Promise<Session>;
 }
 ```
 
