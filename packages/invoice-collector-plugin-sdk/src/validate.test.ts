@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { validateManifest, validateSessionRequirements } from './validate.js';
+import { validateManifest, validateSessionRequirements, validateWizardDataSources } from './validate.js';
+import type { FieldDescriptor, ListDescriptor } from './ui.js';
 
 const validManifest = {
   id: 'app.easygroup.source.email-mail',
@@ -136,5 +137,51 @@ describe('validateSessionRequirements', () => {
     ]);
     expect(result.valid).toBe(false);
     expect(result.errors).toContain('sessionRequirements[1].sessionTypeId must be a non-empty string');
+  });
+});
+
+const fieldStep: FieldDescriptor = { kind: 'field', name: 'folder', label: 'Folder', type: 'text' };
+const listStep: ListDescriptor = {
+  kind: 'list',
+  name: 'messages',
+  label: 'Messages',
+  columns: [{ key: 'subject', label: 'Subject' }],
+  dataSource: 'mailPreview',
+};
+
+describe('validateWizardDataSources', () => {
+  it('accepts a plugin with no list steps and no resolveListData', () => {
+    const result = validateWizardDataSources({ wizard: [fieldStep] });
+    expect(result).toEqual({ valid: true, errors: [] });
+  });
+
+  it('accepts a plugin with a list step in wizard that implements resolveListData', () => {
+    const result = validateWizardDataSources({ wizard: [listStep], resolveListData: async () => ({ rows: [] }) });
+    expect(result).toEqual({ valid: true, errors: [] });
+  });
+
+  it('accepts a plugin with a list step only in settingsPanel that implements resolveListData', () => {
+    const result = validateWizardDataSources({
+      wizard: [fieldStep],
+      settingsPanel: { title: 'Settings', steps: [listStep] },
+      resolveListData: async () => ({ rows: [] }),
+    });
+    expect(result).toEqual({ valid: true, errors: [] });
+  });
+
+  it('rejects a wizard list step with no resolveListData implemented', () => {
+    const result = validateWizardDataSources({ wizard: [listStep] });
+    expect(result.valid).toBe(false);
+    expect(result.errors).toContain(
+      'plugin declares a ListDescriptor wizard/settings-panel step but does not implement resolveListData',
+    );
+  });
+
+  it('rejects a settingsPanel list step with no resolveListData implemented', () => {
+    const result = validateWizardDataSources({
+      wizard: [fieldStep],
+      settingsPanel: { title: 'Settings', steps: [listStep] },
+    });
+    expect(result.valid).toBe(false);
   });
 });

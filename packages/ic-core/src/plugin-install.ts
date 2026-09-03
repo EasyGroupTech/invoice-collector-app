@@ -4,6 +4,7 @@ import { pathToFileURL } from 'node:url';
 import {
   validateManifest,
   validateSessionRequirements,
+  validateWizardDataSources,
   type DestinationPlugin,
   type PluginManifest,
   type SourcePlugin,
@@ -154,6 +155,11 @@ export async function installPlugin(
       throw new Error(`Plugin ${manifest.id}'s sessionRequirements are invalid: ${sessionRequirementsCheck.errors.join('; ')}`);
     }
 
+    const wizardDataSourcesCheck = validateWizardDataSources(plugin);
+    if (!wizardDataSourcesCheck.valid) {
+      throw new Error(`Plugin ${manifest.id}'s wizard/settingsPanel is invalid: ${wizardDataSourcesCheck.errors.join('; ')}`);
+    }
+
     options.registry.register(plugin);
 
     return { status: 'installed', manifest, tier };
@@ -161,4 +167,21 @@ export async function installPlugin(
     await rm(installDir, { recursive: true, force: true });
     throw err;
   }
+}
+
+export interface UninstallPluginOptions {
+  pluginsDir: string;
+  registry: PluginRegistry;
+}
+
+/**
+ * §5's "Uninstall: preserve, don't delete" — this only unregisters the plugin (so
+ * discover()/fetchContent()/upload()/resolveListData() calls have nowhere to route to) and
+ * removes its own installed package files. It never touches PluginBackedRecords, invoice history,
+ * or Sessions — those stay put, inactive, and come back with no data loss if the same plugin (or
+ * a different version of it, via migrate()) is installed again later.
+ */
+export async function uninstallPlugin(pluginId: string, options: UninstallPluginOptions): Promise<void> {
+  options.registry.unregister(pluginId);
+  await rm(path.join(options.pluginsDir, pluginId), { recursive: true, force: true });
 }

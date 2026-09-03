@@ -596,6 +596,15 @@ custom-component escape hatch, the declarative schema itself has to be expressiv
 cases like this from the start — list/detail views, row selection, an inline capture form driven
 by the selected row's data — not just single-screen field forms.
 
+**A ListDescriptor's rows are never embedded in the descriptor itself** — a plugin implements the
+SDK's optional `WizardDataSourceProvider.resolveListData(ctx, { dataSource, fieldValues, sessionId },
+signal)`, which core calls (via IPC, from the renderer, mid-wizard) whenever a step's declared
+`dataSource` key needs populating. This is what keeps a list step able to reflect live plugin state
+(e.g. scanning a mailbox) instead of a fixed snapshot, and it's a load-time-enforced contract, not
+just a convention: a plugin whose `wizard`/`settingsPanel` declares any ListDescriptor but doesn't
+implement `resolveListData` fails install validation the same hard-gate way a missing
+`sessionRequirements` entry does (§6).
+
 ## 9. Trust model
 
 Only **two** states, both at the core-app level.

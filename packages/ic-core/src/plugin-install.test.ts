@@ -5,7 +5,7 @@ import path from 'node:path';
 import { zipSync } from 'fflate';
 import type { DestinationPlugin, SourcePlugin } from 'invoice-collector-plugin-sdk';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { installPlugin } from './plugin-install.js';
+import { installPlugin, uninstallPlugin } from './plugin-install.js';
 import { createPluginRegistry, type PluginRegistry } from './plugin-registry.js';
 
 const CORE_SDK_VERSION = '1.0.0';
@@ -292,6 +292,29 @@ describe('installPlugin', () => {
     expect(registry.get(validManifest.id)).toBeUndefined();
   });
 
+  it('rejects a plugin whose wizard declares a list step but implements no resolveListData', async () => {
+    const zip = buildZip({ 'manifest.json': JSON.stringify(validManifest), 'sbom.cdx.json': JSON.stringify(validSbom) });
+
+    await expect(
+      installPlugin('https://example.com/plugin.zip', {
+        pluginsDir,
+        coreSdkVersion: CORE_SDK_VERSION,
+        trustAckFilePath,
+        registry,
+        confirmUnverified: true,
+        fetchImpl: fetchReturningZip(zip),
+        importModule: async () => ({
+          default: {
+            ...fakeSourcePlugin(),
+            wizard: [{ kind: 'list', name: 'messages', label: 'Messages', columns: [], dataSource: 'mailPreview' }],
+          },
+        }),
+      }),
+    ).rejects.toThrow(/resolveListData/);
+
+    expect(registry.get(validManifest.id)).toBeUndefined();
+  });
+
   it('propagates a download failure clearly', async () => {
     const fetchImpl = vi.fn(async () => new Response('', { status: 500 })) as unknown as typeof fetch;
 
@@ -336,5 +359,47 @@ describe('installPlugin (destination plugin)', () => {
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
+  });
+});
+
+describe('uninstallPlugin', () => {
+  let dir: string;
+  let pluginsDir: string;
+  let registry: PluginRegistry;
+
+  beforeEach(async () => {
+    dir = await mkdtemp(path.join(tmpdir(), 'ic-core-plugin-uninstall-'));
+    pluginsDir = path.join(dir, 'plugins');
+    registry = createPluginRegistry();
+  });
+
+  afterEach(async () => {
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  it('unregisters the plugin and removes its installed package files — preserve, not delete, of everything else (§5)', async () => {
+    const zip = buildZip({
+      'manifest.json': JSON.stringify(validManifest),
+      'sbom.cdx.json': JSON.stringify(validSbom),
+      'index.js': fakeSourceModuleSource,
+    });
+    await installPlugin('https://example.com/plugin.zip', {
+      pluginsDir,
+      coreSdkVersion: CORE_SDK_VERSION,
+      trustAckFilePath: path.join(dir, 'trust-ack.json'),
+      registry,
+      confirmUnverified: true,
+      fetchImpl: fetchReturningZip(zip),
+    });
+    expect(registry.get(validManifest.id)).toBeDefined();
+
+    await uninstallPlugin(validManifest.id, { pluginsDir, registry });
+
+    expect(registry.get(validManifest.id)).toBeUndefined();
+    await expect(readdir(path.join(pluginsDir, validManifest.id))).rejects.toThrow();
+  });
+
+  it('is a no-op, not a throw, when the plugin is not installed', async () => {
+    await expect(uninstallPlugin('not-installed', { pluginsDir, registry })).resolves.toBeUndefined();
   });
 });
