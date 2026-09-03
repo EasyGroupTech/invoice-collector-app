@@ -1,4 +1,5 @@
 import { fileURLToPath } from 'node:url';
+import react from '@vitejs/plugin-react';
 import { defineConfig, externalizeDepsPlugin } from 'electron-vite';
 
 const root = fileURLToPath(new URL('.', import.meta.url));
@@ -37,5 +38,6 @@ export default defineConfig({
         input: { index: resolvePath('renderer/index.html') },
       },
     },
+    plugins: [react()],
   },
 });

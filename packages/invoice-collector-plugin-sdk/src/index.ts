@@ -51,6 +51,7 @@ export type {
   WizardListDataRequest,
   WizardListDataResult,
   WizardDataSourceProvider,
+  BuiltInSessionInputProvider,
   SourcePlugin,
   DestinationPlugin,
 } from './plugin.js';

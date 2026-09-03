@@ -84,6 +84,25 @@ export interface WizardDataSourceProvider {
   ): Promise<WizardListDataResult>;
 }
 
+/**
+ * A wizard's "create a new session" step (§6) needs *some* `input` to pass into
+ * `SessionsApi.create(sessionTypeId, input, ...)` — for a built-in session type
+ * (`confirmsBuiltIn: true`), that shape is entirely the built-in's own (e.g. the device-code
+ * built-in's `{ deviceAuthorizationEndpoint, tokenEndpoint, clientId, scope, label }`), fixed and
+ * known only to the plugin declaring the requirement, not something a generic form could collect.
+ * Optional — only meaningful for a `confirmsBuiltIn: true` requirement; a plugin whose
+ * `sessionRequirements` are all custom (`confirmsBuiltIn: false`) doesn't need it, since its own
+ * `SessionPlugin.create()` already defines what its input shape means.
+ *
+ * **Known gap, not yet closed**: this doesn't solve the same problem for a *custom* session
+ * type's own `create()` input — collecting whatever a third-party `SessionPlugin` expects still
+ * has no generic UI mechanism. Deferred until a real plugin actually needs one (the SDK ships
+ * exactly one session type today, and it's built-in) rather than guessing the shape now.
+ */
+export interface BuiltInSessionInputProvider {
+  builtInSessionCreateInput?(requirement: SessionRequirement): unknown;
+}
+
 export interface PluginLifecycle {
   /**
    * Called once, automatically, when core detects this plugin's version increased from
@@ -99,7 +118,7 @@ export interface PluginLifecycle {
   ): Promise<{ records: PluginBackedRecord[] }>;
 }
 
-export interface SourcePlugin extends PluginLifecycle, WizardDataSourceProvider {
+export interface SourcePlugin extends PluginLifecycle, WizardDataSourceProvider, BuiltInSessionInputProvider {
   manifest: PluginManifest;
   /** Which session type(s) this plugin can use, and what it needs from each — required, must
    * list at least one entry. */
@@ -123,7 +142,7 @@ export interface SourcePlugin extends PluginLifecycle, WizardDataSourceProvider 
   ): Promise<InvoiceContent>;
 }
 
-export interface DestinationPlugin extends PluginLifecycle, WizardDataSourceProvider {
+export interface DestinationPlugin extends PluginLifecycle, WizardDataSourceProvider, BuiltInSessionInputProvider {
   manifest: PluginManifest;
   sessionRequirements: SessionRequirement[];
   wizard: WizardStepDescriptor[];

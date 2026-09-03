@@ -31,6 +31,16 @@ describe('createRecord', () => {
     const b = createRecord({ name: 'B', pluginId: 'p', pluginVersion: '1.0.0', config: {} });
     expect(a.id).not.toBe(b.id);
   });
+
+  it('carries an optional sessionId through, if supplied', () => {
+    const record = createRecord({ name: 'A', pluginId: 'p', pluginVersion: '1.0.0', config: {}, sessionId: 'session-1' });
+    expect(record.sessionId).toBe('session-1');
+  });
+
+  it('leaves sessionId undefined when not supplied', () => {
+    const record = createRecord({ name: 'A', pluginId: 'p', pluginVersion: '1.0.0', config: {} });
+    expect(record.sessionId).toBeUndefined();
+  });
 });
 
 describe('upsertRecord / removeRecord', () => {

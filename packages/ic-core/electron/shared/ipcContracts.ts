@@ -3,7 +3,12 @@ import type {
   PluginDestinationRecord,
   PluginManifest,
   PluginSourceRecord,
+  SessionRequirement,
   Session,
+  SettingsPanelDescriptor,
+  WizardListDataRequest,
+  WizardListDataResult,
+  WizardStepDescriptor,
 } from 'invoice-collector-plugin-sdk';
 import type { CollectPeriod } from '../../src/collect-pipeline.js';
 import type { EncryptedConfigExportFile } from '../../src/config-export-crypto.js';
@@ -39,6 +44,9 @@ export const Channels = {
 
   PluginsList: 'plugins:list',
   PluginsInstall: 'plugins:install',
+  PluginsUninstall: 'plugins:uninstall',
+
+  WizardResolveListData: 'wizard:resolveListData',
 
   CollectRun: 'collect:run',
   JobsCancel: 'jobs:cancel',
@@ -55,6 +63,7 @@ export interface CreateRecordInput {
   name: string;
   config: unknown;
   destinationId?: string | null;
+  sessionId?: string;
 }
 
 export interface RemoveRecordInput {
@@ -65,7 +74,15 @@ export interface RemoveRecordInput {
 export interface CreateSessionInput {
   pluginId: string;
   sessionTypeId: string;
-  input: unknown;
+  /** Omitted for a confirmsBuiltIn: true requirement whose plugin implements
+   * BuiltInSessionInputProvider — main resolves it via resolveSessionCreateInput(). Required
+   * otherwise. */
+  input?: unknown;
+}
+
+export interface ResolveWizardListDataInput {
+  pluginId: string;
+  request: WizardListDataRequest;
 }
 
 export interface ReconnectSessionInput {
@@ -88,6 +105,20 @@ export interface RunCollectInput {
   period: CollectPeriod;
 }
 
+/**
+ * What PluginsList actually returns — a bare PluginManifest[] alone can't drive an Add-Source/
+ * Destination wizard, since sessionRequirements/wizard/settingsPanel (§5, §6, §8) live on the
+ * loaded SourcePlugin/DestinationPlugin object, not the manifest. This is that object's UI-facing
+ * subset, serializable across the IPC boundary (no functions — resolveListData etc. stay
+ * main-process-only, reached instead via WizardResolveListData).
+ */
+export interface InstalledPluginSummary {
+  manifest: PluginManifest;
+  sessionRequirements: SessionRequirement[];
+  wizard: WizardStepDescriptor[];
+  settingsPanel?: SettingsPanelDescriptor;
+}
+
 export type RunCollectResult = JobHandle | { error: string };
 
 export type {
@@ -105,4 +136,9 @@ export type {
   PluginSourceRecord,
   ProfileSummary,
   Session,
+  SessionRequirement,
+  SettingsPanelDescriptor,
+  WizardListDataRequest,
+  WizardListDataResult,
+  WizardStepDescriptor,
 };

@@ -6,6 +6,7 @@ import {
   type CreateSessionInput,
   type EncryptedConfigExportFile,
   type InstallPluginInput,
+  type InstalledPluginSummary,
   type InvoiceHistoryRecord,
   type JobDoneEvent,
   type JobHandle,
@@ -13,14 +14,15 @@ import {
   type PluginBackedRecord,
   type PluginInstallNeedsConfirmation,
   type PluginInstallResult,
-  type PluginManifest,
   type ProfileCreateInput,
   type ProfileSummary,
   type ReconnectSessionInput,
   type RemoveRecordInput,
+  type ResolveWizardListDataInput,
   type RunCollectInput,
   type RunCollectResult,
   type Session,
+  type WizardListDataResult,
 } from '../shared/ipcContracts.js';
 
 function onJobProgress(callback: (event: JobProgressEvent) => void): () => void {
@@ -53,9 +55,13 @@ contextBridge.exposeInMainWorld('api', {
   sessionsCreate: (input: CreateSessionInput): Promise<JobHandle> => ipcRenderer.invoke(Channels.SessionsCreate, input),
   sessionsReconnect: (input: ReconnectSessionInput): Promise<JobHandle> => ipcRenderer.invoke(Channels.SessionsReconnect, input),
 
-  pluginsList: (): Promise<PluginManifest[]> => ipcRenderer.invoke(Channels.PluginsList),
+  pluginsList: (): Promise<InstalledPluginSummary[]> => ipcRenderer.invoke(Channels.PluginsList),
   pluginsInstall: (input: InstallPluginInput): Promise<PluginInstallResult | PluginInstallNeedsConfirmation> =>
     ipcRenderer.invoke(Channels.PluginsInstall, input),
+  pluginsUninstall: (pluginId: string): Promise<void> => ipcRenderer.invoke(Channels.PluginsUninstall, pluginId),
+
+  wizardResolveListData: (input: ResolveWizardListDataInput): Promise<WizardListDataResult> =>
+    ipcRenderer.invoke(Channels.WizardResolveListData, input),
 
   collectRun: (input: RunCollectInput): Promise<RunCollectResult> => ipcRenderer.invoke(Channels.CollectRun, input),
   jobsCancel: (jobId: string): Promise<void> => ipcRenderer.invoke(Channels.JobsCancel, jobId),
