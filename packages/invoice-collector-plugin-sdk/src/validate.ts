@@ -5,7 +5,7 @@ export interface ValidationResult {
   errors: string[];
 }
 
-const REQUIRED_MANIFEST_STRING_FIELDS = ['id', 'name', 'version', 'pluginApiVersion', 'sbom'] as const;
+const REQUIRED_MANIFEST_STRING_FIELDS = ['id', 'name', 'version', 'pluginApiVersion', 'sbom', 'main'] as const;
 
 /**
  * The load-time manifest shape check core applies to every plugin, OSS or commercial, before

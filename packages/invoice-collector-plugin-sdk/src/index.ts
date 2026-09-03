@@ -62,7 +62,7 @@ export type {
   MicrosoftEntraDelegatedDeviceCodeSecret,
 } from './builtin/microsoft-entra-delegated-device-code.js';
 
-export { checkMitCompatibility } from './sbom.js';
+export { checkMitCompatibility, MIT_COMPATIBLE_LICENSE_IDS } from './sbom.js';
 export type {
   CycloneDxDocument,
   CycloneDxComponent,

@@ -42,7 +42,7 @@ export interface MitCompatibilityResult {
  * stronger bar than this). Each was a real finding from actually running this check, not added
  * speculatively.
  */
-const MIT_COMPATIBLE_LICENSE_IDS = new Set([
+export const MIT_COMPATIBLE_LICENSE_IDS = new Set([
   'MIT',
   'ISC',
   'BSD-2-Clause',
