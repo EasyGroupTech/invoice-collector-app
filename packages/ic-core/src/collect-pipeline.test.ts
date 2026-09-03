@@ -149,7 +149,7 @@ describe('runCollectPipeline', () => {
       new AbortController().signal,
     );
 
-    expect(dedup.record).toHaveBeenCalledWith('source-1', invoice, 'uploaded');
+    expect(dedup.record).toHaveBeenCalledWith('source-1', 'dest-1', invoice, 'uploaded');
   });
 
   it('records a per-invoice error outcome when fetchContent throws, without recording it in dedup', async () => {
