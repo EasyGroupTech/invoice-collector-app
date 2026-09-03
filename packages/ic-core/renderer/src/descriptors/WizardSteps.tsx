@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react';
 import type { WizardStepDescriptor } from 'invoice-collector-plugin-sdk';
+import { Button } from '@/components/ui/button';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { cn } from '@/lib/utils';
 import { isFieldVisible, seedDetailValuesFromRow, type WizardFieldValues } from '../../../src/wizard-form-state.js';
 import { FieldInput } from './FieldInput';
 
@@ -18,7 +21,7 @@ export function WizardSteps({ pluginId, steps, values, onChange, sessionId }: Wi
   const [selection, setSelection] = useState<Record<string, Record<string, unknown> | undefined>>({});
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div className="flex flex-col gap-4">
       {steps.map((step) => {
         if (step.kind === 'field') {
           if (!isFieldVisible(step, values)) return null;
@@ -44,16 +47,16 @@ export function WizardSteps({ pluginId, steps, values, onChange, sessionId }: Wi
         // step.kind === 'detail'
         const selectedRow = selection[step.showsSelectionFrom];
         return (
-          <fieldset key={step.name} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <legend>{step.label}</legend>
-            {!selectedRow && <p>Select a row above first.</p>}
+          <div key={step.name} className="flex flex-col gap-3 rounded-lg border p-4">
+            <p className="text-sm font-medium">{step.label}</p>
+            {!selectedRow && <p className="text-sm text-muted-foreground">Select a row above first.</p>}
             {step.fields.map((field) => {
               if (!isFieldVisible(field, values)) return null;
               const seeded = seedDetailValuesFromRow(step, selectedRow);
               const value = values[field.name] !== undefined ? values[field.name] : seeded[field.name];
               return <FieldInput key={field.name} field={field} value={value} onChange={(v) => onChange(field.name, v)} />;
             })}
-          </fieldset>
+          </div>
         );
       })}
     </div>
@@ -97,37 +100,37 @@ function ListStep({ pluginId, dataSource, columns, label, fieldValues, sessionId
   }, []);
 
   return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <strong>{label}</strong>
-        <button type="button" onClick={() => void load()} disabled={loading}>
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-medium">{label}</p>
+        <Button type="button" variant="outline" size="sm" onClick={() => void load()} disabled={loading}>
           {loading ? 'Loading…' : 'Refresh'}
-        </button>
+        </Button>
       </div>
-      {error && <p style={{ color: 'crimson' }}>{error}</p>}
+      {error && <p className="text-sm text-destructive">{error}</p>}
       {rows && (
-        <table>
-          <thead>
-            <tr>
-              {columns.map((col) => (
-                <th key={col.key} style={{ textAlign: 'left' }}>
-                  {col.label}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row, index) => (
-              // Rows have no declared id field (§8's ListDescriptor doesn't require one) — the
-              // index is the only stable-enough key available here.
-              <tr key={index} onClick={() => onSelect(row)} style={{ cursor: 'pointer', background: row === selectedRow ? '#eef' : undefined }}>
+        <div className="rounded-lg border">
+          <Table>
+            <TableHeader>
+              <TableRow>
                 {columns.map((col) => (
-                  <td key={col.key}>{String(row[col.key] ?? '')}</td>
+                  <TableHead key={col.key}>{col.label}</TableHead>
                 ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {rows.map((row, index) => (
+                // Rows have no declared id field (§8's ListDescriptor doesn't require one) — the
+                // index is the only stable-enough key available here.
+                <TableRow key={index} onClick={() => onSelect(row)} className={cn('cursor-pointer', row === selectedRow && 'bg-accent')}>
+                  {columns.map((col) => (
+                    <TableCell key={col.key}>{String(row[col.key] ?? '')}</TableCell>
+                  ))}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       )}
     </div>
   );

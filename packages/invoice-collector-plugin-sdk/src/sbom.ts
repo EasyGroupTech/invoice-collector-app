@@ -34,13 +34,15 @@ export interface MitCompatibilityResult {
 }
 
 /**
- * §13's original permissive set, plus three verified as genuinely permissive and low-risk on
+ * §13's original permissive set, plus four verified as genuinely permissive and low-risk on
  * review (not blanket-widened): BlueOak-1.0.0 (a modern permissive license, at least as
  * permissive as MIT, increasingly common in core npm/Node tooling), CC0-1.0 (a public-domain
- * dedication — stronger than permissive, no attribution required at all), and Python-2.0 (the
+ * dedication — stronger than permissive, no attribution required at all), Python-2.0 (the
  * Python Software Foundation's own BSD-style license — FSF lists it as GPL-compatible, a
- * stronger bar than this). Each was a real finding from actually running this check, not added
- * speculatively.
+ * stronger bar than this), and 0BSD (the "zero-clause" BSD variant — OSI-approved, drops even
+ * BSD-2-Clause's attribution requirement, found via `tslib`, a transitive dependency of the
+ * Radix UI primitives phase 1.12's design-system port added). Each was a real finding from
+ * actually running this check, not added speculatively.
  */
 export const MIT_COMPATIBLE_LICENSE_IDS = new Set([
   'MIT',
@@ -51,6 +53,7 @@ export const MIT_COMPATIBLE_LICENSE_IDS = new Set([
   'BlueOak-1.0.0',
   'CC0-1.0',
   'Python-2.0',
+  '0BSD',
 ]);
 
 /**

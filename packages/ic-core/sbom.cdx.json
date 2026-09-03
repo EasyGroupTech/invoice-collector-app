@@ -3,9 +3,9 @@
   "bomFormat": "CycloneDX",
   "specVersion": "1.6",
   "version": 1,
-  "serialNumber": "urn:uuid:4325e231-65b0-4a2c-8efc-f44b08067731",
+  "serialNumber": "urn:uuid:c1634a6c-50f9-4cec-9633-d443a45ca485",
   "metadata": {
-    "timestamp": "2026-09-03T18:17:39.489Z",
+    "timestamp": "2026-09-03T19:03:22.677Z",
     "tools": {
       "components": [
         {
@@ -155,6 +155,452 @@
     },
     {
       "type": "library",
+      "name": "react-checkbox",
+      "group": "@radix-ui",
+      "version": "1.3.11",
+      "bom-ref": "invoice-collector-app@0.0.0|@radix-ui/react-checkbox@1.3.11",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/%40radix-ui/react-checkbox@1.3.11",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/radix-ui/primitives.git#packages/react/checkbox",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\" and \"repository.directory\""
+        },
+        {
+          "url": "https://radix-ui.com/primitives",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/radix-ui/primitives/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        },
+        {
+          "url": "https://registry.npmjs.org/@radix-ui/react-checkbox/-/react-checkbox-1.3.11.tgz",
+          "type": "distribution",
+          "comment": "as detected from npm-ls property \"resolved\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@radix-ui/react-checkbox"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "react-dialog",
+      "group": "@radix-ui",
+      "version": "1.1.23",
+      "bom-ref": "invoice-collector-app@0.0.0|@radix-ui/react-dialog@1.1.23",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/%40radix-ui/react-dialog@1.1.23",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/radix-ui/primitives.git#packages/react/dialog",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\" and \"repository.directory\""
+        },
+        {
+          "url": "https://radix-ui.com/primitives",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/radix-ui/primitives/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        },
+        {
+          "url": "https://registry.npmjs.org/@radix-ui/react-dialog/-/react-dialog-1.1.23.tgz",
+          "type": "distribution",
+          "comment": "as detected from npm-ls property \"resolved\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@radix-ui/react-dialog"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "react-label",
+      "group": "@radix-ui",
+      "version": "2.1.15",
+      "bom-ref": "invoice-collector-app@0.0.0|@radix-ui/react-label@2.1.15",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/%40radix-ui/react-label@2.1.15",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/radix-ui/primitives.git#packages/react/label",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\" and \"repository.directory\""
+        },
+        {
+          "url": "https://radix-ui.com/primitives",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/radix-ui/primitives/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        },
+        {
+          "url": "https://registry.npmjs.org/@radix-ui/react-label/-/react-label-2.1.15.tgz",
+          "type": "distribution",
+          "comment": "as detected from npm-ls property \"resolved\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@radix-ui/react-label"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "react-scroll-area",
+      "group": "@radix-ui",
+      "version": "1.2.18",
+      "bom-ref": "invoice-collector-app@0.0.0|@radix-ui/react-scroll-area@1.2.18",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/%40radix-ui/react-scroll-area@1.2.18",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/radix-ui/primitives.git#packages/react/scroll-area",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\" and \"repository.directory\""
+        },
+        {
+          "url": "https://radix-ui.com/primitives",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/radix-ui/primitives/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        },
+        {
+          "url": "https://registry.npmjs.org/@radix-ui/react-scroll-area/-/react-scroll-area-1.2.18.tgz",
+          "type": "distribution",
+          "comment": "as detected from npm-ls property \"resolved\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@radix-ui/react-scroll-area"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "react-select",
+      "group": "@radix-ui",
+      "version": "2.3.7",
+      "bom-ref": "invoice-collector-app@0.0.0|@radix-ui/react-select@2.3.7",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/%40radix-ui/react-select@2.3.7",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/radix-ui/primitives.git#packages/react/select",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\" and \"repository.directory\""
+        },
+        {
+          "url": "https://radix-ui.com/primitives",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/radix-ui/primitives/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        },
+        {
+          "url": "https://registry.npmjs.org/@radix-ui/react-select/-/react-select-2.3.7.tgz",
+          "type": "distribution",
+          "comment": "as detected from npm-ls property \"resolved\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@radix-ui/react-select"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "react-separator",
+      "group": "@radix-ui",
+      "version": "1.1.15",
+      "bom-ref": "invoice-collector-app@0.0.0|@radix-ui/react-separator@1.1.15",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/%40radix-ui/react-separator@1.1.15",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/radix-ui/primitives.git#packages/react/separator",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\" and \"repository.directory\""
+        },
+        {
+          "url": "https://radix-ui.com/primitives",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/radix-ui/primitives/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        },
+        {
+          "url": "https://registry.npmjs.org/@radix-ui/react-separator/-/react-separator-1.1.15.tgz",
+          "type": "distribution",
+          "comment": "as detected from npm-ls property \"resolved\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@radix-ui/react-separator"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "react-slot",
+      "group": "@radix-ui",
+      "version": "1.3.3",
+      "bom-ref": "invoice-collector-app@0.0.0|@radix-ui/react-slot@1.3.3",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/%40radix-ui/react-slot@1.3.3",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/radix-ui/primitives.git#packages/react/slot",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\" and \"repository.directory\""
+        },
+        {
+          "url": "https://radix-ui.com/primitives",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/radix-ui/primitives/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        },
+        {
+          "url": "https://registry.npmjs.org/@radix-ui/react-slot/-/react-slot-1.3.3.tgz",
+          "type": "distribution",
+          "comment": "as detected from npm-ls property \"resolved\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@radix-ui/react-slot"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "react-tabs",
+      "group": "@radix-ui",
+      "version": "1.1.21",
+      "bom-ref": "invoice-collector-app@0.0.0|@radix-ui/react-tabs@1.1.21",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/%40radix-ui/react-tabs@1.1.21",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/radix-ui/primitives.git#packages/react/tabs",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\" and \"repository.directory\""
+        },
+        {
+          "url": "https://radix-ui.com/primitives",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/radix-ui/primitives/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        },
+        {
+          "url": "https://registry.npmjs.org/@radix-ui/react-tabs/-/react-tabs-1.1.21.tgz",
+          "type": "distribution",
+          "comment": "as detected from npm-ls property \"resolved\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@radix-ui/react-tabs"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "class-variance-authority",
+      "version": "0.7.1",
+      "bom-ref": "invoice-collector-app@0.0.0|class-variance-authority@0.7.1",
+      "author": "Joe Bell",
+      "description": "Class Variance Authority 🧬",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/class-variance-authority@0.7.1",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/joe-bell/cva.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://github.com/joe-bell/cva#readme",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/joe-bell/cva/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        },
+        {
+          "url": "https://registry.npmjs.org/class-variance-authority/-/class-variance-authority-0.7.1.tgz",
+          "type": "distribution",
+          "comment": "as detected from npm-ls property \"resolved\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/class-variance-authority"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "clsx",
+      "version": "2.1.1",
+      "bom-ref": "invoice-collector-app@0.0.0|clsx@2.1.1",
+      "author": "Luke Edwards",
+      "description": "A tiny (239B) utility for constructing className strings conditionally.",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/clsx@2.1.1",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/lukeed/clsx.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://github.com/lukeed/clsx#readme",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/lukeed/clsx/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        },
+        {
+          "url": "https://registry.npmjs.org/clsx/-/clsx-2.1.1.tgz",
+          "type": "distribution",
+          "comment": "as detected from npm-ls property \"resolved\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:constraint:engine:node",
+          "value": ">=6"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/clsx"
+        }
+      ]
+    },
+    {
+      "type": "library",
       "name": "fflate",
       "version": "0.8.3",
       "bom-ref": "invoice-collector-app@0.0.0|fflate@0.8.3",
@@ -221,6 +667,51 @@
         {
           "name": "cdx:npm:package:path",
           "value": "node_modules/invoice-collector-plugin-sdk"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "lucide-react",
+      "version": "1.40.0",
+      "bom-ref": "invoice-collector-app@0.0.0|lucide-react@1.40.0",
+      "author": "Eric Fennis",
+      "description": "A Lucide icon library package for React applications.",
+      "licenses": [
+        {
+          "license": {
+            "id": "ISC",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/lucide-react@1.40.0",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/lucide-icons/lucide.git#packages/lucide-react",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\" and \"repository.directory\""
+        },
+        {
+          "url": "https://lucide.dev",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/lucide-icons/lucide/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        },
+        {
+          "url": "https://registry.npmjs.org/lucide-react/-/lucide-react-1.40.0.tgz",
+          "type": "distribution",
+          "comment": "as detected from npm-ls property \"resolved\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/lucide-react"
         }
       ]
     },
@@ -411,6 +902,1208 @@
         {
           "name": "cdx:npm:package:path",
           "value": "packages/ic-core/node_modules/sigstore"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "sonner",
+      "version": "2.0.8",
+      "bom-ref": "invoice-collector-app@0.0.0|sonner@2.0.8",
+      "author": "Emil Kowalski",
+      "description": "An opinionated toast component for React.",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/sonner@2.0.8",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/emilkowalski/sonner.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://sonner.emilkowal.ski/",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/emilkowalski/sonner/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        },
+        {
+          "url": "https://registry.npmjs.org/sonner/-/sonner-2.0.8.tgz",
+          "type": "distribution",
+          "comment": "as detected from npm-ls property \"resolved\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/sonner"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "tailwind-merge",
+      "version": "3.6.0",
+      "bom-ref": "invoice-collector-app@0.0.0|tailwind-merge@3.6.0",
+      "author": "Dany Castillo",
+      "description": "Merge Tailwind CSS classes without style conflicts",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/tailwind-merge@3.6.0",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/dcastil/tailwind-merge.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://github.com/dcastil/tailwind-merge",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/dcastil/tailwind-merge/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        },
+        {
+          "url": "https://registry.npmjs.org/tailwind-merge/-/tailwind-merge-3.6.0.tgz",
+          "type": "distribution",
+          "comment": "as detected from npm-ls property \"resolved\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/tailwind-merge"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "primitive",
+      "group": "@radix-ui",
+      "version": "1.1.7",
+      "bom-ref": "invoice-collector-app@0.0.0|@radix-ui/primitive@1.1.7",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/%40radix-ui/primitive@1.1.7",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/radix-ui/primitives.git#packages/core/primitive",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\" and \"repository.directory\""
+        },
+        {
+          "url": "https://radix-ui.com/primitives",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/radix-ui/primitives/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        },
+        {
+          "url": "https://registry.npmjs.org/@radix-ui/primitive/-/primitive-1.1.7.tgz",
+          "type": "distribution",
+          "comment": "as detected from npm-ls property \"resolved\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@radix-ui/primitive"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "react-compose-refs",
+      "group": "@radix-ui",
+      "version": "1.1.5",
+      "bom-ref": "invoice-collector-app@0.0.0|@radix-ui/react-compose-refs@1.1.5",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/%40radix-ui/react-compose-refs@1.1.5",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/radix-ui/primitives.git#packages/react/compose-refs",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\" and \"repository.directory\""
+        },
+        {
+          "url": "https://radix-ui.com/primitives",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/radix-ui/primitives/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        },
+        {
+          "url": "https://registry.npmjs.org/@radix-ui/react-compose-refs/-/react-compose-refs-1.1.5.tgz",
+          "type": "distribution",
+          "comment": "as detected from npm-ls property \"resolved\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@radix-ui/react-compose-refs"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "react-context",
+      "group": "@radix-ui",
+      "version": "1.2.2",
+      "bom-ref": "invoice-collector-app@0.0.0|@radix-ui/react-context@1.2.2",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/%40radix-ui/react-context@1.2.2",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/radix-ui/primitives.git#packages/react/context",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\" and \"repository.directory\""
+        },
+        {
+          "url": "https://radix-ui.com/primitives",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/radix-ui/primitives/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        },
+        {
+          "url": "https://registry.npmjs.org/@radix-ui/react-context/-/react-context-1.2.2.tgz",
+          "type": "distribution",
+          "comment": "as detected from npm-ls property \"resolved\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@radix-ui/react-context"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "react-presence",
+      "group": "@radix-ui",
+      "version": "1.1.10",
+      "bom-ref": "invoice-collector-app@0.0.0|@radix-ui/react-presence@1.1.10",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/%40radix-ui/react-presence@1.1.10",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/radix-ui/primitives.git#packages/react/presence",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\" and \"repository.directory\""
+        },
+        {
+          "url": "https://radix-ui.com/primitives",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/radix-ui/primitives/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        },
+        {
+          "url": "https://registry.npmjs.org/@radix-ui/react-presence/-/react-presence-1.1.10.tgz",
+          "type": "distribution",
+          "comment": "as detected from npm-ls property \"resolved\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@radix-ui/react-presence"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "react-primitive",
+      "group": "@radix-ui",
+      "version": "2.1.10",
+      "bom-ref": "invoice-collector-app@0.0.0|@radix-ui/react-primitive@2.1.10",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/%40radix-ui/react-primitive@2.1.10",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/radix-ui/primitives.git#packages/react/primitive",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\" and \"repository.directory\""
+        },
+        {
+          "url": "https://radix-ui.com/primitives",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/radix-ui/primitives/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        },
+        {
+          "url": "https://registry.npmjs.org/@radix-ui/react-primitive/-/react-primitive-2.1.10.tgz",
+          "type": "distribution",
+          "comment": "as detected from npm-ls property \"resolved\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@radix-ui/react-primitive"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "react-use-controllable-state",
+      "group": "@radix-ui",
+      "version": "1.2.6",
+      "bom-ref": "invoice-collector-app@0.0.0|@radix-ui/react-use-controllable-state@1.2.6",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/%40radix-ui/react-use-controllable-state@1.2.6",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/radix-ui/primitives.git#packages/react/use-controllable-state",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\" and \"repository.directory\""
+        },
+        {
+          "url": "https://radix-ui.com/primitives",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/radix-ui/primitives/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        },
+        {
+          "url": "https://registry.npmjs.org/@radix-ui/react-use-controllable-state/-/react-use-controllable-state-1.2.6.tgz",
+          "type": "distribution",
+          "comment": "as detected from npm-ls property \"resolved\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@radix-ui/react-use-controllable-state"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "react-use-size",
+      "group": "@radix-ui",
+      "version": "1.1.4",
+      "bom-ref": "invoice-collector-app@0.0.0|@radix-ui/react-use-size@1.1.4",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/%40radix-ui/react-use-size@1.1.4",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/radix-ui/primitives.git#packages/react/use-size",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\" and \"repository.directory\""
+        },
+        {
+          "url": "https://radix-ui.com/primitives",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/radix-ui/primitives/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        },
+        {
+          "url": "https://registry.npmjs.org/@radix-ui/react-use-size/-/react-use-size-1.1.4.tgz",
+          "type": "distribution",
+          "comment": "as detected from npm-ls property \"resolved\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@radix-ui/react-use-size"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "react-dom",
+      "group": "@types",
+      "version": "19.2.7",
+      "bom-ref": "invoice-collector-app@0.0.0|@types/react-dom@19.2.7",
+      "description": "TypeScript definitions for react-dom",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/%40types/react-dom@19.2.7",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/DefinitelyTyped/DefinitelyTyped.git#types/react-dom",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\" and \"repository.directory\""
+        },
+        {
+          "url": "https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react-dom",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/DefinitelyTyped/DefinitelyTyped/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        },
+        {
+          "url": "https://registry.npmjs.org/@types/react-dom/-/react-dom-19.2.7.tgz",
+          "type": "distribution",
+          "comment": "as detected from npm-ls property \"resolved\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@types/react-dom"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "react",
+      "group": "@types",
+      "version": "19.2.18",
+      "bom-ref": "invoice-collector-app@0.0.0|@types/react@19.2.18",
+      "description": "TypeScript definitions for react",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/%40types/react@19.2.18",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/DefinitelyTyped/DefinitelyTyped.git#types/react",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\" and \"repository.directory\""
+        },
+        {
+          "url": "https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/DefinitelyTyped/DefinitelyTyped/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        },
+        {
+          "url": "https://registry.npmjs.org/@types/react/-/react-19.2.18.tgz",
+          "type": "distribution",
+          "comment": "as detected from npm-ls property \"resolved\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@types/react"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "react-dismissable-layer",
+      "group": "@radix-ui",
+      "version": "1.1.19",
+      "bom-ref": "invoice-collector-app@0.0.0|@radix-ui/react-dismissable-layer@1.1.19",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/%40radix-ui/react-dismissable-layer@1.1.19",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/radix-ui/primitives.git#packages/react/dismissable-layer",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\" and \"repository.directory\""
+        },
+        {
+          "url": "https://radix-ui.com/primitives",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/radix-ui/primitives/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        },
+        {
+          "url": "https://registry.npmjs.org/@radix-ui/react-dismissable-layer/-/react-dismissable-layer-1.1.19.tgz",
+          "type": "distribution",
+          "comment": "as detected from npm-ls property \"resolved\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@radix-ui/react-dismissable-layer"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "react-focus-guards",
+      "group": "@radix-ui",
+      "version": "1.1.6",
+      "bom-ref": "invoice-collector-app@0.0.0|@radix-ui/react-focus-guards@1.1.6",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/%40radix-ui/react-focus-guards@1.1.6",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/radix-ui/primitives.git#packages/react/focus-guards",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\" and \"repository.directory\""
+        },
+        {
+          "url": "https://radix-ui.com/primitives",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/radix-ui/primitives/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        },
+        {
+          "url": "https://registry.npmjs.org/@radix-ui/react-focus-guards/-/react-focus-guards-1.1.6.tgz",
+          "type": "distribution",
+          "comment": "as detected from npm-ls property \"resolved\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@radix-ui/react-focus-guards"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "react-focus-scope",
+      "group": "@radix-ui",
+      "version": "1.1.16",
+      "bom-ref": "invoice-collector-app@0.0.0|@radix-ui/react-focus-scope@1.1.16",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/%40radix-ui/react-focus-scope@1.1.16",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/radix-ui/primitives.git#packages/react/focus-scope",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\" and \"repository.directory\""
+        },
+        {
+          "url": "https://radix-ui.com/primitives",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/radix-ui/primitives/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        },
+        {
+          "url": "https://registry.npmjs.org/@radix-ui/react-focus-scope/-/react-focus-scope-1.1.16.tgz",
+          "type": "distribution",
+          "comment": "as detected from npm-ls property \"resolved\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@radix-ui/react-focus-scope"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "react-id",
+      "group": "@radix-ui",
+      "version": "1.1.4",
+      "bom-ref": "invoice-collector-app@0.0.0|@radix-ui/react-id@1.1.4",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/%40radix-ui/react-id@1.1.4",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/radix-ui/primitives.git#packages/react/id",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\" and \"repository.directory\""
+        },
+        {
+          "url": "https://radix-ui.com/primitives",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/radix-ui/primitives/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        },
+        {
+          "url": "https://registry.npmjs.org/@radix-ui/react-id/-/react-id-1.1.4.tgz",
+          "type": "distribution",
+          "comment": "as detected from npm-ls property \"resolved\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@radix-ui/react-id"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "react-portal",
+      "group": "@radix-ui",
+      "version": "1.1.17",
+      "bom-ref": "invoice-collector-app@0.0.0|@radix-ui/react-portal@1.1.17",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/%40radix-ui/react-portal@1.1.17",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/radix-ui/primitives.git#packages/react/portal",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\" and \"repository.directory\""
+        },
+        {
+          "url": "https://radix-ui.com/primitives",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/radix-ui/primitives/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        },
+        {
+          "url": "https://registry.npmjs.org/@radix-ui/react-portal/-/react-portal-1.1.17.tgz",
+          "type": "distribution",
+          "comment": "as detected from npm-ls property \"resolved\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@radix-ui/react-portal"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "react-use-layout-effect",
+      "group": "@radix-ui",
+      "version": "1.1.4",
+      "bom-ref": "invoice-collector-app@0.0.0|@radix-ui/react-use-layout-effect@1.1.4",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/%40radix-ui/react-use-layout-effect@1.1.4",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/radix-ui/primitives.git#packages/react/use-layout-effect",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\" and \"repository.directory\""
+        },
+        {
+          "url": "https://radix-ui.com/primitives",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/radix-ui/primitives/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        },
+        {
+          "url": "https://registry.npmjs.org/@radix-ui/react-use-layout-effect/-/react-use-layout-effect-1.1.4.tgz",
+          "type": "distribution",
+          "comment": "as detected from npm-ls property \"resolved\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@radix-ui/react-use-layout-effect"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "aria-hidden",
+      "version": "1.2.6",
+      "bom-ref": "invoice-collector-app@0.0.0|aria-hidden@1.2.6",
+      "author": "Anton Korzunov",
+      "description": "Cast aria-hidden to everything, except...",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/aria-hidden@1.2.6",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/theKashey/aria-hidden.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://github.com/theKashey/aria-hidden#readme",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/theKashey/aria-hidden/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        },
+        {
+          "url": "https://registry.npmjs.org/aria-hidden/-/aria-hidden-1.2.6.tgz",
+          "type": "distribution",
+          "comment": "as detected from npm-ls property \"resolved\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:constraint:engine:node",
+          "value": ">=10"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/aria-hidden"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "react-remove-scroll",
+      "version": "2.7.2",
+      "bom-ref": "invoice-collector-app@0.0.0|react-remove-scroll@2.7.2",
+      "author": "Anton Korzunov",
+      "description": "Disables scroll outside of `children` node.",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/react-remove-scroll@2.7.2",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/theKashey/react-remove-scroll.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://github.com/theKashey/react-remove-scroll#readme",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/theKashey/react-remove-scroll/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        },
+        {
+          "url": "https://registry.npmjs.org/react-remove-scroll/-/react-remove-scroll-2.7.2.tgz",
+          "type": "distribution",
+          "comment": "as detected from npm-ls property \"resolved\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:constraint:engine:node",
+          "value": ">=10"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/react-remove-scroll"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "number",
+      "group": "@radix-ui",
+      "version": "1.1.3",
+      "bom-ref": "invoice-collector-app@0.0.0|@radix-ui/number@1.1.3",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/%40radix-ui/number@1.1.3",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/radix-ui/primitives.git#packages/core/number",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\" and \"repository.directory\""
+        },
+        {
+          "url": "https://radix-ui.com/primitives",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/radix-ui/primitives/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        },
+        {
+          "url": "https://registry.npmjs.org/@radix-ui/number/-/number-1.1.3.tgz",
+          "type": "distribution",
+          "comment": "as detected from npm-ls property \"resolved\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@radix-ui/number"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "react-direction",
+      "group": "@radix-ui",
+      "version": "1.1.4",
+      "bom-ref": "invoice-collector-app@0.0.0|@radix-ui/react-direction@1.1.4",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/%40radix-ui/react-direction@1.1.4",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/radix-ui/primitives.git#packages/react/direction",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\" and \"repository.directory\""
+        },
+        {
+          "url": "https://radix-ui.com/primitives",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/radix-ui/primitives/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        },
+        {
+          "url": "https://registry.npmjs.org/@radix-ui/react-direction/-/react-direction-1.1.4.tgz",
+          "type": "distribution",
+          "comment": "as detected from npm-ls property \"resolved\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@radix-ui/react-direction"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "react-use-callback-ref",
+      "group": "@radix-ui",
+      "version": "1.1.4",
+      "bom-ref": "invoice-collector-app@0.0.0|@radix-ui/react-use-callback-ref@1.1.4",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/%40radix-ui/react-use-callback-ref@1.1.4",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/radix-ui/primitives.git#packages/react/use-callback-ref",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\" and \"repository.directory\""
+        },
+        {
+          "url": "https://radix-ui.com/primitives",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/radix-ui/primitives/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        },
+        {
+          "url": "https://registry.npmjs.org/@radix-ui/react-use-callback-ref/-/react-use-callback-ref-1.1.4.tgz",
+          "type": "distribution",
+          "comment": "as detected from npm-ls property \"resolved\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@radix-ui/react-use-callback-ref"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "react-collection",
+      "group": "@radix-ui",
+      "version": "1.1.15",
+      "bom-ref": "invoice-collector-app@0.0.0|@radix-ui/react-collection@1.1.15",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/%40radix-ui/react-collection@1.1.15",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/radix-ui/primitives.git#packages/react/collection",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\" and \"repository.directory\""
+        },
+        {
+          "url": "https://radix-ui.com/primitives",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/radix-ui/primitives/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        },
+        {
+          "url": "https://registry.npmjs.org/@radix-ui/react-collection/-/react-collection-1.1.15.tgz",
+          "type": "distribution",
+          "comment": "as detected from npm-ls property \"resolved\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@radix-ui/react-collection"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "react-popper",
+      "group": "@radix-ui",
+      "version": "1.3.7",
+      "bom-ref": "invoice-collector-app@0.0.0|@radix-ui/react-popper@1.3.7",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/%40radix-ui/react-popper@1.3.7",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/radix-ui/primitives.git#packages/react/popper",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\" and \"repository.directory\""
+        },
+        {
+          "url": "https://radix-ui.com/primitives",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/radix-ui/primitives/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        },
+        {
+          "url": "https://registry.npmjs.org/@radix-ui/react-popper/-/react-popper-1.3.7.tgz",
+          "type": "distribution",
+          "comment": "as detected from npm-ls property \"resolved\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@radix-ui/react-popper"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "react-use-previous",
+      "group": "@radix-ui",
+      "version": "1.1.4",
+      "bom-ref": "invoice-collector-app@0.0.0|@radix-ui/react-use-previous@1.1.4",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/%40radix-ui/react-use-previous@1.1.4",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/radix-ui/primitives.git#packages/react/use-previous",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\" and \"repository.directory\""
+        },
+        {
+          "url": "https://radix-ui.com/primitives",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/radix-ui/primitives/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        },
+        {
+          "url": "https://registry.npmjs.org/@radix-ui/react-use-previous/-/react-use-previous-1.1.4.tgz",
+          "type": "distribution",
+          "comment": "as detected from npm-ls property \"resolved\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@radix-ui/react-use-previous"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "react-visually-hidden",
+      "group": "@radix-ui",
+      "version": "1.2.11",
+      "bom-ref": "invoice-collector-app@0.0.0|@radix-ui/react-visually-hidden@1.2.11",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/%40radix-ui/react-visually-hidden@1.2.11",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/radix-ui/primitives.git#packages/react/visually-hidden",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\" and \"repository.directory\""
+        },
+        {
+          "url": "https://radix-ui.com/primitives",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/radix-ui/primitives/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        },
+        {
+          "url": "https://registry.npmjs.org/@radix-ui/react-visually-hidden/-/react-visually-hidden-1.2.11.tgz",
+          "type": "distribution",
+          "comment": "as detected from npm-ls property \"resolved\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@radix-ui/react-visually-hidden"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "react-roving-focus",
+      "group": "@radix-ui",
+      "version": "1.1.19",
+      "bom-ref": "invoice-collector-app@0.0.0|@radix-ui/react-roving-focus@1.1.19",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/%40radix-ui/react-roving-focus@1.1.19",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/radix-ui/primitives.git#packages/react/roving-focus",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\" and \"repository.directory\""
+        },
+        {
+          "url": "https://radix-ui.com/primitives",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/radix-ui/primitives/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        },
+        {
+          "url": "https://registry.npmjs.org/@radix-ui/react-roving-focus/-/react-roving-focus-1.1.19.tgz",
+          "type": "distribution",
+          "comment": "as detected from npm-ls property \"resolved\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@radix-ui/react-roving-focus"
         }
       ]
     },
@@ -760,6 +2453,558 @@
     },
     {
       "type": "library",
+      "name": "react-use-effect-event",
+      "group": "@radix-ui",
+      "version": "0.0.5",
+      "bom-ref": "invoice-collector-app@0.0.0|@radix-ui/react-use-effect-event@0.0.5",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/%40radix-ui/react-use-effect-event@0.0.5",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/radix-ui/primitives.git#packages/react/use-effect-event",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\" and \"repository.directory\""
+        },
+        {
+          "url": "https://radix-ui.com/primitives",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/radix-ui/primitives/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        },
+        {
+          "url": "https://registry.npmjs.org/@radix-ui/react-use-effect-event/-/react-use-effect-event-0.0.5.tgz",
+          "type": "distribution",
+          "comment": "as detected from npm-ls property \"resolved\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@radix-ui/react-use-effect-event"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "csstype",
+      "version": "3.2.3",
+      "bom-ref": "invoice-collector-app@0.0.0|csstype@3.2.3",
+      "author": "Fredrik Nicol",
+      "description": "Strict TypeScript and Flow types for style based on MDN data",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/csstype@3.2.3",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/frenic/csstype.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://github.com/frenic/csstype#readme",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/frenic/csstype/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        },
+        {
+          "url": "https://registry.npmjs.org/csstype/-/csstype-3.2.3.tgz",
+          "type": "distribution",
+          "comment": "as detected from npm-ls property \"resolved\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/csstype"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "tslib",
+      "version": "2.8.1",
+      "bom-ref": "invoice-collector-app@0.0.0|tslib@2.8.1",
+      "author": "Microsoft Corp.",
+      "description": "Runtime library for TypeScript helper functions",
+      "licenses": [
+        {
+          "license": {
+            "id": "0BSD",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/tslib@2.8.1",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/Microsoft/tslib.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://www.typescriptlang.org/",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/Microsoft/TypeScript/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        },
+        {
+          "url": "https://registry.npmjs.org/tslib/-/tslib-2.8.1.tgz",
+          "type": "distribution",
+          "comment": "as detected from npm-ls property \"resolved\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/tslib"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "react-remove-scroll-bar",
+      "version": "2.3.8",
+      "bom-ref": "invoice-collector-app@0.0.0|react-remove-scroll-bar@2.3.8",
+      "author": "Anton Korzunov",
+      "description": "Removes body scroll without content _shake_",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/react-remove-scroll-bar@2.3.8",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/theKashey/react-remove-scroll-bar.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://github.com/theKashey/react-remove-scroll-bar#readme",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/theKashey/react-remove-scroll-bar/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        },
+        {
+          "url": "https://registry.npmjs.org/react-remove-scroll-bar/-/react-remove-scroll-bar-2.3.8.tgz",
+          "type": "distribution",
+          "comment": "as detected from npm-ls property \"resolved\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:constraint:engine:node",
+          "value": ">=10"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/react-remove-scroll-bar"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "react-style-singleton",
+      "version": "2.2.3",
+      "bom-ref": "invoice-collector-app@0.0.0|react-style-singleton@2.2.3",
+      "author": "Anton Korzunov",
+      "description": "Just create a single stylesheet...",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/react-style-singleton@2.2.3",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/theKashey/react-style-singleton.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://github.com/theKashey/react-style-singleton#readme",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/theKashey/react-style-singleton/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        },
+        {
+          "url": "https://registry.npmjs.org/react-style-singleton/-/react-style-singleton-2.2.3.tgz",
+          "type": "distribution",
+          "comment": "as detected from npm-ls property \"resolved\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:constraint:engine:node",
+          "value": ">=10"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/react-style-singleton"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "use-callback-ref",
+      "version": "1.3.3",
+      "bom-ref": "invoice-collector-app@0.0.0|use-callback-ref@1.3.3",
+      "author": "theKashey",
+      "description": "The same useRef, but with callback",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/use-callback-ref@1.3.3",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/theKashey/use-callback-ref.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://github.com/theKashey/use-callback-ref#readme",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/theKashey/use-callback-ref/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        },
+        {
+          "url": "https://registry.npmjs.org/use-callback-ref/-/use-callback-ref-1.3.3.tgz",
+          "type": "distribution",
+          "comment": "as detected from npm-ls property \"resolved\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:constraint:engine:node",
+          "value": ">=10"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/use-callback-ref"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "use-sidecar",
+      "version": "1.1.3",
+      "bom-ref": "invoice-collector-app@0.0.0|use-sidecar@1.1.3",
+      "author": "theKashey",
+      "description": "Sidecar code splitting utils",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/use-sidecar@1.1.3",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/theKashey/use-sidecar.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://github.com/theKashey/use-sidecar",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/theKashey/use-sidecar/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        },
+        {
+          "url": "https://registry.npmjs.org/use-sidecar/-/use-sidecar-1.1.3.tgz",
+          "type": "distribution",
+          "comment": "as detected from npm-ls property \"resolved\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:constraint:engine:node",
+          "value": ">=10"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/use-sidecar"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "react-dom",
+      "group": "@floating-ui",
+      "version": "2.1.9",
+      "bom-ref": "invoice-collector-app@0.0.0|@floating-ui/react-dom@2.1.9",
+      "author": "atomiks",
+      "description": "Floating UI for React DOM",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/%40floating-ui/react-dom@2.1.9",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/floating-ui/floating-ui.git#packages/react-dom",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\" and \"repository.directory\""
+        },
+        {
+          "url": "https://floating-ui.com/docs/react-dom",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/floating-ui/floating-ui",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        },
+        {
+          "url": "https://registry.npmjs.org/@floating-ui/react-dom/-/react-dom-2.1.9.tgz",
+          "type": "distribution",
+          "comment": "as detected from npm-ls property \"resolved\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@floating-ui/react-dom"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "react-arrow",
+      "group": "@radix-ui",
+      "version": "1.1.15",
+      "bom-ref": "invoice-collector-app@0.0.0|@radix-ui/react-arrow@1.1.15",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/%40radix-ui/react-arrow@1.1.15",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/radix-ui/primitives.git#packages/react/arrow",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\" and \"repository.directory\""
+        },
+        {
+          "url": "https://radix-ui.com/primitives",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/radix-ui/primitives/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        },
+        {
+          "url": "https://registry.npmjs.org/@radix-ui/react-arrow/-/react-arrow-1.1.15.tgz",
+          "type": "distribution",
+          "comment": "as detected from npm-ls property \"resolved\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@radix-ui/react-arrow"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "react-use-rect",
+      "group": "@radix-ui",
+      "version": "1.1.4",
+      "bom-ref": "invoice-collector-app@0.0.0|@radix-ui/react-use-rect@1.1.4",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/%40radix-ui/react-use-rect@1.1.4",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/radix-ui/primitives.git#packages/react/use-rect",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\" and \"repository.directory\""
+        },
+        {
+          "url": "https://radix-ui.com/primitives",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/radix-ui/primitives/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        },
+        {
+          "url": "https://registry.npmjs.org/@radix-ui/react-use-rect/-/react-use-rect-1.1.4.tgz",
+          "type": "distribution",
+          "comment": "as detected from npm-ls property \"resolved\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@radix-ui/react-use-rect"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "rect",
+      "group": "@radix-ui",
+      "version": "1.1.3",
+      "bom-ref": "invoice-collector-app@0.0.0|@radix-ui/rect@1.1.3",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/%40radix-ui/rect@1.1.3",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/radix-ui/primitives.git#packages/core/rect",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\" and \"repository.directory\""
+        },
+        {
+          "url": "https://radix-ui.com/primitives",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/radix-ui/primitives/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        },
+        {
+          "url": "https://registry.npmjs.org/@radix-ui/rect/-/rect-1.1.3.tgz",
+          "type": "distribution",
+          "comment": "as detected from npm-ls property \"resolved\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@radix-ui/rect"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "react-use-is-hydrated",
+      "group": "@radix-ui",
+      "version": "0.1.3",
+      "bom-ref": "invoice-collector-app@0.0.0|@radix-ui/react-use-is-hydrated@0.1.3",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/%40radix-ui/react-use-is-hydrated@0.1.3",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/radix-ui/primitives.git#packages/react/use-is-hydrated",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\" and \"repository.directory\""
+        },
+        {
+          "url": "https://radix-ui.com/primitives",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/radix-ui/primitives/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        },
+        {
+          "url": "https://registry.npmjs.org/@radix-ui/react-use-is-hydrated/-/react-use-is-hydrated-0.1.3.tgz",
+          "type": "distribution",
+          "comment": "as detected from npm-ls property \"resolved\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@radix-ui/react-use-is-hydrated"
+        }
+      ]
+    },
+    {
+      "type": "library",
       "name": "promise-retry",
       "group": "@gar",
       "version": "1.0.3",
@@ -951,6 +3196,146 @@
         {
           "name": "cdx:npm:package:path",
           "value": "packages/ic-core/node_modules/tuf-js"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "get-nonce",
+      "version": "1.0.1",
+      "bom-ref": "invoice-collector-app@0.0.0|get-nonce@1.0.1",
+      "author": "Anton Korzunov",
+      "description": "returns nonce",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/get-nonce@1.0.1",
+      "externalReferences": [
+        {
+          "url": "git+ssh://git@github.com/theKashey/get-nonce.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://github.com/theKashey/get-nonce",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/theKashey/get-nonce/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        },
+        {
+          "url": "https://registry.npmjs.org/get-nonce/-/get-nonce-1.0.1.tgz",
+          "type": "distribution",
+          "comment": "as detected from npm-ls property \"resolved\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:constraint:engine:node",
+          "value": ">=6"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/get-nonce"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "detect-node-es",
+      "version": "1.1.0",
+      "bom-ref": "invoice-collector-app@0.0.0|detect-node-es@1.1.0",
+      "author": "Ilya Kantor",
+      "description": "Detect Node.JS (as opposite to browser environment). ESM modification",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/detect-node-es@1.1.0",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/thekashey/detect-node.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://github.com/thekashey/detect-node",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/thekashey/detect-node/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        },
+        {
+          "url": "https://registry.npmjs.org/detect-node-es/-/detect-node-es-1.1.0.tgz",
+          "type": "distribution",
+          "comment": "as detected from npm-ls property \"resolved\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/detect-node-es"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "dom",
+      "group": "@floating-ui",
+      "version": "1.8.0",
+      "bom-ref": "invoice-collector-app@0.0.0|@floating-ui/dom@1.8.0",
+      "author": "atomiks",
+      "description": "Floating UI for the web",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/%40floating-ui/dom@1.8.0",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/floating-ui/floating-ui.git#packages/dom",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\" and \"repository.directory\""
+        },
+        {
+          "url": "https://floating-ui.com",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/floating-ui/floating-ui",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        },
+        {
+          "url": "https://registry.npmjs.org/@floating-ui/dom/-/dom-1.8.0.tgz",
+          "type": "distribution",
+          "comment": "as detected from npm-ls property \"resolved\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@floating-ui/dom"
         }
       ]
     },
@@ -1714,6 +4099,98 @@
         {
           "name": "cdx:npm:package:path",
           "value": "node_modules/debug"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "core",
+      "group": "@floating-ui",
+      "version": "1.8.0",
+      "bom-ref": "invoice-collector-app@0.0.0|@floating-ui/core@1.8.0",
+      "author": "atomiks",
+      "description": "Positioning library for floating elements: tooltips, popovers, dropdowns, and more",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/%40floating-ui/core@1.8.0",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/floating-ui/floating-ui.git#packages/core",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\" and \"repository.directory\""
+        },
+        {
+          "url": "https://floating-ui.com",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/floating-ui/floating-ui",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        },
+        {
+          "url": "https://registry.npmjs.org/@floating-ui/core/-/core-1.8.0.tgz",
+          "type": "distribution",
+          "comment": "as detected from npm-ls property \"resolved\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@floating-ui/core"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "utils",
+      "group": "@floating-ui",
+      "version": "0.2.12",
+      "bom-ref": "invoice-collector-app@0.0.0|@floating-ui/utils@0.2.12",
+      "author": "atomiks",
+      "description": "Utilities for Floating UI",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/%40floating-ui/utils@0.2.12",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/floating-ui/floating-ui.git#packages/utils",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\" and \"repository.directory\""
+        },
+        {
+          "url": "https://floating-ui.com",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/floating-ui/floating-ui",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        },
+        {
+          "url": "https://registry.npmjs.org/@floating-ui/utils/-/utils-0.2.12.tgz",
+          "type": "distribution",
+          "comment": "as detected from npm-ls property \"resolved\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@floating-ui/utils"
         }
       ]
     },
@@ -2903,19 +5380,181 @@
     {
       "ref": "invoice-collector-app@0.0.0|ic-core@0.0.0",
       "dependsOn": [
+        "invoice-collector-app@0.0.0|@radix-ui/react-checkbox@1.3.11",
+        "invoice-collector-app@0.0.0|@radix-ui/react-dialog@1.1.23",
+        "invoice-collector-app@0.0.0|@radix-ui/react-label@2.1.15",
+        "invoice-collector-app@0.0.0|@radix-ui/react-scroll-area@1.2.18",
+        "invoice-collector-app@0.0.0|@radix-ui/react-select@2.3.7",
+        "invoice-collector-app@0.0.0|@radix-ui/react-separator@1.1.15",
+        "invoice-collector-app@0.0.0|@radix-ui/react-slot@1.3.3",
+        "invoice-collector-app@0.0.0|@radix-ui/react-tabs@1.1.21",
+        "invoice-collector-app@0.0.0|class-variance-authority@0.7.1",
+        "invoice-collector-app@0.0.0|clsx@2.1.1",
         "invoice-collector-app@0.0.0|fflate@0.8.3",
         "invoice-collector-app@0.0.0|invoice-collector-plugin-sdk@0.0.0",
+        "invoice-collector-app@0.0.0|lucide-react@1.40.0",
         "invoice-collector-app@0.0.0|react-dom@19.2.8",
         "invoice-collector-app@0.0.0|react@19.2.8",
         "invoice-collector-app@0.0.0|semver@7.8.5",
-        "invoice-collector-app@0.0.0|sigstore@4.1.1"
+        "invoice-collector-app@0.0.0|sigstore@4.1.1",
+        "invoice-collector-app@0.0.0|sonner@2.0.8",
+        "invoice-collector-app@0.0.0|tailwind-merge@3.6.0"
       ]
+    },
+    {
+      "ref": "invoice-collector-app@0.0.0|@radix-ui/react-checkbox@1.3.11",
+      "dependsOn": [
+        "invoice-collector-app@0.0.0|@radix-ui/primitive@1.1.7",
+        "invoice-collector-app@0.0.0|@radix-ui/react-compose-refs@1.1.5",
+        "invoice-collector-app@0.0.0|@radix-ui/react-context@1.2.2",
+        "invoice-collector-app@0.0.0|@radix-ui/react-presence@1.1.10",
+        "invoice-collector-app@0.0.0|@radix-ui/react-primitive@2.1.10",
+        "invoice-collector-app@0.0.0|@radix-ui/react-use-controllable-state@1.2.6",
+        "invoice-collector-app@0.0.0|@radix-ui/react-use-size@1.1.4",
+        "invoice-collector-app@0.0.0|@types/react-dom@19.2.7",
+        "invoice-collector-app@0.0.0|@types/react@19.2.18",
+        "invoice-collector-app@0.0.0|react-dom@19.2.8",
+        "invoice-collector-app@0.0.0|react@19.2.8"
+      ]
+    },
+    {
+      "ref": "invoice-collector-app@0.0.0|@radix-ui/react-dialog@1.1.23",
+      "dependsOn": [
+        "invoice-collector-app@0.0.0|@radix-ui/primitive@1.1.7",
+        "invoice-collector-app@0.0.0|@radix-ui/react-compose-refs@1.1.5",
+        "invoice-collector-app@0.0.0|@radix-ui/react-context@1.2.2",
+        "invoice-collector-app@0.0.0|@radix-ui/react-dismissable-layer@1.1.19",
+        "invoice-collector-app@0.0.0|@radix-ui/react-focus-guards@1.1.6",
+        "invoice-collector-app@0.0.0|@radix-ui/react-focus-scope@1.1.16",
+        "invoice-collector-app@0.0.0|@radix-ui/react-id@1.1.4",
+        "invoice-collector-app@0.0.0|@radix-ui/react-portal@1.1.17",
+        "invoice-collector-app@0.0.0|@radix-ui/react-presence@1.1.10",
+        "invoice-collector-app@0.0.0|@radix-ui/react-primitive@2.1.10",
+        "invoice-collector-app@0.0.0|@radix-ui/react-slot@1.3.3",
+        "invoice-collector-app@0.0.0|@radix-ui/react-use-controllable-state@1.2.6",
+        "invoice-collector-app@0.0.0|@radix-ui/react-use-layout-effect@1.1.4",
+        "invoice-collector-app@0.0.0|@types/react-dom@19.2.7",
+        "invoice-collector-app@0.0.0|@types/react@19.2.18",
+        "invoice-collector-app@0.0.0|aria-hidden@1.2.6",
+        "invoice-collector-app@0.0.0|react-dom@19.2.8",
+        "invoice-collector-app@0.0.0|react-remove-scroll@2.7.2",
+        "invoice-collector-app@0.0.0|react@19.2.8"
+      ]
+    },
+    {
+      "ref": "invoice-collector-app@0.0.0|@radix-ui/react-label@2.1.15",
+      "dependsOn": [
+        "invoice-collector-app@0.0.0|@radix-ui/react-primitive@2.1.10",
+        "invoice-collector-app@0.0.0|@types/react-dom@19.2.7",
+        "invoice-collector-app@0.0.0|@types/react@19.2.18",
+        "invoice-collector-app@0.0.0|react-dom@19.2.8",
+        "invoice-collector-app@0.0.0|react@19.2.8"
+      ]
+    },
+    {
+      "ref": "invoice-collector-app@0.0.0|@radix-ui/react-scroll-area@1.2.18",
+      "dependsOn": [
+        "invoice-collector-app@0.0.0|@radix-ui/number@1.1.3",
+        "invoice-collector-app@0.0.0|@radix-ui/primitive@1.1.7",
+        "invoice-collector-app@0.0.0|@radix-ui/react-compose-refs@1.1.5",
+        "invoice-collector-app@0.0.0|@radix-ui/react-context@1.2.2",
+        "invoice-collector-app@0.0.0|@radix-ui/react-direction@1.1.4",
+        "invoice-collector-app@0.0.0|@radix-ui/react-presence@1.1.10",
+        "invoice-collector-app@0.0.0|@radix-ui/react-primitive@2.1.10",
+        "invoice-collector-app@0.0.0|@radix-ui/react-use-callback-ref@1.1.4",
+        "invoice-collector-app@0.0.0|@radix-ui/react-use-layout-effect@1.1.4",
+        "invoice-collector-app@0.0.0|@types/react-dom@19.2.7",
+        "invoice-collector-app@0.0.0|@types/react@19.2.18",
+        "invoice-collector-app@0.0.0|react-dom@19.2.8",
+        "invoice-collector-app@0.0.0|react@19.2.8"
+      ]
+    },
+    {
+      "ref": "invoice-collector-app@0.0.0|@radix-ui/react-select@2.3.7",
+      "dependsOn": [
+        "invoice-collector-app@0.0.0|@radix-ui/number@1.1.3",
+        "invoice-collector-app@0.0.0|@radix-ui/primitive@1.1.7",
+        "invoice-collector-app@0.0.0|@radix-ui/react-collection@1.1.15",
+        "invoice-collector-app@0.0.0|@radix-ui/react-compose-refs@1.1.5",
+        "invoice-collector-app@0.0.0|@radix-ui/react-context@1.2.2",
+        "invoice-collector-app@0.0.0|@radix-ui/react-direction@1.1.4",
+        "invoice-collector-app@0.0.0|@radix-ui/react-dismissable-layer@1.1.19",
+        "invoice-collector-app@0.0.0|@radix-ui/react-focus-guards@1.1.6",
+        "invoice-collector-app@0.0.0|@radix-ui/react-focus-scope@1.1.16",
+        "invoice-collector-app@0.0.0|@radix-ui/react-id@1.1.4",
+        "invoice-collector-app@0.0.0|@radix-ui/react-popper@1.3.7",
+        "invoice-collector-app@0.0.0|@radix-ui/react-portal@1.1.17",
+        "invoice-collector-app@0.0.0|@radix-ui/react-presence@1.1.10",
+        "invoice-collector-app@0.0.0|@radix-ui/react-primitive@2.1.10",
+        "invoice-collector-app@0.0.0|@radix-ui/react-slot@1.3.3",
+        "invoice-collector-app@0.0.0|@radix-ui/react-use-callback-ref@1.1.4",
+        "invoice-collector-app@0.0.0|@radix-ui/react-use-controllable-state@1.2.6",
+        "invoice-collector-app@0.0.0|@radix-ui/react-use-layout-effect@1.1.4",
+        "invoice-collector-app@0.0.0|@radix-ui/react-use-previous@1.1.4",
+        "invoice-collector-app@0.0.0|@radix-ui/react-visually-hidden@1.2.11",
+        "invoice-collector-app@0.0.0|@types/react-dom@19.2.7",
+        "invoice-collector-app@0.0.0|@types/react@19.2.18",
+        "invoice-collector-app@0.0.0|aria-hidden@1.2.6",
+        "invoice-collector-app@0.0.0|react-dom@19.2.8",
+        "invoice-collector-app@0.0.0|react-remove-scroll@2.7.2",
+        "invoice-collector-app@0.0.0|react@19.2.8"
+      ]
+    },
+    {
+      "ref": "invoice-collector-app@0.0.0|@radix-ui/react-separator@1.1.15",
+      "dependsOn": [
+        "invoice-collector-app@0.0.0|@radix-ui/react-primitive@2.1.10",
+        "invoice-collector-app@0.0.0|@types/react-dom@19.2.7",
+        "invoice-collector-app@0.0.0|@types/react@19.2.18",
+        "invoice-collector-app@0.0.0|react-dom@19.2.8",
+        "invoice-collector-app@0.0.0|react@19.2.8"
+      ]
+    },
+    {
+      "ref": "invoice-collector-app@0.0.0|@radix-ui/react-slot@1.3.3",
+      "dependsOn": [
+        "invoice-collector-app@0.0.0|@radix-ui/react-compose-refs@1.1.5",
+        "invoice-collector-app@0.0.0|@types/react@19.2.18",
+        "invoice-collector-app@0.0.0|react@19.2.8"
+      ]
+    },
+    {
+      "ref": "invoice-collector-app@0.0.0|@radix-ui/react-tabs@1.1.21",
+      "dependsOn": [
+        "invoice-collector-app@0.0.0|@radix-ui/primitive@1.1.7",
+        "invoice-collector-app@0.0.0|@radix-ui/react-context@1.2.2",
+        "invoice-collector-app@0.0.0|@radix-ui/react-direction@1.1.4",
+        "invoice-collector-app@0.0.0|@radix-ui/react-id@1.1.4",
+        "invoice-collector-app@0.0.0|@radix-ui/react-presence@1.1.10",
+        "invoice-collector-app@0.0.0|@radix-ui/react-primitive@2.1.10",
+        "invoice-collector-app@0.0.0|@radix-ui/react-roving-focus@1.1.19",
+        "invoice-collector-app@0.0.0|@radix-ui/react-use-controllable-state@1.2.6",
+        "invoice-collector-app@0.0.0|@types/react-dom@19.2.7",
+        "invoice-collector-app@0.0.0|@types/react@19.2.18",
+        "invoice-collector-app@0.0.0|react-dom@19.2.8",
+        "invoice-collector-app@0.0.0|react@19.2.8"
+      ]
+    },
+    {
+      "ref": "invoice-collector-app@0.0.0|class-variance-authority@0.7.1",
+      "dependsOn": [
+        "invoice-collector-app@0.0.0|clsx@2.1.1"
+      ]
+    },
+    {
+      "ref": "invoice-collector-app@0.0.0|clsx@2.1.1"
     },
     {
       "ref": "invoice-collector-app@0.0.0|fflate@0.8.3"
     },
     {
       "ref": "invoice-collector-app@0.0.0|invoice-collector-plugin-sdk@0.0.0"
+    },
+    {
+      "ref": "invoice-collector-app@0.0.0|lucide-react@1.40.0",
+      "dependsOn": [
+        "invoice-collector-app@0.0.0|react@19.2.8"
+      ]
     },
     {
       "ref": "invoice-collector-app@0.0.0|react-dom@19.2.8",
@@ -2939,6 +5578,247 @@
         "invoice-collector-app@0.0.0|@sigstore/sign@4.1.1",
         "invoice-collector-app@0.0.0|@sigstore/tuf@4.0.2",
         "invoice-collector-app@0.0.0|@sigstore/verify@3.1.1"
+      ]
+    },
+    {
+      "ref": "invoice-collector-app@0.0.0|sonner@2.0.8",
+      "dependsOn": [
+        "invoice-collector-app@0.0.0|@types/react@19.2.18",
+        "invoice-collector-app@0.0.0|react-dom@19.2.8",
+        "invoice-collector-app@0.0.0|react@19.2.8"
+      ]
+    },
+    {
+      "ref": "invoice-collector-app@0.0.0|tailwind-merge@3.6.0"
+    },
+    {
+      "ref": "invoice-collector-app@0.0.0|@radix-ui/primitive@1.1.7"
+    },
+    {
+      "ref": "invoice-collector-app@0.0.0|@radix-ui/react-compose-refs@1.1.5",
+      "dependsOn": [
+        "invoice-collector-app@0.0.0|@types/react@19.2.18",
+        "invoice-collector-app@0.0.0|react@19.2.8"
+      ]
+    },
+    {
+      "ref": "invoice-collector-app@0.0.0|@radix-ui/react-context@1.2.2",
+      "dependsOn": [
+        "invoice-collector-app@0.0.0|@types/react@19.2.18",
+        "invoice-collector-app@0.0.0|react@19.2.8"
+      ]
+    },
+    {
+      "ref": "invoice-collector-app@0.0.0|@radix-ui/react-presence@1.1.10",
+      "dependsOn": [
+        "invoice-collector-app@0.0.0|@radix-ui/react-use-layout-effect@1.1.4",
+        "invoice-collector-app@0.0.0|@types/react-dom@19.2.7",
+        "invoice-collector-app@0.0.0|@types/react@19.2.18",
+        "invoice-collector-app@0.0.0|react-dom@19.2.8",
+        "invoice-collector-app@0.0.0|react@19.2.8"
+      ]
+    },
+    {
+      "ref": "invoice-collector-app@0.0.0|@radix-ui/react-primitive@2.1.10",
+      "dependsOn": [
+        "invoice-collector-app@0.0.0|@radix-ui/react-slot@1.3.3",
+        "invoice-collector-app@0.0.0|@types/react-dom@19.2.7",
+        "invoice-collector-app@0.0.0|@types/react@19.2.18",
+        "invoice-collector-app@0.0.0|react-dom@19.2.8",
+        "invoice-collector-app@0.0.0|react@19.2.8"
+      ]
+    },
+    {
+      "ref": "invoice-collector-app@0.0.0|@radix-ui/react-use-controllable-state@1.2.6",
+      "dependsOn": [
+        "invoice-collector-app@0.0.0|@radix-ui/primitive@1.1.7",
+        "invoice-collector-app@0.0.0|@radix-ui/react-use-effect-event@0.0.5",
+        "invoice-collector-app@0.0.0|@radix-ui/react-use-layout-effect@1.1.4",
+        "invoice-collector-app@0.0.0|@types/react@19.2.18",
+        "invoice-collector-app@0.0.0|react@19.2.8"
+      ]
+    },
+    {
+      "ref": "invoice-collector-app@0.0.0|@radix-ui/react-use-size@1.1.4",
+      "dependsOn": [
+        "invoice-collector-app@0.0.0|@radix-ui/react-use-layout-effect@1.1.4",
+        "invoice-collector-app@0.0.0|@types/react@19.2.18",
+        "invoice-collector-app@0.0.0|react@19.2.8"
+      ]
+    },
+    {
+      "ref": "invoice-collector-app@0.0.0|@types/react-dom@19.2.7",
+      "dependsOn": [
+        "invoice-collector-app@0.0.0|@types/react@19.2.18"
+      ]
+    },
+    {
+      "ref": "invoice-collector-app@0.0.0|@types/react@19.2.18",
+      "dependsOn": [
+        "invoice-collector-app@0.0.0|csstype@3.2.3"
+      ]
+    },
+    {
+      "ref": "invoice-collector-app@0.0.0|@radix-ui/react-dismissable-layer@1.1.19",
+      "dependsOn": [
+        "invoice-collector-app@0.0.0|@radix-ui/primitive@1.1.7",
+        "invoice-collector-app@0.0.0|@radix-ui/react-compose-refs@1.1.5",
+        "invoice-collector-app@0.0.0|@radix-ui/react-primitive@2.1.10",
+        "invoice-collector-app@0.0.0|@radix-ui/react-use-callback-ref@1.1.4",
+        "invoice-collector-app@0.0.0|@radix-ui/react-use-effect-event@0.0.5",
+        "invoice-collector-app@0.0.0|@types/react-dom@19.2.7",
+        "invoice-collector-app@0.0.0|@types/react@19.2.18",
+        "invoice-collector-app@0.0.0|react-dom@19.2.8",
+        "invoice-collector-app@0.0.0|react@19.2.8"
+      ]
+    },
+    {
+      "ref": "invoice-collector-app@0.0.0|@radix-ui/react-focus-guards@1.1.6",
+      "dependsOn": [
+        "invoice-collector-app@0.0.0|@types/react@19.2.18",
+        "invoice-collector-app@0.0.0|react@19.2.8"
+      ]
+    },
+    {
+      "ref": "invoice-collector-app@0.0.0|@radix-ui/react-focus-scope@1.1.16",
+      "dependsOn": [
+        "invoice-collector-app@0.0.0|@radix-ui/react-compose-refs@1.1.5",
+        "invoice-collector-app@0.0.0|@radix-ui/react-primitive@2.1.10",
+        "invoice-collector-app@0.0.0|@radix-ui/react-use-callback-ref@1.1.4",
+        "invoice-collector-app@0.0.0|@types/react-dom@19.2.7",
+        "invoice-collector-app@0.0.0|@types/react@19.2.18",
+        "invoice-collector-app@0.0.0|react-dom@19.2.8",
+        "invoice-collector-app@0.0.0|react@19.2.8"
+      ]
+    },
+    {
+      "ref": "invoice-collector-app@0.0.0|@radix-ui/react-id@1.1.4",
+      "dependsOn": [
+        "invoice-collector-app@0.0.0|@radix-ui/react-use-layout-effect@1.1.4",
+        "invoice-collector-app@0.0.0|@types/react@19.2.18",
+        "invoice-collector-app@0.0.0|react@19.2.8"
+      ]
+    },
+    {
+      "ref": "invoice-collector-app@0.0.0|@radix-ui/react-portal@1.1.17",
+      "dependsOn": [
+        "invoice-collector-app@0.0.0|@radix-ui/react-primitive@2.1.10",
+        "invoice-collector-app@0.0.0|@radix-ui/react-use-layout-effect@1.1.4",
+        "invoice-collector-app@0.0.0|@types/react-dom@19.2.7",
+        "invoice-collector-app@0.0.0|@types/react@19.2.18",
+        "invoice-collector-app@0.0.0|react-dom@19.2.8",
+        "invoice-collector-app@0.0.0|react@19.2.8"
+      ]
+    },
+    {
+      "ref": "invoice-collector-app@0.0.0|@radix-ui/react-use-layout-effect@1.1.4",
+      "dependsOn": [
+        "invoice-collector-app@0.0.0|@types/react@19.2.18",
+        "invoice-collector-app@0.0.0|react@19.2.8"
+      ]
+    },
+    {
+      "ref": "invoice-collector-app@0.0.0|aria-hidden@1.2.6",
+      "dependsOn": [
+        "invoice-collector-app@0.0.0|tslib@2.8.1"
+      ]
+    },
+    {
+      "ref": "invoice-collector-app@0.0.0|react-remove-scroll@2.7.2",
+      "dependsOn": [
+        "invoice-collector-app@0.0.0|@types/react@19.2.18",
+        "invoice-collector-app@0.0.0|react-remove-scroll-bar@2.3.8",
+        "invoice-collector-app@0.0.0|react-style-singleton@2.2.3",
+        "invoice-collector-app@0.0.0|react@19.2.8",
+        "invoice-collector-app@0.0.0|tslib@2.8.1",
+        "invoice-collector-app@0.0.0|use-callback-ref@1.3.3",
+        "invoice-collector-app@0.0.0|use-sidecar@1.1.3"
+      ]
+    },
+    {
+      "ref": "invoice-collector-app@0.0.0|@radix-ui/number@1.1.3"
+    },
+    {
+      "ref": "invoice-collector-app@0.0.0|@radix-ui/react-direction@1.1.4",
+      "dependsOn": [
+        "invoice-collector-app@0.0.0|@types/react@19.2.18",
+        "invoice-collector-app@0.0.0|react@19.2.8"
+      ]
+    },
+    {
+      "ref": "invoice-collector-app@0.0.0|@radix-ui/react-use-callback-ref@1.1.4",
+      "dependsOn": [
+        "invoice-collector-app@0.0.0|@types/react@19.2.18",
+        "invoice-collector-app@0.0.0|react@19.2.8"
+      ]
+    },
+    {
+      "ref": "invoice-collector-app@0.0.0|@radix-ui/react-collection@1.1.15",
+      "dependsOn": [
+        "invoice-collector-app@0.0.0|@radix-ui/react-compose-refs@1.1.5",
+        "invoice-collector-app@0.0.0|@radix-ui/react-context@1.2.2",
+        "invoice-collector-app@0.0.0|@radix-ui/react-primitive@2.1.10",
+        "invoice-collector-app@0.0.0|@radix-ui/react-slot@1.3.3",
+        "invoice-collector-app@0.0.0|@types/react-dom@19.2.7",
+        "invoice-collector-app@0.0.0|@types/react@19.2.18",
+        "invoice-collector-app@0.0.0|react-dom@19.2.8",
+        "invoice-collector-app@0.0.0|react@19.2.8"
+      ]
+    },
+    {
+      "ref": "invoice-collector-app@0.0.0|@radix-ui/react-popper@1.3.7",
+      "dependsOn": [
+        "invoice-collector-app@0.0.0|@floating-ui/react-dom@2.1.9",
+        "invoice-collector-app@0.0.0|@radix-ui/react-arrow@1.1.15",
+        "invoice-collector-app@0.0.0|@radix-ui/react-compose-refs@1.1.5",
+        "invoice-collector-app@0.0.0|@radix-ui/react-context@1.2.2",
+        "invoice-collector-app@0.0.0|@radix-ui/react-primitive@2.1.10",
+        "invoice-collector-app@0.0.0|@radix-ui/react-use-callback-ref@1.1.4",
+        "invoice-collector-app@0.0.0|@radix-ui/react-use-layout-effect@1.1.4",
+        "invoice-collector-app@0.0.0|@radix-ui/react-use-rect@1.1.4",
+        "invoice-collector-app@0.0.0|@radix-ui/react-use-size@1.1.4",
+        "invoice-collector-app@0.0.0|@radix-ui/rect@1.1.3",
+        "invoice-collector-app@0.0.0|@types/react-dom@19.2.7",
+        "invoice-collector-app@0.0.0|@types/react@19.2.18",
+        "invoice-collector-app@0.0.0|react-dom@19.2.8",
+        "invoice-collector-app@0.0.0|react@19.2.8"
+      ]
+    },
+    {
+      "ref": "invoice-collector-app@0.0.0|@radix-ui/react-use-previous@1.1.4",
+      "dependsOn": [
+        "invoice-collector-app@0.0.0|@types/react@19.2.18",
+        "invoice-collector-app@0.0.0|react@19.2.8"
+      ]
+    },
+    {
+      "ref": "invoice-collector-app@0.0.0|@radix-ui/react-visually-hidden@1.2.11",
+      "dependsOn": [
+        "invoice-collector-app@0.0.0|@radix-ui/react-primitive@2.1.10",
+        "invoice-collector-app@0.0.0|@types/react-dom@19.2.7",
+        "invoice-collector-app@0.0.0|@types/react@19.2.18",
+        "invoice-collector-app@0.0.0|react-dom@19.2.8",
+        "invoice-collector-app@0.0.0|react@19.2.8"
+      ]
+    },
+    {
+      "ref": "invoice-collector-app@0.0.0|@radix-ui/react-roving-focus@1.1.19",
+      "dependsOn": [
+        "invoice-collector-app@0.0.0|@radix-ui/primitive@1.1.7",
+        "invoice-collector-app@0.0.0|@radix-ui/react-collection@1.1.15",
+        "invoice-collector-app@0.0.0|@radix-ui/react-compose-refs@1.1.5",
+        "invoice-collector-app@0.0.0|@radix-ui/react-context@1.2.2",
+        "invoice-collector-app@0.0.0|@radix-ui/react-direction@1.1.4",
+        "invoice-collector-app@0.0.0|@radix-ui/react-id@1.1.4",
+        "invoice-collector-app@0.0.0|@radix-ui/react-primitive@2.1.10",
+        "invoice-collector-app@0.0.0|@radix-ui/react-use-callback-ref@1.1.4",
+        "invoice-collector-app@0.0.0|@radix-ui/react-use-controllable-state@1.2.6",
+        "invoice-collector-app@0.0.0|@radix-ui/react-use-is-hydrated@0.1.3",
+        "invoice-collector-app@0.0.0|@radix-ui/react-use-layout-effect@1.1.4",
+        "invoice-collector-app@0.0.0|@types/react-dom@19.2.7",
+        "invoice-collector-app@0.0.0|@types/react@19.2.18",
+        "invoice-collector-app@0.0.0|react-dom@19.2.8",
+        "invoice-collector-app@0.0.0|react@19.2.8"
       ]
     },
     {
@@ -2983,6 +5863,91 @@
       ]
     },
     {
+      "ref": "invoice-collector-app@0.0.0|@radix-ui/react-use-effect-event@0.0.5",
+      "dependsOn": [
+        "invoice-collector-app@0.0.0|@radix-ui/react-use-layout-effect@1.1.4",
+        "invoice-collector-app@0.0.0|@types/react@19.2.18",
+        "invoice-collector-app@0.0.0|react@19.2.8"
+      ]
+    },
+    {
+      "ref": "invoice-collector-app@0.0.0|csstype@3.2.3"
+    },
+    {
+      "ref": "invoice-collector-app@0.0.0|tslib@2.8.1"
+    },
+    {
+      "ref": "invoice-collector-app@0.0.0|react-remove-scroll-bar@2.3.8",
+      "dependsOn": [
+        "invoice-collector-app@0.0.0|@types/react@19.2.18",
+        "invoice-collector-app@0.0.0|react-style-singleton@2.2.3",
+        "invoice-collector-app@0.0.0|react@19.2.8",
+        "invoice-collector-app@0.0.0|tslib@2.8.1"
+      ]
+    },
+    {
+      "ref": "invoice-collector-app@0.0.0|react-style-singleton@2.2.3",
+      "dependsOn": [
+        "invoice-collector-app@0.0.0|@types/react@19.2.18",
+        "invoice-collector-app@0.0.0|get-nonce@1.0.1",
+        "invoice-collector-app@0.0.0|react@19.2.8",
+        "invoice-collector-app@0.0.0|tslib@2.8.1"
+      ]
+    },
+    {
+      "ref": "invoice-collector-app@0.0.0|use-callback-ref@1.3.3",
+      "dependsOn": [
+        "invoice-collector-app@0.0.0|@types/react@19.2.18",
+        "invoice-collector-app@0.0.0|react@19.2.8",
+        "invoice-collector-app@0.0.0|tslib@2.8.1"
+      ]
+    },
+    {
+      "ref": "invoice-collector-app@0.0.0|use-sidecar@1.1.3",
+      "dependsOn": [
+        "invoice-collector-app@0.0.0|@types/react@19.2.18",
+        "invoice-collector-app@0.0.0|detect-node-es@1.1.0",
+        "invoice-collector-app@0.0.0|react@19.2.8",
+        "invoice-collector-app@0.0.0|tslib@2.8.1"
+      ]
+    },
+    {
+      "ref": "invoice-collector-app@0.0.0|@floating-ui/react-dom@2.1.9",
+      "dependsOn": [
+        "invoice-collector-app@0.0.0|@floating-ui/dom@1.8.0",
+        "invoice-collector-app@0.0.0|react-dom@19.2.8",
+        "invoice-collector-app@0.0.0|react@19.2.8"
+      ]
+    },
+    {
+      "ref": "invoice-collector-app@0.0.0|@radix-ui/react-arrow@1.1.15",
+      "dependsOn": [
+        "invoice-collector-app@0.0.0|@radix-ui/react-primitive@2.1.10",
+        "invoice-collector-app@0.0.0|@types/react-dom@19.2.7",
+        "invoice-collector-app@0.0.0|@types/react@19.2.18",
+        "invoice-collector-app@0.0.0|react-dom@19.2.8",
+        "invoice-collector-app@0.0.0|react@19.2.8"
+      ]
+    },
+    {
+      "ref": "invoice-collector-app@0.0.0|@radix-ui/react-use-rect@1.1.4",
+      "dependsOn": [
+        "invoice-collector-app@0.0.0|@radix-ui/rect@1.1.3",
+        "invoice-collector-app@0.0.0|@types/react@19.2.18",
+        "invoice-collector-app@0.0.0|react@19.2.8"
+      ]
+    },
+    {
+      "ref": "invoice-collector-app@0.0.0|@radix-ui/rect@1.1.3"
+    },
+    {
+      "ref": "invoice-collector-app@0.0.0|@radix-ui/react-use-is-hydrated@0.1.3",
+      "dependsOn": [
+        "invoice-collector-app@0.0.0|@types/react@19.2.18",
+        "invoice-collector-app@0.0.0|react@19.2.8"
+      ]
+    },
+    {
       "ref": "invoice-collector-app@0.0.0|@gar/promise-retry@1.0.3"
     },
     {
@@ -3011,6 +5976,19 @@
         "invoice-collector-app@0.0.0|@tufjs/models@4.1.0",
         "invoice-collector-app@0.0.0|debug@4.4.3",
         "invoice-collector-app@0.0.0|make-fetch-happen@15.0.6"
+      ]
+    },
+    {
+      "ref": "invoice-collector-app@0.0.0|get-nonce@1.0.1"
+    },
+    {
+      "ref": "invoice-collector-app@0.0.0|detect-node-es@1.1.0"
+    },
+    {
+      "ref": "invoice-collector-app@0.0.0|@floating-ui/dom@1.8.0",
+      "dependsOn": [
+        "invoice-collector-app@0.0.0|@floating-ui/core@1.8.0",
+        "invoice-collector-app@0.0.0|@floating-ui/utils@0.2.12"
       ]
     },
     {
@@ -3110,6 +6088,15 @@
       "dependsOn": [
         "invoice-collector-app@0.0.0|ms@2.1.3"
       ]
+    },
+    {
+      "ref": "invoice-collector-app@0.0.0|@floating-ui/core@1.8.0",
+      "dependsOn": [
+        "invoice-collector-app@0.0.0|@floating-ui/utils@0.2.12"
+      ]
+    },
+    {
+      "ref": "invoice-collector-app@0.0.0|@floating-ui/utils@0.2.12"
     },
     {
       "ref": "invoice-collector-app@0.0.0|agent-base@7.1.4"

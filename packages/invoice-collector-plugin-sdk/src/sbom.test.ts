@@ -116,11 +116,12 @@ describe('checkMitCompatibility', () => {
     ]);
   });
 
-  it('accepts BlueOak-1.0.0, CC0-1.0, and Python-2.0 — genuinely permissive, just uncommon names', () => {
+  it('accepts BlueOak-1.0.0, CC0-1.0, Python-2.0, and 0BSD — genuinely permissive, just uncommon names', () => {
     const sbom = sbomWith([
       { name: 'tar', version: '7.5.22', licenses: [{ license: { id: 'BlueOak-1.0.0' } }] },
       { name: 'spdx-license-ids', version: '3.0.23', licenses: [{ license: { id: 'CC0-1.0' } }] },
       { name: 'argparse', version: '2.0.1', licenses: [{ license: { id: 'Python-2.0' } }] },
+      { name: 'tslib', version: '2.8.1', licenses: [{ license: { id: '0BSD' } }] },
     ]);
     expect(checkMitCompatibility(sbom)).toEqual({ compatible: true, violations: [] });
   });
