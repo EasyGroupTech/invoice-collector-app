@@ -1,0 +1,13 @@
+{
+  "name": "ic-email-to-downloads",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Invoice Collector OSS reference plugin: graph-mail source + local-folder destination",
+  "type": "module",
+  "license": "MIT",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "tsc -p tsconfig.build.json",
+    "test": "vitest run"
+  }
+}

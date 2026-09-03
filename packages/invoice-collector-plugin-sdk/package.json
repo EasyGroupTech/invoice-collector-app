@@ -1,0 +1,15 @@
+{
+  "name": "invoice-collector-plugin-sdk",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Plugin interface/contract package for Invoice Collector — types, session contracts, declarative UI descriptor types, and the oauth2-delegated-device-code built-in session implementation",
+  "type": "module",
+  "license": "MIT",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "tsc -p tsconfig.build.json",
+    "test": "vitest run"
+  }
+}

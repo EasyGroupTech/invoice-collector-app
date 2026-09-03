@@ -1,0 +1,12 @@
+{
+  "name": "ic-core",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Invoice Collector core app shell — no built-in source/destination integrations",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "tsc -p tsconfig.build.json",
+    "test": "vitest run"
+  }
+}
