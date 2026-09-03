@@ -25,6 +25,7 @@ import { createPluginLog } from '../../src/plugin-log.js';
 import { createPluginRegistry } from '../../src/plugin-registry.js';
 import { createPluginStorage } from '../../src/plugin-storage.js';
 import { createProfileManager } from '../../src/profiles.js';
+import { buildExcelReport, buildHtmlReport, buildReportRows } from '../../src/reporting.js';
 import { loadSboms, type SbomSource } from '../../src/sbom-registry.js';
 import { resolveSessionCreateInput } from '../../src/session-create-input.js';
 import { createSessionsRegistry, type SessionsRegistry } from '../../src/sessions-registry.js';
@@ -34,6 +35,7 @@ import {
   Channels,
   type CreateRecordInput,
   type CreateSessionInput,
+  type ExportReportInput,
   type InstallPluginInput,
   type ProfileCreateInput,
   type ReconnectSessionInput,
@@ -360,6 +362,26 @@ ipcMain.handle(Channels.SbomExport, async (_event, id: string) => {
   if (result.canceled || !result.filePath) return { exported: false };
 
   await writeFile(result.filePath, raw, 'utf-8');
+  return { exported: true, filePath: result.filePath };
+});
+
+// --- Reporting (§14.1 US20) ---
+
+ipcMain.handle(Channels.ReportExport, async (_event, input: ExportReportInput) => {
+  const store = await loadConfigFile(await currentConfigFilePath());
+  const records = await invoiceHistory.listForPeriod(input.period);
+  const rows = buildReportRows(records, store.sources, store.destinations);
+
+  const isHtml = input.format === 'html';
+  const content = isHtml ? buildHtmlReport(rows, input.period) : await buildExcelReport(rows, input.period);
+
+  const result = await dialog.showSaveDialog(mainWindow!, {
+    defaultPath: `collect-report-${input.period.start}-to-${input.period.end}.${isHtml ? 'html' : 'xlsx'}`,
+    filters: isHtml ? [{ name: 'HTML', extensions: ['html'] }] : [{ name: 'Excel workbook', extensions: ['xlsx'] }],
+  });
+  if (result.canceled || !result.filePath) return { exported: false };
+
+  await writeFile(result.filePath, content);
   return { exported: true, filePath: result.filePath };
 });
 

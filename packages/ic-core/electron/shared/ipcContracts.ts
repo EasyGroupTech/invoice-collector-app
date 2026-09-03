@@ -60,6 +60,8 @@ export const Channels = {
   SbomList: 'sbom:list',
   SbomExport: 'sbom:export',
 
+  ReportExport: 'report:export',
+
   SettingsGetAdvanced: 'settings:getAdvanced',
   SettingsSaveAdvanced: 'settings:saveAdvanced',
 } as const;
@@ -130,8 +132,14 @@ export interface InstalledPluginSummary {
 export type RunCollectResult = JobHandle | { error: string };
 
 /** `filePath` is only set when `exported` is true — the user can cancel the native Save dialog,
- * which isn't an error, just nothing written. */
-export type SbomExportResult = { exported: true; filePath: string } | { exported: false };
+ * which isn't an error, just nothing written. Shared by every "hand back a generated file via a
+ * native Save dialog" channel (SBOM export, report export). */
+export type FileExportResult = { exported: true; filePath: string } | { exported: false };
+
+export interface ExportReportInput {
+  period: CollectPeriod;
+  format: 'html' | 'excel';
+}
 
 export type {
   AdvancedSettings,

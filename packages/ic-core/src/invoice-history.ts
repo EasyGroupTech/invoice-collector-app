@@ -1,7 +1,7 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import type { DiscoveredInvoice, UploadResult } from 'invoice-collector-plugin-sdk';
-import type { DedupChecker } from './collect-pipeline.js';
+import type { CollectPeriod, DedupChecker } from './collect-pipeline.js';
 
 /**
  * One collected invoice, keyed by (sourceId, invoiceId) — §14.1 US13's "deduplicated, per-month
@@ -83,11 +83,20 @@ export function invoicesForMonth(store: InvoiceHistoryStore, issuedMonth: string
   return store.invoices.filter((r) => r.issuedDate.slice(0, 7) === issuedMonth);
 }
 
+/** §14.1 US20's reporting query — a Collect run's own `period` is an arbitrary ISO date range,
+ * not necessarily aligned to calendar months, so `invoicesForMonth`'s month-bucket filter doesn't
+ * fit; this filters the same in-memory `store.invoices` directly by `issuedDate`, inclusive on
+ * both ends (a period whose `end` is "today" should still include an invoice issued today). */
+export function invoicesForPeriod(store: InvoiceHistoryStore, period: CollectPeriod): InvoiceHistoryRecord[] {
+  return store.invoices.filter((r) => r.issuedDate >= period.start && r.issuedDate <= period.end);
+}
+
 export interface InvoiceHistory extends DedupChecker {
   /** Drops invoices outside the retention window and persists the result — call once per
    * completed collect run (not per invoice), matching the reference app's own call site. */
   prune(now?: Date): Promise<void>;
   listForMonth(issuedMonth: string): Promise<InvoiceHistoryRecord[]>;
+  listForPeriod(period: CollectPeriod): Promise<InvoiceHistoryRecord[]>;
 }
 
 export function createInvoiceHistory(filePath: string): InvoiceHistory {
@@ -133,6 +142,11 @@ export function createInvoiceHistory(filePath: string): InvoiceHistory {
     async listForMonth(issuedMonth) {
       const store = await state();
       return invoicesForMonth(store, issuedMonth);
+    },
+
+    async listForPeriod(period) {
+      const store = await state();
+      return invoicesForPeriod(store, period);
     },
   };
 }

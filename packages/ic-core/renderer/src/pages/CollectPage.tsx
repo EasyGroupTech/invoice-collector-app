@@ -15,6 +15,13 @@ import { runJobAndWait } from '../jobs';
 
 type RecordKind = 'source' | 'destination';
 
+function defaultPeriod(): { start: string; end: string } {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().slice(0, 10);
+  const end = now.toISOString().slice(0, 10);
+  return { start, end };
+}
+
 /** §14's Collect flow, plus §5/§6/§8's Add-Source/Destination wizard. A record's session step
  * only ever looks at `sessionRequirements[0]` — a real simplification for a plugin that declares
  * more than one alternative session type, deferred until a real plugin actually needs that (same
@@ -25,6 +32,8 @@ export function CollectPage() {
   const [addingKind, setAddingKind] = useState<RecordKind | undefined>(undefined);
   const [progressLog, setProgressLog] = useState<string[]>([]);
   const [collecting, setCollecting] = useState(false);
+  const [reportPeriod, setReportPeriod] = useState(defaultPeriod());
+  const [exportingReport, setExportingReport] = useState(false);
 
   async function refresh() {
     setSources(await window.api.configListSources());
@@ -46,10 +55,7 @@ export function CollectPage() {
     setCollecting(true);
     setProgressLog([]);
     try {
-      const now = new Date();
-      const start = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().slice(0, 10);
-      const end = now.toISOString().slice(0, 10);
-      const result = await window.api.collectRun({ sourceIds: 'all', period: { start, end } });
+      const result = await window.api.collectRun({ sourceIds: 'all', period: defaultPeriod() });
       if ('error' in result) {
         toast.error(result.error);
         return;
@@ -67,6 +73,18 @@ export function CollectPage() {
       toast.error(err instanceof Error ? err.message : String(err));
     } finally {
       setCollecting(false);
+    }
+  }
+
+  async function exportReport(format: 'html' | 'excel') {
+    setExportingReport(true);
+    try {
+      const result = await window.api.reportExport({ period: reportPeriod, format });
+      if (result.exported) toast.success(`Report saved to ${result.filePath}`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : String(err));
+    } finally {
+      setExportingReport(false);
     }
   }
 
@@ -124,6 +142,43 @@ export function CollectPage() {
                 ))}
               </div>
             )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Report</CardTitle>
+            <p className="text-sm text-muted-foreground">Export what's on file for a period as HTML or Excel (§14.1 US20).</p>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-4">
+            <div className="flex items-end gap-2">
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="report-start">Start</Label>
+                <Input
+                  id="report-start"
+                  type="date"
+                  value={reportPeriod.start}
+                  onChange={(e) => setReportPeriod((prev) => ({ ...prev, start: e.target.value }))}
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="report-end">End</Label>
+                <Input
+                  id="report-end"
+                  type="date"
+                  value={reportPeriod.end}
+                  onChange={(e) => setReportPeriod((prev) => ({ ...prev, end: e.target.value }))}
+                />
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button type="button" variant="outline" disabled={exportingReport} onClick={() => void exportReport('html')}>
+                Export as HTML
+              </Button>
+              <Button type="button" variant="outline" disabled={exportingReport} onClick={() => void exportReport('excel')}>
+                Export as Excel
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </fieldset>
