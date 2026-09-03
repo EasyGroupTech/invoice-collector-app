@@ -34,7 +34,7 @@ export interface MitCompatibilityResult {
 }
 
 /**
- * §16's original permissive set, plus three verified as genuinely permissive and low-risk on
+ * §13's original permissive set, plus three verified as genuinely permissive and low-risk on
  * review (not blanket-widened): BlueOak-1.0.0 (a modern permissive license, at least as
  * permissive as MIT, increasingly common in core npm/Node tooling), CC0-1.0 (a public-domain
  * dedication — stronger than permissive, no attribution required at all), and Python-2.0 (the
@@ -67,7 +67,7 @@ function isCreativeCommonsLicense(id: string): boolean {
 }
 
 /**
- * The load-time MIT-compatibility gate §16 describes: every third-party dependency's license must
+ * The load-time MIT-compatibility gate §13 describes: every third-party dependency's license must
  * be one of the permissive set above. Fails closed on anything it can't confidently confirm —
  * missing license info, an unrecognized license name, a Creative Commons license, or a boolean
  * SPDX expression (which would need real expression evaluation to judge correctly; flagged for

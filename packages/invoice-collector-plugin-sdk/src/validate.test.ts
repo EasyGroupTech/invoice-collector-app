@@ -27,7 +27,7 @@ describe('validateManifest', () => {
     expect(result.errors).toContain('manifest must be an object');
   });
 
-  it('rejects a missing sbom — the field this plugin is loaded/rejected on (§16)', () => {
+  it('rejects a missing sbom — the field this plugin is loaded/rejected on (§13)', () => {
     const { sbom, ...withoutSbom } = validManifest;
     const result = validateManifest(withoutSbom);
     expect(result.valid).toBe(false);
