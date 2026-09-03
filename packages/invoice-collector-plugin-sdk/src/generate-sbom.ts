@@ -49,7 +49,7 @@ export const CYCLONEDX_NPM_VERSION = '6.0.1';
 /**
  * Shells out to the real `cyclonedx-npm` CLI rather than reimplementing dependency-tree scanning
  * — deliberately not pinning `--spec-version`, so this tracks whatever that tool's own current
- * stable default emits (§16). `--omit dev`: a plugin's shipped SBOM should reflect what actually
+ * stable default emits (§13). `--omit dev`: a plugin's shipped SBOM should reflect what actually
  * runs, not its own build/test tooling.
  */
 function runCyclonedxNpm(cwd: string, outputFile: string, workspace: string | undefined): Promise<void> {

@@ -25,7 +25,6 @@ export type {
   PluginStorageApi,
   PluginLogApi,
   PluginProgressApi,
-  CapturedBrowserSession,
   PluginContext,
 } from './context.js';
 
