@@ -11,6 +11,7 @@ import type {
   CreateSessionInput,
   EncryptedConfigExportFile,
   InstallPluginInput,
+  InstalledPluginSummary,
   InvoiceHistoryRecord,
   JobDoneEvent,
   JobHandle,
@@ -18,14 +19,15 @@ import type {
   PluginBackedRecord,
   PluginInstallNeedsConfirmation,
   PluginInstallResult,
-  PluginManifest,
   ProfileCreateInput,
   ProfileSummary,
   ReconnectSessionInput,
   RemoveRecordInput,
+  ResolveWizardListDataInput,
   RunCollectInput,
   RunCollectResult,
   Session,
+  WizardListDataResult,
 } from '../../electron/shared/ipcContracts';
 
 declare global {
@@ -47,8 +49,11 @@ declare global {
       sessionsCreate(input: CreateSessionInput): Promise<JobHandle>;
       sessionsReconnect(input: ReconnectSessionInput): Promise<JobHandle>;
 
-      pluginsList(): Promise<PluginManifest[]>;
+      pluginsList(): Promise<InstalledPluginSummary[]>;
       pluginsInstall(input: InstallPluginInput): Promise<PluginInstallResult | PluginInstallNeedsConfirmation>;
+      pluginsUninstall(pluginId: string): Promise<void>;
+
+      wizardResolveListData(input: ResolveWizardListDataInput): Promise<WizardListDataResult>;
 
       collectRun(input: RunCollectInput): Promise<RunCollectResult>;
       jobsCancel(jobId: string): Promise<void>;

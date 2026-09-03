@@ -605,6 +605,25 @@ just a convention: a plugin whose `wizard`/`settingsPanel` declares any ListDesc
 implement `resolveListData` fails install validation the same hard-gate way a missing
 `sessionRequirements` entry does (§6).
 
+**A plugin's `wizard`/`sessionRequirements`/`settingsPanel` cross the IPC boundary as one summary
+object, not just its manifest.** These live on the loaded `SourcePlugin`/`DestinationPlugin`
+object in the main process — the renderer's Plugins-list call returns each installed plugin's
+manifest *plus* this UI-facing subset (no functions; `resolveListData` etc. stay reachable only
+through their own IPC calls), since an Add-Source/Destination wizard can't render a plugin's own
+declared steps without it.
+
+**A wizard's "create a new session" step needs `SessionsApi.create()`'s opaque `input`, and for a
+built-in session type that shape is entirely the built-in's own** (e.g. the device-code built-in's
+`{ deviceAuthorizationEndpoint, tokenEndpoint, clientId, scope, label }`) — no generic form could
+collect it. The SDK's optional `BuiltInSessionInputProvider.builtInSessionCreateInput(requirement)`
+closes this for the one case that matters today (`confirmsBuiltIn: true`): core calls it itself
+when the renderer's own supplied input is absent. **Left open, deliberately**: the same problem for
+a *custom* (`confirmsBuiltIn: false`) session type's own `create()` input — collecting whatever a
+third-party `SessionPlugin` expects still has no generic UI mechanism, deferred until a real plugin
+needs one rather than guessing the shape now. Relatedly, `PluginBackedRecord.sessionId` (below) is
+only ever set at record-creation time, from whichever session the wizard's session step resolved —
+there's no separate "reassign a record's session" action yet.
+
 ## 9. Trust model
 
 Only **two** states, both at the core-app level.

@@ -15,7 +15,7 @@ import {
   type CreateRecordInput as ConfigCreateRecordInput,
 } from '../../src/config-store.js';
 import { createHttpApi, type SessionAuthResolver } from '../../src/http-client.js';
-import { installPlugin } from '../../src/plugin-install.js';
+import { installPlugin, uninstallPlugin } from '../../src/plugin-install.js';
 import { createInvoiceHistory } from '../../src/invoice-history.js';
 import { createJobRunner } from '../../src/job-runner.js';
 import { appLogFile, pluginsDir, profilePaths } from '../../src/paths.js';
@@ -23,7 +23,9 @@ import { createPluginLog } from '../../src/plugin-log.js';
 import { createPluginRegistry } from '../../src/plugin-registry.js';
 import { createPluginStorage } from '../../src/plugin-storage.js';
 import { createProfileManager } from '../../src/profiles.js';
+import { resolveSessionCreateInput } from '../../src/session-create-input.js';
 import { createSessionsRegistry, type SessionsRegistry } from '../../src/sessions-registry.js';
+import { resolveWizardListData } from '../../src/wizard-data.js';
 import { safeStorageEncryptor } from './safeStorageEncryptor.js';
 import {
   Channels,
@@ -33,6 +35,7 @@ import {
   type ProfileCreateInput,
   type ReconnectSessionInput,
   type RemoveRecordInput,
+  type ResolveWizardListDataInput,
   type RunCollectInput,
 } from '../shared/ipcContracts.js';
 
@@ -166,6 +169,7 @@ ipcMain.handle(Channels.ConfigCreateRecord, async (_event, input: CreateRecordIn
     pluginVersion: input.pluginVersion,
     config: input.config,
     destinationId: input.destinationId,
+    sessionId: input.sessionId,
   };
   const record = createRecord(recordInput);
   const key = input.kind === 'source' ? 'sources' : 'destinations';
@@ -209,11 +213,14 @@ ipcMain.handle(Channels.ProfilesDelete, (_event, profileId: string) => profileMa
 ipcMain.handle(Channels.SessionsList, () => sessionsRegistry.listAll());
 
 ipcMain.handle(Channels.SessionsCreate, (_event, input: CreateSessionInput) => {
-  return jobRunner.runJob('session-create', async (report, signal) =>
-    sessionsRegistry
+  return jobRunner.runJob('session-create', async (report, signal) => {
+    const plugin = pluginRegistry.get(input.pluginId);
+    if (!plugin) throw new Error(`Plugin "${input.pluginId}" is not installed`);
+    const resolvedInput = resolveSessionCreateInput(plugin, input.sessionTypeId, input.input);
+    return sessionsRegistry
       .forPlugin(input.pluginId)
-      .create(input.sessionTypeId, input.input, signal, (message, data) => report({ message, data })),
-  );
+      .create(input.sessionTypeId, resolvedInput, signal, (message, data) => report({ message, data }));
+  });
 });
 
 ipcMain.handle(Channels.SessionsReconnect, (_event, input: ReconnectSessionInput) => {
@@ -226,10 +233,18 @@ ipcMain.handle(Channels.SessionsReconnect, (_event, input: ReconnectSessionInput
 
 // --- Plugins ---
 // Installed-plugin persistence (reloading what's already in plugins/ across an app restart) is a
-// known gap, not silently skipped — see docs/implementation-plan.md's phase 1.11 notes. pluginRegistry
-// starts empty every launch; installing is the only way to populate it today.
+// known gap, not silently skipped — see docs/implementation-plan.md's phase 1.11/1.12 notes.
+// pluginRegistry starts empty every launch; installing is the only way to populate it today.
+// Enable/disable is the same underlying gap and isn't built either — only uninstall is, below.
 
-ipcMain.handle(Channels.PluginsList, () => pluginRegistry.list().map((plugin) => plugin.manifest));
+ipcMain.handle(Channels.PluginsList, () =>
+  pluginRegistry.list().map((plugin) => ({
+    manifest: plugin.manifest,
+    sessionRequirements: plugin.sessionRequirements,
+    wizard: plugin.wizard,
+    settingsPanel: plugin.settingsPanel,
+  })),
+);
 
 ipcMain.handle(Channels.PluginsInstall, (_event, input: InstallPluginInput) =>
   installPlugin(input.rawInput, {
@@ -239,6 +254,21 @@ ipcMain.handle(Channels.PluginsInstall, (_event, input: InstallPluginInput) =>
     registry: pluginRegistry,
     confirmUnverified: input.confirmUnverified,
   }),
+);
+
+ipcMain.handle(Channels.PluginsUninstall, (_event, pluginId: string) =>
+  uninstallPlugin(pluginId, { pluginsDir: pluginsDir(app.getPath('userData')), registry: pluginRegistry }),
+);
+
+// --- Wizard ---
+
+ipcMain.handle(Channels.WizardResolveListData, (_event, input: ResolveWizardListDataInput) =>
+  resolveWizardListData(
+    { registry: pluginRegistry, createPluginServices, sessionsApiForPlugin: (pluginId) => sessionsRegistry.forPlugin(pluginId) },
+    input.pluginId,
+    input.request,
+    new AbortController().signal,
+  ),
 );
 
 // --- Collect ---

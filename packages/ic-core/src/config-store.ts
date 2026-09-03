@@ -43,6 +43,7 @@ export interface CreateRecordInput {
   pluginVersion: string;
   config: unknown;
   destinationId?: string | null;
+  sessionId?: string;
 }
 
 export function createRecord(input: CreateRecordInput): PluginBackedRecord {
@@ -53,6 +54,7 @@ export function createRecord(input: CreateRecordInput): PluginBackedRecord {
     pluginId: input.pluginId,
     pluginVersion: input.pluginVersion,
     destinationId: input.destinationId,
+    sessionId: input.sessionId,
     config: input.config,
     createdAt: now,
     updatedAt: now,
