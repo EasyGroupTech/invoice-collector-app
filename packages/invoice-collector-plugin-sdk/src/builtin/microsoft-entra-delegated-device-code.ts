@@ -2,21 +2,28 @@ import type { PluginContext } from '../context.js';
 import type { Session, SessionCreateResult, SessionPlugin, SessionRefreshResult } from '../session.js';
 
 /**
- * OAuth2 device authorization grant (RFC 8628). Microsoft Entra-based today — both the Azure ARM
+ * OAuth2 device authorization grant (RFC 8628) against Microsoft Entra ID. Both the Azure ARM
  * "Login" connection method and Microsoft Graph delegated sign-in (Graph Mail, SharePoint) use
- * this exact mechanism, differing only in which scope they request — but not Microsoft-specific
- * by design: a plugin supplies its own endpoint URLs, so any provider implementing the same RFC
- * works too (§6.1).
+ * this exact mechanism, differing only in which scope (and resulting label) they request — Entra
+ * ID is the identity platform all three actually share; Graph/ARM are just different APIs
+ * reached afterward (§6.1). Not usable for a non-Microsoft device-code provider — the token/error
+ * response shapes here follow Microsoft's own conventions specifically, not bare RFC 8628.
  */
 
-export interface OAuth2DelegatedDeviceCodeCreateInput {
+export interface MicrosoftEntraDelegatedDeviceCodeCreateInput {
   deviceAuthorizationEndpoint: string;
   tokenEndpoint: string;
   clientId: string;
   scope: string;
+  /**
+   * Human-readable session label, e.g. "Microsoft 365 sign-in" or "Azure sign-in" — supplied by
+   * the calling plugin, not guessed here, since this one built-in serves multiple different APIs
+   * and none of them is the "default" case.
+   */
+  label: string;
 }
 
-export interface OAuth2DelegatedDeviceCodeSecret {
+export interface MicrosoftEntraDelegatedDeviceCodeSecret {
   accessToken: string;
   refreshToken?: string;
   deviceAuthorizationEndpoint: string;
@@ -50,18 +57,19 @@ const DEFAULT_POLL_INTERVAL_SECONDS = 5;
 const SLOW_DOWN_INCREMENT_SECONDS = 5;
 const FORM_HEADERS = { 'Content-Type': 'application/x-www-form-urlencoded' };
 
-function isCreateInput(input: unknown): input is OAuth2DelegatedDeviceCodeCreateInput {
+function isCreateInput(input: unknown): input is MicrosoftEntraDelegatedDeviceCodeCreateInput {
   if (typeof input !== 'object' || input === null) return false;
   const i = input as Record<string, unknown>;
   return (
     typeof i.deviceAuthorizationEndpoint === 'string' &&
     typeof i.tokenEndpoint === 'string' &&
     typeof i.clientId === 'string' &&
-    typeof i.scope === 'string'
+    typeof i.scope === 'string' &&
+    typeof i.label === 'string'
   );
 }
 
-function isStoredSecret(secret: unknown): secret is OAuth2DelegatedDeviceCodeSecret {
+function isStoredSecret(secret: unknown): secret is MicrosoftEntraDelegatedDeviceCodeSecret {
   if (typeof secret !== 'object' || secret === null) return false;
   const s = secret as Record<string, unknown>;
   return typeof s.accessToken === 'string' && typeof s.tokenEndpoint === 'string' && typeof s.clientId === 'string';
@@ -91,7 +99,7 @@ function expiresAtFrom(expiresInSeconds: number): string {
 
 async function requestDeviceAuthorization(
   ctx: PluginContext,
-  input: OAuth2DelegatedDeviceCodeCreateInput,
+  input: MicrosoftEntraDelegatedDeviceCodeCreateInput,
   signal: AbortSignal,
 ): Promise<DeviceAuthorizationResponseBody> {
   const response = await ctx.http.request(
@@ -163,13 +171,13 @@ async function pollForToken(
   }
 }
 
-export const oauth2DelegatedDeviceCodeSessionPlugin: SessionPlugin = {
-  sessionTypeId: 'oauth2-delegated-device-code',
+export const microsoftEntraDelegatedDeviceCodeSessionPlugin: SessionPlugin = {
+  sessionTypeId: 'microsoft-entra-delegated-device-code',
 
   async create(ctx, input, signal): Promise<SessionCreateResult> {
     if (!isCreateInput(input)) {
       throw new Error(
-        'oauth2-delegated-device-code requires { deviceAuthorizationEndpoint, tokenEndpoint, clientId, scope }',
+        'microsoft-entra-delegated-device-code requires { deviceAuthorizationEndpoint, tokenEndpoint, clientId, scope, label }',
       );
     }
 
@@ -191,7 +199,7 @@ export const oauth2DelegatedDeviceCodeSessionPlugin: SessionPlugin = {
       signal,
     );
 
-    const secret: OAuth2DelegatedDeviceCodeSecret = {
+    const secret: MicrosoftEntraDelegatedDeviceCodeSecret = {
       accessToken: token.access_token,
       refreshToken: token.refresh_token,
       deviceAuthorizationEndpoint: input.deviceAuthorizationEndpoint,
@@ -201,7 +209,9 @@ export const oauth2DelegatedDeviceCodeSessionPlugin: SessionPlugin = {
     };
 
     return {
-      label: 'Microsoft sign-in',
+      // Caller-supplied, not guessed — this one built-in serves Graph, SharePoint, and Azure ARM
+      // billing alike, and none of them is the "default" case a hardcoded label could assume.
+      label: input.label,
       secret,
       expiresAt: expiresAtFrom(token.expires_in),
     };
@@ -238,7 +248,7 @@ export const oauth2DelegatedDeviceCodeSessionPlugin: SessionPlugin = {
     }
 
     const token = response.json() as TokenSuccessResponseBody;
-    const newSecret: OAuth2DelegatedDeviceCodeSecret = {
+    const newSecret: MicrosoftEntraDelegatedDeviceCodeSecret = {
       ...secret,
       accessToken: token.access_token,
       refreshToken: token.refresh_token ?? secret.refreshToken,

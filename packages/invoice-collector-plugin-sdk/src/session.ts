@@ -1,7 +1,14 @@
 import type { PluginContext } from './context.js';
 
-/** The SDK's own built-in session types — currently just one, deliberately. See §6.1. */
-export const KNOWN_BUILT_IN_SESSION_TYPE_IDS = ['oauth2-delegated-device-code'] as const;
+/**
+ * The SDK's own built-in session types — currently just one, deliberately. See §6.1.
+ *
+ * Named for the identity platform, not an API — Microsoft Entra ID's OAuth2 device-authorization
+ * grant. This one built-in serves Graph-backed consumers (Graph Mail, SharePoint) *and*
+ * Azure ARM billing's Login connection method, which authenticates against `management.azure.com`
+ * — not Graph or M365 at all. "Entra" is the thing all three actually share.
+ */
+export const KNOWN_BUILT_IN_SESSION_TYPE_IDS = ['microsoft-entra-delegated-device-code'] as const;
 
 export type BuiltInSessionTypeId = (typeof KNOWN_BUILT_IN_SESSION_TYPE_IDS)[number];
 

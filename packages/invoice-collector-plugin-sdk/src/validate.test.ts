@@ -59,7 +59,7 @@ describe('validateManifest', () => {
 });
 
 const validRequirement = {
-  sessionTypeId: 'oauth2-delegated-device-code',
+  sessionTypeId: 'microsoft-entra-delegated-device-code',
   confirmsBuiltIn: true,
   requiredScopesOrRoles: ['Mail.Read'],
 };
