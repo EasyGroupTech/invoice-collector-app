@@ -2,14 +2,20 @@
   "name": "invoice-collector-plugin-sdk",
   "version": "0.0.0",
   "private": true,
-  "description": "Plugin interface/contract package for Invoice Collector — types, session contracts, declarative UI descriptor types, and the oauth2-delegated-device-code built-in session implementation",
+  "description": "Plugin interface/contract package for Invoice Collector — types, session contracts, declarative UI descriptor types, the microsoft-entra-delegated-device-code built-in session implementation, and the generate-sbom build helper",
   "type": "module",
   "license": "MIT",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "bin": {
+    "generate-sbom": "./dist/generate-sbom-cli.js"
+  },
   "scripts": {
     "typecheck": "tsc --noEmit",
     "build": "tsc -p tsconfig.build.json",
     "test": "vitest run"
+  },
+  "dependencies": {
+    "@cyclonedx/cyclonedx-npm": "^6.0.1"
   }
 }

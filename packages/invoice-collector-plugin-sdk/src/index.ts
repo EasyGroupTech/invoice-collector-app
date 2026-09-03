@@ -61,3 +61,15 @@ export type {
   MicrosoftEntraDelegatedDeviceCodeCreateInput,
   MicrosoftEntraDelegatedDeviceCodeSecret,
 } from './builtin/microsoft-entra-delegated-device-code.js';
+
+export { checkMitCompatibility } from './sbom.js';
+export type {
+  CycloneDxDocument,
+  CycloneDxComponent,
+  CycloneDxLicenseEntry,
+  MitCompatibilityResult,
+  MitCompatibilityViolation,
+} from './sbom.js';
+
+export { generateSbom } from './generate-sbom.js';
+export type { GenerateSbomOptions, GenerateSbomResult } from './generate-sbom.js';
