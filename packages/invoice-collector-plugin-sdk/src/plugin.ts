@@ -12,6 +12,15 @@ export interface PluginBackedRecord {
   sessionId?: string;
   /** Sources only. */
   destinationId?: string | null;
+  /**
+   * Destinations only. ISO date (YYYY-MM-DD) — the job runner never calls discover() with a
+   * period starting earlier than this for sources routed to this destination, guarding against a
+   * brand-new destination accidentally backfilling years of history on its first run (§14.1
+   * US11). Not a hard filter: a collect run explicitly requesting an earlier period is treated as
+   * an intentional backfill and lowers this value to match, remembered for next time — it never
+   * silently truncates what the user just asked for.
+   */
+  collectFromDate?: string;
   /** Plugin-owned JSON, non-secret, non-session config only. */
   config: unknown;
   createdAt: string;
