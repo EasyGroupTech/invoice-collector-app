@@ -1,4 +1,9 @@
 import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { InstalledPluginSummary } from '../../../electron/shared/ipcContracts';
 
 /** §9.1's one Install Plugin entry point + §9's two-tier trust warning, plus uninstall (§5's
@@ -10,7 +15,6 @@ export function PluginsPage() {
   const [plugins, setPlugins] = useState<InstalledPluginSummary[]>([]);
   const [rawInput, setRawInput] = useState('');
   const [pendingConfirmation, setPendingConfirmation] = useState<{ manifestId: string; manifestName: string } | undefined>(undefined);
-  const [error, setError] = useState<string | undefined>(undefined);
   const [busy, setBusy] = useState(false);
 
   async function refresh() {
@@ -23,7 +27,6 @@ export function PluginsPage() {
 
   async function install(confirmUnverified: boolean) {
     setBusy(true);
-    setError(undefined);
     try {
       const result = await window.api.pluginsInstall({ rawInput, confirmUnverified });
       if (result.status === 'needs-confirmation') {
@@ -32,9 +35,10 @@ export function PluginsPage() {
       }
       setPendingConfirmation(undefined);
       setRawInput('');
+      toast.success(`${result.manifest.name} installed`);
       await refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      toast.error(err instanceof Error ? err.message : String(err));
     } finally {
       setBusy(false);
     }
@@ -42,83 +46,93 @@ export function PluginsPage() {
 
   async function uninstall(pluginId: string) {
     setBusy(true);
-    setError(undefined);
     try {
       await window.api.pluginsUninstall(pluginId);
+      toast.success('Plugin uninstalled');
       await refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      toast.error(err instanceof Error ? err.message : String(err));
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <div>
-      <h2>Plugins</h2>
-
-      <table>
-        <thead>
-          <tr>
-            <th style={{ textAlign: 'left' }}>Name</th>
-            <th style={{ textAlign: 'left' }}>Version</th>
-            <th style={{ textAlign: 'left' }}>Kind</th>
-            <th style={{ textAlign: 'left' }}>Trust</th>
-            <th />
-          </tr>
-        </thead>
-        <tbody>
-          {plugins.map((p) => (
-            <tr key={p.manifest.id}>
-              <td>{p.manifest.name}</td>
-              <td>{p.manifest.version}</td>
-              <td>{p.manifest.kind}</td>
-              <td>{p.manifest.repository ? `Open source — ${p.manifest.repository}` : 'Unverified'}</td>
-              <td>
-                <button type="button" disabled={busy} onClick={() => void uninstall(p.manifest.id)}>
-                  Uninstall
-                </button>
-              </td>
-            </tr>
-          ))}
-          {plugins.length === 0 && (
-            <tr>
-              <td colSpan={5}>No plugins installed yet.</td>
-            </tr>
-          )}
-        </tbody>
-      </table>
-
-      <h3>Install a plugin</h3>
-      <div style={{ display: 'flex', gap: 8 }}>
-        <input
-          type="text"
-          placeholder="Plugin URL"
-          value={rawInput}
-          onChange={(e) => setRawInput(e.target.value)}
-          style={{ flex: 1 }}
-        />
-        <button type="button" disabled={busy || !rawInput} onClick={() => void install(false)}>
-          Install
-        </button>
+    <div className="flex flex-col gap-6">
+      <div>
+        <h2 className="text-2xl font-semibold tracking-tight">Plugins</h2>
+        <p className="text-sm text-muted-foreground">Install and manage source/destination plugins.</p>
       </div>
-      {error && <p style={{ color: 'crimson' }}>{error}</p>}
 
-      {pendingConfirmation && (
-        <div style={{ border: '1px solid orange', padding: 12, marginTop: 12 }}>
-          <p>
-            <strong>{pendingConfirmation.manifestName}</strong> is from an unverified developer and hasn't been
-            reviewed. Installing it means running its code with full access to this app and your data. Only
-            continue if you trust the source.
-          </p>
-          <button type="button" disabled={busy} onClick={() => void install(true)}>
-            Install anyway
-          </button>
-          <button type="button" disabled={busy} onClick={() => setPendingConfirmation(undefined)}>
-            Cancel
-          </button>
+      <fieldset disabled={busy} className="contents">
+        <div className="rounded-lg border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Version</TableHead>
+                <TableHead>Kind</TableHead>
+                <TableHead>Trust</TableHead>
+                <TableHead />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {plugins.map((p) => (
+                <TableRow key={p.manifest.id}>
+                  <TableCell>{p.manifest.name}</TableCell>
+                  <TableCell>{p.manifest.version}</TableCell>
+                  <TableCell>{p.manifest.kind}</TableCell>
+                  <TableCell>{p.manifest.repository ? `Open source — ${p.manifest.repository}` : 'Unverified'}</TableCell>
+                  <TableCell>
+                    <Button type="button" variant="outline" size="sm" onClick={() => void uninstall(p.manifest.id)}>
+                      Uninstall
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+              {plugins.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-muted-foreground">
+                    No plugins installed yet.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
         </div>
-      )}
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Install a plugin</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-4">
+            <div className="flex items-center gap-2">
+              <Input placeholder="Plugin URL" value={rawInput} onChange={(e) => setRawInput(e.target.value)} className="flex-1" />
+              <Button type="button" disabled={!rawInput} onClick={() => void install(false)}>
+                Install
+              </Button>
+            </div>
+
+            {pendingConfirmation && (
+              <div className="flex flex-col gap-3 rounded-lg border border-amber-500/50 bg-amber-500/10 px-4 py-3">
+                <p className="text-sm">
+                  <strong>{pendingConfirmation.manifestName}</strong> is from an unverified developer and hasn't been
+                  reviewed. Installing it means running its code with full access to this app and your data. Only
+                  continue if you trust the source.
+                </p>
+                <div className="flex items-center gap-2">
+                  <Button type="button" size="sm" onClick={() => void install(true)}>
+                    Install anyway
+                  </Button>
+                  <Button type="button" variant="ghost" size="sm" onClick={() => setPendingConfirmation(undefined)}>
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </fieldset>
     </div>
   );
 }
