@@ -8,6 +8,6 @@ describe('index barrel', () => {
   });
 
   it('re-exports the known built-in session type ids, currently just one (§6.1)', () => {
-    expect(KNOWN_BUILT_IN_SESSION_TYPE_IDS).toEqual(['oauth2-delegated-device-code']);
+    expect(KNOWN_BUILT_IN_SESSION_TYPE_IDS).toEqual(['microsoft-entra-delegated-device-code']);
   });
 });

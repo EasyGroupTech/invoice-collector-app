@@ -55,3 +55,9 @@ export type {
 
 export type { ValidationResult } from './validate.js';
 export { validateManifest, validateSessionRequirements } from './validate.js';
+
+export { microsoftEntraDelegatedDeviceCodeSessionPlugin } from './builtin/microsoft-entra-delegated-device-code.js';
+export type {
+  MicrosoftEntraDelegatedDeviceCodeCreateInput,
+  MicrosoftEntraDelegatedDeviceCodeSecret,
+} from './builtin/microsoft-entra-delegated-device-code.js';
