@@ -15,7 +15,7 @@
     "build": "tsc -p tsconfig.build.json",
     "test": "vitest run"
   },
-  "dependencies": {
-    "@cyclonedx/cyclonedx-npm": "^6.0.1"
+  "devDependencies": {
+    "@cyclonedx/cyclonedx-npm": "6.0.1"
   }
 }
