@@ -48,6 +48,10 @@ function fakeSessionPlugin(sessionTypeId: string, overrides: Partial<SessionPlug
       expiresAt: undefined,
     })),
     test: vi.fn(async () => 'ok' as const),
+    applyAuth: vi.fn((secret, request) => ({
+      ...request,
+      headers: { ...request.headers, Authorization: `Bearer ${(secret as { token: string }).token}` },
+    })),
     ...overrides,
   };
 }
@@ -170,6 +174,72 @@ describe('SessionsRegistry', () => {
 
     const other = registry.forPlugin('some-other-plugin');
     await expect(other.reconnect(created.id)).rejects.toThrow(/session not found/i);
+  });
+
+  describe('attachAuth (internal, used by HttpApi)', () => {
+    it('resolves the session, decrypts its secret, and delegates to the SessionPlugin.applyAuth()', async () => {
+      const plugin = fakeSessionPlugin(BUILT_IN_TYPE);
+      registry.registerSessionPlugin(plugin);
+      const api = registry.forPlugin('ic-email-to-downloads');
+      const created = await api.create(BUILT_IN_TYPE, { label: 'Mailbox sign-in' });
+
+      const request = await registry.attachAuth('ic-email-to-downloads', created.id, { url: 'https://example.com' });
+
+      expect(request.headers).toEqual({ Authorization: 'Bearer initial-token' });
+      expect(plugin.applyAuth).toHaveBeenCalledWith({ token: 'initial-token' }, { url: 'https://example.com' });
+    });
+
+    it('rejects a session id not visible to the calling plugin', async () => {
+      registry.registerSessionPlugin(fakeSessionPlugin(CUSTOM_TYPE));
+      const creator = registry.forPlugin('commercial-aws-plugin');
+      const created = await creator.create(CUSTOM_TYPE, { label: 'AWS keys' });
+
+      await expect(
+        registry.attachAuth('some-other-plugin', created.id, { url: 'https://example.com' }),
+      ).rejects.toThrow(/session not found/i);
+    });
+  });
+
+  describe('recoverSession (internal, used by HttpApi on a 401)', () => {
+    it('refreshes the session and returns the updated public Session', async () => {
+      const refresh = vi.fn(async (): Promise<SessionRefreshResult> => ({ secret: { token: 'recovered-token' } }));
+      registry.registerSessionPlugin(fakeSessionPlugin(BUILT_IN_TYPE, { refresh }));
+      const api = registry.forPlugin('ic-email-to-downloads');
+      const created = await api.create(BUILT_IN_TYPE, { label: 'Mailbox sign-in' });
+
+      const recovered = await registry.recoverSession('ic-email-to-downloads', created.id);
+
+      expect(recovered.status).toBe('active');
+      expect((await api.get(created.id))?.secret).toEqual({ token: 'recovered-token' });
+    });
+
+    it('persists needs-reconnect and throws when the refresh attempt itself fails', async () => {
+      const refresh = vi.fn(async (): Promise<SessionRefreshResult> => {
+        throw new Error('refresh token revoked');
+      });
+      registry.registerSessionPlugin(fakeSessionPlugin(BUILT_IN_TYPE, { refresh }));
+      const api = registry.forPlugin('ic-email-to-downloads');
+      const created = await api.create(BUILT_IN_TYPE, { label: 'Mailbox sign-in' });
+
+      await expect(registry.recoverSession('ic-email-to-downloads', created.id)).rejects.toThrow(/failed to refresh/i);
+      expect((await api.get(created.id))?.session.status).toBe('needs-reconnect');
+    });
+
+    it('throws for a session type with no refresh() mechanism at all', async () => {
+      registry.registerSessionPlugin(fakeSessionPlugin(BUILT_IN_TYPE)); // no refresh
+      const api = registry.forPlugin('ic-email-to-downloads');
+      const created = await api.create(BUILT_IN_TYPE, { label: 'Mailbox sign-in' });
+
+      await expect(registry.recoverSession('ic-email-to-downloads', created.id)).rejects.toThrow(/no refresh mechanism/i);
+    });
+
+    it('rejects a session id not visible to the calling plugin', async () => {
+      registry.registerSessionPlugin(fakeSessionPlugin(CUSTOM_TYPE));
+      const creator = registry.forPlugin('commercial-aws-plugin');
+      const created = await creator.create(CUSTOM_TYPE, { label: 'AWS keys' });
+
+      await expect(registry.recoverSession('some-other-plugin', created.id)).rejects.toThrow(/session not found/i);
+    });
   });
 
   describe('proactive refresh scheduling', () => {

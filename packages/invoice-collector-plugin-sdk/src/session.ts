@@ -1,4 +1,5 @@
 import type { PluginContext } from './context.js';
+import type { HttpRequestInput } from './http.js';
 
 /**
  * The SDK's own built-in session types — currently just one, deliberately. See §6.1.
@@ -67,6 +68,15 @@ export interface SessionPlugin {
    */
   refresh?(ctx: PluginContext, session: Session, signal: AbortSignal): Promise<SessionRefreshResult | 'unchanged'>;
   test(ctx: PluginContext, session: Session, signal: AbortSignal): Promise<'ok' | 'expired' | 'error'>;
+  /**
+   * Given this session's decrypted secret and an outbound request, return the request modified to
+   * carry this session's auth — a bearer header, a cookie header, real per-request SigV4 signing,
+   * whatever this session type's mechanism actually is. Core calls this for every HttpApi request
+   * that names a sessionId (§7); the session type owns *how* auth attaches, since core has no
+   * generic way to derive it from a secret's shape alone (§6.1 already calls AWS SigV4 out as real
+   * cryptographic work, not just attaching a static credential). Required, same as create/test.
+   */
+  applyAuth(secret: unknown, request: HttpRequestInput): HttpRequestInput | Promise<HttpRequestInput>;
 }
 
 export interface SessionRequirement {
