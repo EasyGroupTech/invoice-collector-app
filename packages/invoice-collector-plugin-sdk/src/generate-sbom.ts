@@ -37,6 +37,16 @@ export interface GenerateSbomResult {
 const DEFAULT_OUTPUT_FILE = 'sbom.cdx.json';
 
 /**
+ * Deliberately pinned, not left to float to whatever npm currently resolves as "latest" —
+ * `runCyclonedxNpm` always invokes this exact version via `npx`, so behavior is reproducible for
+ * every caller (us and every plugin author alike) without needing `@cyclonedx/cyclonedx-npm`
+ * installed as a real dependency anywhere. Kept as `devDependencies` in this package's own
+ * `package.json` too, purely so *our* local dev/CI has a warm, matching cache — that declaration
+ * has no effect on what a consumer of this SDK ever installs. Bump deliberately, not casually.
+ */
+export const CYCLONEDX_NPM_VERSION = '6.0.1';
+
+/**
  * Shells out to the real `cyclonedx-npm` CLI rather than reimplementing dependency-tree scanning
  * — deliberately not pinning `--spec-version`, so this tracks whatever that tool's own current
  * stable default emits (§16). `--omit dev`: a plugin's shipped SBOM should reflect what actually
@@ -44,7 +54,14 @@ const DEFAULT_OUTPUT_FILE = 'sbom.cdx.json';
  */
 function runCyclonedxNpm(cwd: string, outputFile: string, workspace: string | undefined): Promise<void> {
   return new Promise((resolve, reject) => {
-    const args = ['--yes', '@cyclonedx/cyclonedx-npm', '--omit', 'dev', '--output-file', outputFile];
+    const args = [
+      '--yes',
+      `@cyclonedx/cyclonedx-npm@${CYCLONEDX_NPM_VERSION}`,
+      '--omit',
+      'dev',
+      '--output-file',
+      outputFile,
+    ];
     if (workspace) {
       args.push('--workspace', workspace, '--no-include-workspace-root');
     }

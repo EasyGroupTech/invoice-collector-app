@@ -71,5 +71,5 @@ export type {
   MitCompatibilityViolation,
 } from './sbom.js';
 
-export { generateSbom } from './generate-sbom.js';
+export { generateSbom, CYCLONEDX_NPM_VERSION } from './generate-sbom.js';
 export type { GenerateSbomOptions, GenerateSbomResult } from './generate-sbom.js';
