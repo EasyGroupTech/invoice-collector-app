@@ -28,3 +28,4 @@ export * from './wizard-form-state.js';
 export * from './session-create-input.js';
 export * from './advanced-settings.js';
 export * from './sbom-registry.js';
+export * from './reporting.js';

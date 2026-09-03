@@ -11,6 +11,8 @@ import type {
   CreateRecordInput,
   CreateSessionInput,
   EncryptedConfigExportFile,
+  ExportReportInput,
+  FileExportResult,
   InstallPluginInput,
   InstalledPluginSummary,
   InvoiceHistoryRecord,
@@ -28,7 +30,6 @@ import type {
   RunCollectInput,
   RunCollectResult,
   SbomEntry,
-  SbomExportResult,
   Session,
   WizardListDataResult,
 } from '../../electron/shared/ipcContracts';
@@ -64,7 +65,9 @@ declare global {
       historyListForMonth(issuedMonth: string): Promise<InvoiceHistoryRecord[]>;
 
       sbomList(): Promise<SbomEntry[]>;
-      sbomExport(id: string): Promise<SbomExportResult>;
+      sbomExport(id: string): Promise<FileExportResult>;
+
+      reportExport(input: ExportReportInput): Promise<FileExportResult>;
 
       settingsGetAdvanced(): Promise<AdvancedSettings>;
       settingsSaveAdvanced(settings: AdvancedSettings): Promise<AdvancedSettings>;

@@ -8,6 +8,7 @@ import {
   DEFAULT_RETENTION_MONTHS,
   emptyInvoiceHistoryStore,
   invoicesForMonth,
+  invoicesForPeriod,
   loadInvoiceHistoryFile,
   pruneInvoiceHistory,
   saveInvoiceHistoryFile,
@@ -99,6 +100,27 @@ describe('invoicesForMonth', () => {
   });
 });
 
+describe('invoicesForPeriod', () => {
+  it('filters to invoices issued within the period, inclusive on both ends', () => {
+    const store = {
+      version: 1 as const,
+      retentionMonths: 12,
+      invoices: [
+        record({ invoiceId: 'before', issuedDate: '2026-01-09' }),
+        record({ invoiceId: 'start-boundary', issuedDate: '2026-01-10' }),
+        record({ invoiceId: 'inside', issuedDate: '2026-01-20' }),
+        record({ invoiceId: 'end-boundary', issuedDate: '2026-01-31' }),
+        record({ invoiceId: 'after', issuedDate: '2026-02-01' }),
+      ],
+    };
+    expect(invoicesForPeriod(store, { start: '2026-01-10', end: '2026-01-31' }).map((r) => r.invoiceId)).toEqual([
+      'start-boundary',
+      'inside',
+      'end-boundary',
+    ]);
+  });
+});
+
 describe('loadInvoiceHistoryFile / saveInvoiceHistoryFile', () => {
   let dir: string;
 
@@ -185,5 +207,16 @@ describe('createInvoiceHistory (DedupChecker)', () => {
     const january = await history.listForMonth('2026-01');
 
     expect(january.map((r) => r.invoiceId)).toEqual(['a']);
+  });
+
+  it('listForPeriod() returns recorded invoices within an arbitrary ISO date range', async () => {
+    const history = createInvoiceHistory(filePath);
+    await history.record('source-1', 'dest-1', { id: 'a', issuedDate: '2026-01-15' }, 'uploaded');
+    await history.record('source-1', 'dest-1', { id: 'b', issuedDate: '2026-01-28' }, 'uploaded');
+    await history.record('source-1', 'dest-1', { id: 'c', issuedDate: '2026-02-05' }, 'uploaded');
+
+    const result = await history.listForPeriod({ start: '2026-01-20', end: '2026-02-01' });
+
+    expect(result.map((r) => r.invoiceId)).toEqual(['b']);
   });
 });

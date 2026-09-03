@@ -6,6 +6,8 @@ import {
   type CreateRecordInput,
   type CreateSessionInput,
   type EncryptedConfigExportFile,
+  type ExportReportInput,
+  type FileExportResult,
   type InstallPluginInput,
   type InstalledPluginSummary,
   type InvoiceHistoryRecord,
@@ -23,7 +25,6 @@ import {
   type RunCollectInput,
   type RunCollectResult,
   type SbomEntry,
-  type SbomExportResult,
   type Session,
   type WizardListDataResult,
 } from '../shared/ipcContracts.js';
@@ -73,7 +74,9 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.invoke(Channels.HistoryListForMonth, issuedMonth),
 
   sbomList: (): Promise<SbomEntry[]> => ipcRenderer.invoke(Channels.SbomList),
-  sbomExport: (id: string): Promise<SbomExportResult> => ipcRenderer.invoke(Channels.SbomExport, id),
+  sbomExport: (id: string): Promise<FileExportResult> => ipcRenderer.invoke(Channels.SbomExport, id),
+
+  reportExport: (input: ExportReportInput): Promise<FileExportResult> => ipcRenderer.invoke(Channels.ReportExport, input),
 
   settingsGetAdvanced: (): Promise<AdvancedSettings> => ipcRenderer.invoke(Channels.SettingsGetAdvanced),
   settingsSaveAdvanced: (settings: AdvancedSettings): Promise<AdvancedSettings> =>
