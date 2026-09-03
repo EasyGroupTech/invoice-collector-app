@@ -110,6 +110,66 @@ describe('runCollectPipeline', () => {
     expect(destinationPlugin.upload).toHaveBeenCalled();
   });
 
+  it('routes a source plugin\'s ctx.progress.report() calls to the run\'s own report()', async () => {
+    const invoice: DiscoveredInvoice = { id: 'inv-1', issuedDate: '2026-01-15' };
+    const registry = createPluginRegistry();
+    registry.register(
+      fakeSourcePlugin([], {
+        discover: async function* (ctx: PluginContext) {
+          ctx.progress.report('scanning mailbox', { found: 1 });
+          yield invoice;
+        },
+      }),
+    );
+    registry.register(fakeDestinationPlugin());
+    const messages: Array<{ message: string; data?: unknown }> = [];
+
+    await runCollectPipeline(
+      [record()],
+      [destinationRecord()],
+      { sourceIds: 'all', period: { start: '2026-01-01', end: '2026-01-31' } },
+      { registry, dedup: fakeDedup(), createPluginServices: pluginServices, sessionsApiForPlugin: fakeSessionsApi },
+      (update) => messages.push({ message: update.message, data: update.data }),
+      new AbortController().signal,
+    );
+
+    expect(messages).toContainEqual({ message: 'scanning mailbox', data: { found: 1 } });
+  });
+
+  it('gives the destination plugin its own ctx scoped to its own pluginId, not the source\'s', async () => {
+    const invoice: DiscoveredInvoice = { id: 'inv-1', issuedDate: '2026-01-15' };
+    const registry = createPluginRegistry();
+    registry.register(fakeSourcePlugin([invoice]));
+    let uploadCtx: PluginContext | undefined;
+    registry.register(
+      fakeDestinationPlugin({
+        upload: vi.fn(async (ctx: PluginContext) => {
+          uploadCtx = ctx;
+          return { status: 'uploaded' as const };
+        }),
+      }),
+    );
+    const servicesByPluginId = new Map<string, Omit<PluginContext, 'sessions'>>();
+    const createPluginServicesSpy = vi.fn((pluginId: string) => {
+      const services = pluginServices();
+      servicesByPluginId.set(pluginId, services);
+      return services;
+    });
+
+    await runCollectPipeline(
+      [record()], // pluginId: 'ic-email-to-downloads'
+      [destinationRecord()], // pluginId: 'ic-local-downloads'
+      { sourceIds: 'all', period: { start: '2026-01-01', end: '2026-01-31' } },
+      { registry, dedup: fakeDedup(), createPluginServices: createPluginServicesSpy, sessionsApiForPlugin: fakeSessionsApi },
+      noopReport,
+      new AbortController().signal,
+    );
+
+    expect(createPluginServicesSpy).toHaveBeenCalledWith('ic-local-downloads');
+    expect(uploadCtx?.storage).toBe(servicesByPluginId.get('ic-local-downloads')?.storage);
+    expect(uploadCtx?.storage).not.toBe(servicesByPluginId.get('ic-email-to-downloads')?.storage);
+  });
+
   it('skips fetchContent/upload for an invoice the dedup checker already has', async () => {
     const invoice: DiscoveredInvoice = { id: 'inv-1', issuedDate: '2026-01-15' };
     const registry = createPluginRegistry();

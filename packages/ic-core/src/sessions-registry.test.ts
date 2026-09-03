@@ -96,6 +96,63 @@ describe('SessionsRegistry', () => {
     expect(session).not.toHaveProperty('secretCiphertext');
   });
 
+  it('create() routes ctx.progress.report() calls to the caller-supplied onProgress', async () => {
+    registry.registerSessionPlugin(
+      fakeSessionPlugin(BUILT_IN_TYPE, {
+        create: vi.fn(async (ctx, input): Promise<SessionCreateResult> => {
+          ctx.progress.report('Sign in required', { userCode: 'ABC-123' });
+          return { label: (input as { label: string }).label, secret: { token: 'x' } };
+        }),
+      }),
+    );
+    const api = registry.forPlugin('ic-email-to-downloads');
+    const onProgress = vi.fn();
+
+    await api.create(BUILT_IN_TYPE, { label: 'Mailbox sign-in' }, undefined, onProgress);
+
+    expect(onProgress).toHaveBeenCalledWith('Sign in required', { userCode: 'ABC-123' });
+  });
+
+  it('reconnect() also routes ctx.progress.report() calls to the caller-supplied onProgress', async () => {
+    registry.registerSessionPlugin(
+      fakeSessionPlugin(BUILT_IN_TYPE, {
+        create: vi.fn(async (ctx, input): Promise<SessionCreateResult> => {
+          ctx.progress.report('Sign in required', { userCode: 'ABC-123' });
+          return { label: (input as { label: string }).label, secret: { token: 'x' } };
+        }),
+      }),
+    );
+    const api = registry.forPlugin('ic-email-to-downloads');
+    const created = await api.create(BUILT_IN_TYPE, { label: 'Mailbox sign-in' });
+    const onProgress = vi.fn();
+
+    await api.reconnect(created.id, undefined, onProgress);
+
+    expect(onProgress).toHaveBeenCalledWith('Sign in required', { userCode: 'ABC-123' });
+  });
+
+  it('without an onProgress argument, ctx.progress falls back to createPluginServices\' own progress sink', async () => {
+    const fallbackReport = vi.fn();
+    const registryWithFallback = createSessionsRegistry({
+      filePath,
+      encryptor: fakeEncryptor,
+      createPluginServices: (pluginId) => ({ ...stubPluginServices(pluginId), progress: { report: fallbackReport } }),
+    });
+    registryWithFallback.registerSessionPlugin(
+      fakeSessionPlugin(BUILT_IN_TYPE, {
+        create: vi.fn(async (ctx, input): Promise<SessionCreateResult> => {
+          ctx.progress.report('no caller listening');
+          return { label: (input as { label: string }).label, secret: { token: 'x' } };
+        }),
+      }),
+    );
+
+    await registryWithFallback.forPlugin('ic-email-to-downloads').create(BUILT_IN_TYPE, { label: 'Mailbox sign-in' });
+
+    expect(fallbackReport).toHaveBeenCalledWith('no caller listening');
+    registryWithFallback.stopScheduler();
+  });
+
   it('stores the secret encrypted at rest, not as plaintext JSON on disk', async () => {
     registry.registerSessionPlugin(fakeSessionPlugin(BUILT_IN_TYPE));
     const api = registry.forPlugin('ic-email-to-downloads');

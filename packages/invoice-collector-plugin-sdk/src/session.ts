@@ -107,7 +107,19 @@ export interface SessionRequirement {
 export interface SessionsApi {
   list(sessionTypeId?: string): Promise<Session[]>;
   get(sessionId: string): Promise<{ session: Session; secret: unknown } | undefined>;
-  /** Delegates to whichever registered SessionPlugin implements sessionTypeId. */
-  create(sessionTypeId: string, input: unknown, signal?: AbortSignal): Promise<Session>;
-  reconnect(sessionId: string, signal?: AbortSignal): Promise<Session>;
+  /**
+   * Delegates to whichever registered SessionPlugin implements sessionTypeId. `onProgress`
+   * surfaces whatever that SessionPlugin's own `create()` reports via `ctx.progress.report()`
+   * while establishing the session — the device-code built-in's "enter this code at this URL" is
+   * exactly this, and with no way to route it back to the caller, a device-code sign-in would be
+   * silently unusable (the user never learns the code/URL to visit). A real gap surfaced
+   * implementing phase 1.11's Electron shell, closed here rather than worked around.
+   */
+  create(
+    sessionTypeId: string,
+    input: unknown,
+    signal?: AbortSignal,
+    onProgress?: (message: string, data?: Record<string, unknown>) => void,
+  ): Promise<Session>;
+  reconnect(sessionId: string, signal?: AbortSignal, onProgress?: (message: string, data?: Record<string, unknown>) => void): Promise<Session>;
 }
