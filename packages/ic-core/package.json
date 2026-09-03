@@ -4,6 +4,7 @@
   "private": true,
   "description": "Invoice Collector core app shell — no built-in source/destination integrations",
   "type": "module",
+  "license": "MIT",
   "scripts": {
     "typecheck": "tsc --noEmit",
     "build": "tsc -p tsconfig.build.json",
