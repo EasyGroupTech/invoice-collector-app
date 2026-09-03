@@ -8,6 +8,7 @@ const validManifest = {
   pluginApiVersion: '^1.0.0',
   kind: 'source',
   sbom: 'sbom.cdx.json',
+  main: 'index.js',
 };
 
 describe('validateManifest', () => {
@@ -31,6 +32,13 @@ describe('validateManifest', () => {
     const result = validateManifest(withoutSbom);
     expect(result.valid).toBe(false);
     expect(result.errors).toContain('manifest.sbom must be a non-empty string');
+  });
+
+  it('rejects a missing main — core has no entry module to load without it (§9.1)', () => {
+    const { main, ...withoutMain } = validManifest;
+    const result = validateManifest(withoutMain);
+    expect(result.valid).toBe(false);
+    expect(result.errors).toContain('manifest.main must be a non-empty string');
   });
 
   it('rejects an empty-string required field', () => {

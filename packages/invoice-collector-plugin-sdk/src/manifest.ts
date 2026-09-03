@@ -20,4 +20,9 @@ export interface PluginManifest {
    * dependencies and their licenses. Required — core refuses to load a plugin that omits this.
    */
   sbom: string;
+  /**
+   * Path within the plugin package to the compiled entry module core dynamically imports. Its
+   * default export is this plugin's SourcePlugin/DestinationPlugin object (matching `kind`).
+   */
+  main: string;
 }
