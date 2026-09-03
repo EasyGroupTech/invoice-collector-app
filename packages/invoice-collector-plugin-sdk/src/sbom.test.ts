@@ -115,4 +115,46 @@ describe('checkMitCompatibility', () => {
       { name: 'multi-license-pkg', version: '1.0.0', reason: 'license "GPL-2.0-only" is not MIT-compatible' },
     ]);
   });
+
+  it('accepts BlueOak-1.0.0, CC0-1.0, and Python-2.0 — genuinely permissive, just uncommon names', () => {
+    const sbom = sbomWith([
+      { name: 'tar', version: '7.5.22', licenses: [{ license: { id: 'BlueOak-1.0.0' } }] },
+      { name: 'spdx-license-ids', version: '3.0.23', licenses: [{ license: { id: 'CC0-1.0' } }] },
+      { name: 'argparse', version: '2.0.1', licenses: [{ license: { id: 'Python-2.0' } }] },
+    ]);
+    expect(checkMitCompatibility(sbom)).toEqual({ compatible: true, violations: [] });
+  });
+
+  it('flags a Creative Commons *license* (not CC0) for manual review rather than allowing it outright', () => {
+    // Creative Commons itself advises against using CC licenses for software — unlike CC0 (a
+    // public-domain dedication, genuinely compatible), a CC-BY/CC-BY-SA/etc. license is legally
+    // ill-suited for code (no software-specific patent/source-distribution handling), so this
+    // gets the same "can't confidently auto-approve" treatment as a license expression, not a
+    // blanket allow or a blanket fail.
+    const sbom = sbomWith([{ name: 'spdx-exceptions', version: '2.5.0', licenses: [{ license: { id: 'CC-BY-3.0' } }] }]);
+    const result = checkMitCompatibility(sbom);
+    expect(result.compatible).toBe(false);
+    expect(result.violations).toEqual([
+      {
+        name: 'spdx-exceptions',
+        version: '2.5.0',
+        reason:
+          'license "CC-BY-3.0" is a Creative Commons license — Creative Commons advises against using CC licenses for software, requires manual review',
+      },
+    ]);
+  });
+
+  it('flags any CC-BY-family license the same way, not just the exact 3.0 version', () => {
+    const sbom = sbomWith([{ name: 'some-pkg', version: '1.0.0', licenses: [{ license: { id: 'CC-BY-SA-4.0' } }] }]);
+    const result = checkMitCompatibility(sbom);
+    expect(result.compatible).toBe(false);
+    expect(result.violations[0].reason).toMatch(/Creative Commons/);
+  });
+
+  it('does not mistake CC0-1.0 for the CC- (Creative Commons license) prefix it is not', () => {
+    // A regression guard: CC0 and "CC-*" are different legal instruments (public-domain
+    // dedication vs. an actual Creative Commons license) despite the similar-looking prefix.
+    const sbom = sbomWith([{ name: 'cc0-pkg', version: '1.0.0', licenses: [{ license: { id: 'CC0-1.0' } }] }]);
+    expect(checkMitCompatibility(sbom)).toEqual({ compatible: true, violations: [] });
+  });
 });
