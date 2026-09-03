@@ -1,6 +1,57 @@
-// Placeholder — the real plugin contract (PluginManifest, SourcePlugin/DestinationPlugin,
-// Session types, declarative UI descriptors) lands in implementation phase 1.2, and the
-// oauth2-delegated-device-code built-in SessionPlugin in phase 1.3 (see
-// docs/implementation-plan.md in the invoice-collector repo). This file exists only to give the
-// monorepo scaffold something real to typecheck/build/test against.
-export const PACKAGE_NAME = 'invoice-collector-plugin-sdk';
+export type { PluginManifest } from './manifest.js';
+
+export type {
+  HttpRequestInput,
+  HttpResponse,
+  HttpApi,
+} from './http.js';
+
+export {
+  KNOWN_BUILT_IN_SESSION_TYPE_IDS,
+} from './session.js';
+export type {
+  BuiltInSessionTypeId,
+  SessionTypeDescriptor,
+  SessionStatus,
+  Session,
+  SessionCreateResult,
+  SessionRefreshResult,
+  SessionPlugin,
+  SessionRequirement,
+  SessionsApi,
+} from './session.js';
+
+export type {
+  PluginStorageApi,
+  PluginLogApi,
+  PluginProgressApi,
+  CapturedBrowserSession,
+  PluginContext,
+} from './context.js';
+
+export type {
+  FieldType,
+  FieldOption,
+  FieldVisibleWhen,
+  FieldDescriptor,
+  ListColumn,
+  ListDescriptor,
+  DetailDescriptor,
+  WizardStepDescriptor,
+  SettingsPanelDescriptor,
+} from './ui.js';
+
+export type {
+  PluginBackedRecord,
+  PluginSourceRecord,
+  PluginDestinationRecord,
+  DiscoveredInvoice,
+  InvoiceContent,
+  UploadResult,
+  PluginLifecycle,
+  SourcePlugin,
+  DestinationPlugin,
+} from './plugin.js';
+
+export type { ValidationResult } from './validate.js';
+export { validateManifest, validateSessionRequirements } from './validate.js';
