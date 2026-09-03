@@ -2,13 +2,15 @@ import { useState } from 'react';
 import { CollectPage } from './pages/CollectPage';
 import { SessionsPage } from './pages/SessionsPage';
 import { PluginsPage } from './pages/PluginsPage';
+import { SettingsPage } from './pages/SettingsPage';
 
-type Tab = 'collect' | 'sessions' | 'plugins';
+type Tab = 'collect' | 'sessions' | 'plugins' | 'settings';
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'collect', label: 'Collect' },
   { id: 'sessions', label: 'Sessions' },
   { id: 'plugins', label: 'Plugins' },
+  { id: 'settings', label: 'Settings' },
 ];
 
 export function App() {
@@ -31,6 +33,7 @@ export function App() {
       {tab === 'collect' && <CollectPage />}
       {tab === 'sessions' && <SessionsPage />}
       {tab === 'plugins' && <PluginsPage />}
+      {tab === 'settings' && <SettingsPage />}
     </div>
   );
 }

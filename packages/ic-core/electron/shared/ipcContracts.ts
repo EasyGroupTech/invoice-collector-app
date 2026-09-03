@@ -10,6 +10,7 @@ import type {
   WizardListDataResult,
   WizardStepDescriptor,
 } from 'invoice-collector-plugin-sdk';
+import type { AdvancedSettings } from '../../src/advanced-settings.js';
 import type { CollectPeriod } from '../../src/collect-pipeline.js';
 import type { EncryptedConfigExportFile } from '../../src/config-export-crypto.js';
 import type { ConfigImportResult } from '../../src/config-export.js';
@@ -17,6 +18,7 @@ import type { InvoiceHistoryRecord } from '../../src/invoice-history.js';
 import type { JobDoneEvent, JobHandle, JobProgressEvent } from '../../src/job-runner.js';
 import type { PluginInstallNeedsConfirmation, PluginInstallResult } from '../../src/plugin-install.js';
 import type { ProfileSummary } from '../../src/profiles.js';
+import type { SbomEntry } from '../../src/sbom-registry.js';
 
 /**
  * The one shared source of truth for every IPC channel name and payload type — imported by main,
@@ -54,6 +56,12 @@ export const Channels = {
   JobDone: 'job:done',
 
   HistoryListForMonth: 'history:listForMonth',
+
+  SbomList: 'sbom:list',
+  SbomExport: 'sbom:export',
+
+  SettingsGetAdvanced: 'settings:getAdvanced',
+  SettingsSaveAdvanced: 'settings:saveAdvanced',
 } as const;
 
 export interface CreateRecordInput {
@@ -121,7 +129,12 @@ export interface InstalledPluginSummary {
 
 export type RunCollectResult = JobHandle | { error: string };
 
+/** `filePath` is only set when `exported` is true — the user can cancel the native Save dialog,
+ * which isn't an error, just nothing written. */
+export type SbomExportResult = { exported: true; filePath: string } | { exported: false };
+
 export type {
+  AdvancedSettings,
   ConfigImportResult,
   EncryptedConfigExportFile,
   InvoiceHistoryRecord,
@@ -135,6 +148,7 @@ export type {
   PluginManifest,
   PluginSourceRecord,
   ProfileSummary,
+  SbomEntry,
   Session,
   SessionRequirement,
   SettingsPanelDescriptor,

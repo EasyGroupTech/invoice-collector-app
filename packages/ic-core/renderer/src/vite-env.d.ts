@@ -6,6 +6,7 @@
 // preload/index.ts and ../../electron/shared/ipcContracts.ts by hand when a channel's signature
 // changes (same convention CLAUDE.md already documents for the private predecessor app).
 import type {
+  AdvancedSettings,
   ConfigImportResult,
   CreateRecordInput,
   CreateSessionInput,
@@ -26,6 +27,8 @@ import type {
   ResolveWizardListDataInput,
   RunCollectInput,
   RunCollectResult,
+  SbomEntry,
+  SbomExportResult,
   Session,
   WizardListDataResult,
 } from '../../electron/shared/ipcContracts';
@@ -59,6 +62,12 @@ declare global {
       jobsCancel(jobId: string): Promise<void>;
 
       historyListForMonth(issuedMonth: string): Promise<InvoiceHistoryRecord[]>;
+
+      sbomList(): Promise<SbomEntry[]>;
+      sbomExport(id: string): Promise<SbomExportResult>;
+
+      settingsGetAdvanced(): Promise<AdvancedSettings>;
+      settingsSaveAdvanced(settings: AdvancedSettings): Promise<AdvancedSettings>;
 
       onJobProgress(callback: (event: JobProgressEvent) => void): () => void;
       onJobDone(callback: (event: JobDoneEvent) => void): () => void;

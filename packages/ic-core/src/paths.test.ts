@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { appLogFile, pluginsDir, profilePaths } from './paths.js';
+import { advancedSettingsFile, appLogFile, pluginsDir, profilePaths } from './paths.js';
 
 describe('profilePaths', () => {
   const dir = '/base/profiles/default';
@@ -30,5 +30,11 @@ describe('pluginsDir', () => {
 describe('appLogFile', () => {
   it('resolves under the base dir, not per-profile — one continuous operational log', () => {
     expect(appLogFile('/base')).toBe(path.join('/base', 'logs', 'app.log'));
+  });
+});
+
+describe('advancedSettingsFile', () => {
+  it('resolves under the base dir, not per-profile — an app behavior preference, not profile data', () => {
+    expect(advancedSettingsFile('/base')).toBe(path.join('/base', 'advanced-settings.json'));
   });
 });

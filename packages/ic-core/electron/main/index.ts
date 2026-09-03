@@ -1,7 +1,9 @@
+import { readFile, writeFile } from 'node:fs/promises';
 import { app, BrowserWindow, dialog, ipcMain } from 'electron';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { microsoftEntraDelegatedDeviceCodeSessionPlugin } from 'invoice-collector-plugin-sdk';
+import { defaultAdvancedSettings, loadAdvancedSettings, saveAdvancedSettings, type AdvancedSettings } from '../../src/advanced-settings.js';
 import { createCollectJobGuard } from '../../src/collect-job-guard.js';
 import { runCollectPipeline } from '../../src/collect-pipeline.js';
 import { decryptConfigExport, encryptConfigExport, type EncryptedConfigExportFile } from '../../src/config-export-crypto.js';
@@ -18,11 +20,12 @@ import { createHttpApi, type SessionAuthResolver } from '../../src/http-client.j
 import { installPlugin, uninstallPlugin } from '../../src/plugin-install.js';
 import { createInvoiceHistory } from '../../src/invoice-history.js';
 import { createJobRunner } from '../../src/job-runner.js';
-import { appLogFile, pluginsDir, profilePaths } from '../../src/paths.js';
+import { advancedSettingsFile, appLogFile, pluginsDir, profilePaths } from '../../src/paths.js';
 import { createPluginLog } from '../../src/plugin-log.js';
 import { createPluginRegistry } from '../../src/plugin-registry.js';
 import { createPluginStorage } from '../../src/plugin-storage.js';
 import { createProfileManager } from '../../src/profiles.js';
+import { loadSboms, type SbomSource } from '../../src/sbom-registry.js';
 import { resolveSessionCreateInput } from '../../src/session-create-input.js';
 import { createSessionsRegistry, type SessionsRegistry } from '../../src/sessions-registry.js';
 import { resolveWizardListData } from '../../src/wizard-data.js';
@@ -40,6 +43,19 @@ import {
 } from '../shared/ipcContracts.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+// dist/main -> ic-core's own package root is two levels up. Correct in dev; revisit once phase
+// 1.16's electron-builder config decides where a packaged build's resources actually live.
+const IC_CORE_SBOM_PATH = path.join(__dirname, '../../sbom.cdx.json');
+// Resolved via real Node module resolution rather than a relative path from __dirname — robust
+// to however the SDK ends up laid out in node_modules (a workspace symlink today; still correct
+// once it's a real published dependency later), unlike IC_CORE_SBOM_PATH above.
+// `require`, not `import.meta.resolve`: this file is bundled to CJS output (electron.vite.config.ts's
+// format: 'cjs') — `import.meta.resolve` has no CJS equivalent and esbuild silently compiles it to
+// `(void 0).resolve`, a real, confirmed-live failure (not a hypothetical), while `require` is a
+// genuine working global in CJS output, further confirmed by externalizeDepsPlugin() already
+// compiling this package's own `import ... from 'invoice-collector-plugin-sdk'` to a real require().
+const SDK_SBOM_PATH = path.join(path.dirname(require.resolve('invoice-collector-plugin-sdk/package.json')), 'sbom.cdx.json');
 
 // §0 item 3: invoice-collector-plugin-sdk isn't published yet, so there's no real released
 // version to compare a plugin's pluginApiVersion range against — every package here is still
@@ -75,6 +91,11 @@ const collectGuard = createCollectJobGuard(jobRunner);
 let sessionsRegistry: SessionsRegistry;
 let invoiceHistory: ReturnType<typeof createInvoiceHistory>;
 
+// Not per-profile (paths.ts's advancedSettingsFile is base-dir-scoped) — loaded once at boot,
+// re-read live by createHttpApi's retryPolicy callback below rather than baked in at construction,
+// so a save from the Advanced Settings page takes effect on the very next request (§7).
+let currentAdvancedSettings: AdvancedSettings = defaultAdvancedSettings();
+
 const sessionAuthResolver: SessionAuthResolver = {
   attachAuth: (pluginId, sessionId, request) => sessionsRegistry.attachAuth(pluginId, sessionId, request),
   recoverSession: (pluginId, sessionId) => sessionsRegistry.recoverSession(pluginId, sessionId),
@@ -85,7 +106,7 @@ function createPluginServices(pluginId: string) {
   const log = createPluginLog(appLogFile(app.getPath('userData')), pluginId);
   return {
     storage: createPluginStorage(paths.pluginStorageFile(pluginId)),
-    http: createHttpApi(pluginId, { sessionsRegistry: sessionAuthResolver }),
+    http: createHttpApi(pluginId, { sessionsRegistry: sessionAuthResolver, retryPolicy: () => currentAdvancedSettings.retryPolicy }),
     log,
     // Default sink for a ctx.progress.report() call with no live job listening (e.g. the
     // scheduler's own background refresh) — recorded, not dropped silently.
@@ -309,10 +330,54 @@ ipcMain.handle(Channels.JobsCancel, (_event, jobId: string) => jobRunner.cancelJ
 
 ipcMain.handle(Channels.HistoryListForMonth, (_event, issuedMonth: string) => invoiceHistory.listForMonth(issuedMonth));
 
+// --- SBOM / licenses (§13) ---
+
+function buildSbomSources(): SbomSource[] {
+  return [
+    { id: 'ic-core', label: 'Invoice Collector (core app)', filePath: IC_CORE_SBOM_PATH },
+    { id: 'invoice-collector-plugin-sdk', label: 'invoice-collector-plugin-sdk', filePath: SDK_SBOM_PATH },
+    ...pluginRegistry.list().map((plugin) => ({
+      id: plugin.manifest.id,
+      label: plugin.manifest.name,
+      filePath: path.join(pluginsDir(app.getPath('userData')), plugin.manifest.id, plugin.manifest.sbom),
+    })),
+  ];
+}
+
+ipcMain.handle(Channels.SbomList, () => loadSboms(buildSbomSources(), (filePath) => readFile(filePath, 'utf-8')));
+
+// §13's "raw export SBOM action per package" — hands back the underlying CycloneDX JSON file
+// itself via a native Save dialog, rather than just the rendered view SbomList drives.
+ipcMain.handle(Channels.SbomExport, async (_event, id: string) => {
+  const source = buildSbomSources().find((s) => s.id === id);
+  if (!source) throw new Error(`No SBOM source for "${id}"`);
+
+  const raw = await readFile(source.filePath, 'utf-8');
+  const result = await dialog.showSaveDialog(mainWindow!, {
+    defaultPath: `${id}-sbom.cdx.json`,
+    filters: [{ name: 'CycloneDX SBOM', extensions: ['json'] }],
+  });
+  if (result.canceled || !result.filePath) return { exported: false };
+
+  await writeFile(result.filePath, raw, 'utf-8');
+  return { exported: true, filePath: result.filePath };
+});
+
+// --- Advanced Settings (§7) ---
+
+ipcMain.handle(Channels.SettingsGetAdvanced, () => currentAdvancedSettings);
+
+ipcMain.handle(Channels.SettingsSaveAdvanced, async (_event, settings: AdvancedSettings) => {
+  await saveAdvancedSettings(advancedSettingsFile(app.getPath('userData')), settings);
+  currentAdvancedSettings = settings;
+  return currentAdvancedSettings;
+});
+
 // --- Lifecycle ---
 
 app.whenReady().then(async () => {
   await profileManager.init();
+  currentAdvancedSettings = await loadAdvancedSettings(advancedSettingsFile(app.getPath('userData')));
   rebuildProfileScopedServices();
   createWindow();
 });
