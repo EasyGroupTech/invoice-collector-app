@@ -26,7 +26,12 @@ export interface CollectSelection {
  */
 export interface DedupChecker {
   has(sourceId: string, invoiceId: string): Promise<boolean>;
-  record(sourceId: string, invoice: DiscoveredInvoice, status: UploadResult['status']): Promise<void>;
+  record(
+    sourceId: string,
+    destinationId: string,
+    invoice: DiscoveredInvoice,
+    status: UploadResult['status'],
+  ): Promise<void>;
 }
 
 export type CollectItemStatus = UploadResult['status'] | 'skipped-dedup' | 'error';
@@ -152,7 +157,7 @@ export async function runCollectPipeline(
           try {
             const content = await sourcePlugin.fetchContent(ctx, source, discovered, signal);
             const uploadResult = await destinationPlugin.upload(ctx, destination, { ...discovered, ...content }, signal);
-            await deps.dedup.record(source.id, discovered, uploadResult.status);
+            await deps.dedup.record(source.id, destinationId, discovered, uploadResult.status);
             outcomes.push({
               sourceId: source.id,
               destinationId,
