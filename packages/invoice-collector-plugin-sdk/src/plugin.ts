@@ -55,6 +55,35 @@ export interface UploadResult {
   status: 'uploaded' | 'already-existed' | 'overwritten';
 }
 
+/**
+ * A ListDescriptor's `dataSource` (§8) is a plugin-defined key, not embedded rows — this is the
+ * call core's renderer makes (via IPC) to actually resolve it. Fired while a wizard/settings-panel
+ * is mid-flow, so there's no PluginBackedRecord yet — only whatever field values have been entered
+ * in the same wizard/panel run so far, plus the session established earlier in that same run, if
+ * any.
+ */
+export interface WizardListDataRequest {
+  dataSource: string;
+  fieldValues: Record<string, unknown>;
+  sessionId?: string;
+}
+
+export interface WizardListDataResult {
+  rows: Array<Record<string, unknown>>;
+}
+
+/**
+ * Optional — only a plugin whose `wizard`/`settingsPanel` actually contains a ListDescriptor needs
+ * to implement this (enforced at install time, see `validateWizardDataSources` in validate.ts).
+ */
+export interface WizardDataSourceProvider {
+  resolveListData?(
+    ctx: PluginContext,
+    request: WizardListDataRequest,
+    signal: AbortSignal,
+  ): Promise<WizardListDataResult>;
+}
+
 export interface PluginLifecycle {
   /**
    * Called once, automatically, when core detects this plugin's version increased from
@@ -70,7 +99,7 @@ export interface PluginLifecycle {
   ): Promise<{ records: PluginBackedRecord[] }>;
 }
 
-export interface SourcePlugin extends PluginLifecycle {
+export interface SourcePlugin extends PluginLifecycle, WizardDataSourceProvider {
   manifest: PluginManifest;
   /** Which session type(s) this plugin can use, and what it needs from each — required, must
    * list at least one entry. */
@@ -94,7 +123,7 @@ export interface SourcePlugin extends PluginLifecycle {
   ): Promise<InvoiceContent>;
 }
 
-export interface DestinationPlugin extends PluginLifecycle {
+export interface DestinationPlugin extends PluginLifecycle, WizardDataSourceProvider {
   manifest: PluginManifest;
   sessionRequirements: SessionRequirement[];
   wizard: WizardStepDescriptor[];
