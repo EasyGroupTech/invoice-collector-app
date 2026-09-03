@@ -52,7 +52,7 @@ export interface CollectPipelineDeps {
   createPluginServices: (pluginId: string) => Omit<PluginContext, 'sessions'>;
   sessionsApiForPlugin: (pluginId: string) => SessionsApi;
   /** Called when a destination's collectFromDate is lowered by an explicit backfill request
-   * (§17.1 US11) — the caller persists it (config-store.ts's upsertRecord + saveConfigFile). */
+   * (§14.1 US11) — the caller persists it (config-store.ts's upsertRecord + saveConfigFile). */
   onDestinationCutoffLowered?: (destination: PluginDestinationRecord) => Promise<void>;
 }
 
@@ -67,7 +67,7 @@ function errorMessage(err: unknown): string {
 }
 
 /**
- * §17's Collect flow: discover() → per-item dedup check → fetchContent() → upload(), grouped by
+ * §14's Collect flow: discover() → per-item dedup check → fetchContent() → upload(), grouped by
  * destination so each destination's collectFromDate guardrail (US11) is checked once per group,
  * not once per source. A whole source failing (discover() itself throwing) is logged and skipped,
  * matching the reference app's "log and continue" pattern — only cancellation propagates and
