@@ -1,4 +1,5 @@
 import { fileURLToPath } from 'node:url';
+import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import { defineConfig, externalizeDepsPlugin } from 'electron-vite';
 
@@ -32,12 +33,15 @@ export default defineConfig({
   },
   renderer: {
     root: resolvePath('renderer'),
+    resolve: {
+      alias: { '@': resolvePath('renderer/src') },
+    },
     build: {
       outDir: resolvePath('dist/renderer'),
       rollupOptions: {
         input: { index: resolvePath('renderer/index.html') },
       },
     },
-    plugins: [react()],
+    plugins: [react(), tailwindcss()],
   },
 });

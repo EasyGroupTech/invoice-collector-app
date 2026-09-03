@@ -1,5 +1,13 @@
 import { useEffect, useState } from 'react';
 import type { PluginBackedRecord, Session } from 'invoice-collector-plugin-sdk';
+import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { InstalledPluginSummary } from '../../../electron/shared/ipcContracts';
 import { validateWizardValues, type WizardFieldValues } from '../../../src/wizard-form-state.js';
 import { WizardSteps } from '../descriptors/WizardSteps';
@@ -17,7 +25,6 @@ export function CollectPage() {
   const [addingKind, setAddingKind] = useState<RecordKind | undefined>(undefined);
   const [progressLog, setProgressLog] = useState<string[]>([]);
   const [collecting, setCollecting] = useState(false);
-  const [collectError, setCollectError] = useState<string | undefined>(undefined);
 
   async function refresh() {
     setSources(await window.api.configListSources());
@@ -37,7 +44,6 @@ export function CollectPage() {
 
   async function runCollect() {
     setCollecting(true);
-    setCollectError(undefined);
     setProgressLog([]);
     try {
       const now = new Date();
@@ -45,7 +51,7 @@ export function CollectPage() {
       const end = now.toISOString().slice(0, 10);
       const result = await window.api.collectRun({ sourceIds: 'all', period: { start, end } });
       if ('error' in result) {
-        setCollectError(result.error);
+        toast.error(result.error);
         return;
       }
       await new Promise<void>((resolve, reject) => {
@@ -56,38 +62,74 @@ export function CollectPage() {
           else reject(new Error(event.error));
         });
       });
+      toast.success('Collect run finished');
     } catch (err) {
-      setCollectError(err instanceof Error ? err.message : String(err));
+      toast.error(err instanceof Error ? err.message : String(err));
     } finally {
       setCollecting(false);
     }
   }
 
   return (
-    <div>
-      <h2>Sources</h2>
-      <RecordTable records={sources} onRemove={(id) => void removeRecord('source', id)} />
-      <button type="button" onClick={() => setAddingKind('source')}>
-        Add Source
-      </button>
+    <div className="flex flex-col gap-6">
+      <div>
+        <h2 className="text-2xl font-semibold tracking-tight">Collect</h2>
+        <p className="text-sm text-muted-foreground">Download invoices and upload them to each source's destination.</p>
+      </div>
 
-      <h2>Destinations</h2>
-      <RecordTable records={destinations} onRemove={(id) => void removeRecord('destination', id)} />
-      <button type="button" onClick={() => setAddingKind('destination')}>
-        Add Destination
-      </button>
+      <fieldset disabled={collecting} className="contents">
+        <Card>
+          <CardHeader>
+            <CardTitle>Sources</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-4">
+            <RecordTable records={sources} onRemove={(id) => void removeRecord('source', id)} />
+            <div>
+              <Button type="button" variant="outline" onClick={() => setAddingKind('source')}>
+                Add Source
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
 
-      <h2>Collect</h2>
-      <button type="button" disabled={collecting || sources.length === 0} onClick={() => void runCollect()}>
-        {collecting ? 'Collecting…' : 'Run Collect'}
-      </button>
-      {collectError && <p style={{ color: 'crimson' }}>{collectError}</p>}
-      {progressLog.length > 0 && (
-        <pre style={{ background: '#f5f5f5', padding: 8, maxHeight: 200, overflow: 'auto' }}>{progressLog.join('\n')}</pre>
-      )}
+        <Card>
+          <CardHeader>
+            <CardTitle>Destinations</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-4">
+            <RecordTable records={destinations} onRemove={(id) => void removeRecord('destination', id)} />
+            <div>
+              <Button type="button" variant="outline" onClick={() => setAddingKind('destination')}>
+                Add Destination
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Run</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-4">
+            <div>
+              <Button type="button" disabled={sources.length === 0} onClick={() => void runCollect()}>
+                {collecting ? 'Collecting…' : 'Run Collect'}
+              </Button>
+            </div>
+            {progressLog.length > 0 && (
+              <div className="max-h-32 overflow-y-auto rounded-lg border bg-muted/30 px-3 py-2 font-mono text-xs leading-relaxed">
+                {progressLog.map((line, index) => (
+                  // A plain progress transcript, appended in arrival order — no id to key by.
+                  <div key={index}>{line}</div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </fieldset>
 
       {addingKind && (
-        <AddRecordWizard
+        <AddRecordDialog
           kind={addingKind}
           destinations={destinations}
           onClose={() => setAddingKind(undefined)}
@@ -103,44 +145,48 @@ export function CollectPage() {
 
 function RecordTable({ records, onRemove }: { records: PluginBackedRecord[]; onRemove: (id: string) => void }) {
   return (
-    <table>
-      <thead>
-        <tr>
-          <th style={{ textAlign: 'left' }}>Name</th>
-          <th style={{ textAlign: 'left' }}>Plugin</th>
-          <th />
-        </tr>
-      </thead>
-      <tbody>
-        {records.map((r) => (
-          <tr key={r.id}>
-            <td>{r.name}</td>
-            <td>{r.pluginId}</td>
-            <td>
-              <button type="button" onClick={() => onRemove(r.id)}>
-                Remove
-              </button>
-            </td>
-          </tr>
-        ))}
-        {records.length === 0 && (
-          <tr>
-            <td colSpan={3}>None yet.</td>
-          </tr>
-        )}
-      </tbody>
-    </table>
+    <div className="rounded-lg border">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Name</TableHead>
+            <TableHead>Plugin</TableHead>
+            <TableHead />
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {records.map((r) => (
+            <TableRow key={r.id}>
+              <TableCell>{r.name}</TableCell>
+              <TableCell>{r.pluginId}</TableCell>
+              <TableCell>
+                <Button type="button" variant="outline" size="sm" onClick={() => onRemove(r.id)}>
+                  Remove
+                </Button>
+              </TableCell>
+            </TableRow>
+          ))}
+          {records.length === 0 && (
+            <TableRow>
+              <TableCell colSpan={3} className="text-muted-foreground">
+                None yet.
+              </TableCell>
+            </TableRow>
+          )}
+        </TableBody>
+      </Table>
+    </div>
   );
 }
 
-interface AddRecordWizardProps {
+interface AddRecordDialogProps {
   kind: RecordKind;
   destinations: PluginBackedRecord[];
   onClose: () => void;
   onCreated: () => void;
 }
 
-function AddRecordWizard({ kind, destinations, onClose, onCreated }: AddRecordWizardProps) {
+function AddRecordDialog({ kind, destinations, onClose, onCreated }: AddRecordDialogProps) {
   const [plugins, setPlugins] = useState<InstalledPluginSummary[]>([]);
   const [selectedPluginId, setSelectedPluginId] = useState<string | undefined>(undefined);
   const [sessions, setSessions] = useState<Session[]>([]);
@@ -201,6 +247,7 @@ function AddRecordWizard({ kind, destinations, onClose, onCreated }: AddRecordWi
         destinationId: kind === 'source' ? destinationId : undefined,
         sessionId: selectedSessionId,
       });
+      toast.success(`${name || plugin.manifest.name} added`);
       onCreated();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -210,82 +257,101 @@ function AddRecordWizard({ kind, destinations, onClose, onCreated }: AddRecordWi
   }
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ background: 'white', padding: 24, minWidth: 480, maxHeight: '80vh', overflow: 'auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
-        <h3>Add {kind === 'source' ? 'Source' : 'Destination'}</h3>
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="flex max-h-[80vh] flex-col gap-4 overflow-y-auto sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Add {kind === 'source' ? 'Source' : 'Destination'}</DialogTitle>
+        </DialogHeader>
 
-        <label>
-          Plugin
-          <select value={selectedPluginId ?? ''} onChange={(e) => setSelectedPluginId(e.target.value || undefined)}>
-            <option value="" disabled>
-              Select…
-            </option>
-            {plugins.map((p) => (
-              <option key={p.manifest.id} value={p.manifest.id}>
-                {p.manifest.name}
-              </option>
-            ))}
-          </select>
-        </label>
+        <fieldset disabled={submitting} className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="add-record-plugin">Plugin</Label>
+            <Select value={selectedPluginId} onValueChange={setSelectedPluginId}>
+              <SelectTrigger id="add-record-plugin" className="w-full">
+                <SelectValue placeholder="Select…" />
+              </SelectTrigger>
+              <SelectContent>
+                {plugins.map((p) => (
+                  <SelectItem key={p.manifest.id} value={p.manifest.id}>
+                    {p.manifest.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
-        {plugin && requirement && (
-          <fieldset>
-            <legend>Session ({requirement.sessionTypeId})</legend>
-            {requirement.permissionsNote && <p>{requirement.permissionsNote}</p>}
-            <p>Requires: {requirement.requiredScopesOrRoles.join(', ') || 'no specific scopes declared'}</p>
-            {compatibleSessions.map((s) => (
-              <label key={s.id} style={{ display: 'block' }}>
-                <input
-                  type="radio"
-                  name="session"
-                  checked={selectedSessionId === s.id}
-                  onChange={() => setSelectedSessionId(s.id)}
-                />
-                {s.label}
-              </label>
-            ))}
-            <button type="button" disabled={creatingSession} onClick={() => void createSession()}>
-              {creatingSession ? 'Creating…' : 'Create new session'}
-            </button>
-          </fieldset>
-        )}
-
-        {plugin && (
-          <label>
-            Name
-            <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder={plugin.manifest.name} />
-          </label>
-        )}
-
-        {plugin && kind === 'source' && destinations.length > 0 && (
-          <label>
-            Destination
-            <select value={destinationId ?? ''} onChange={(e) => setDestinationId(e.target.value || undefined)}>
-              <option value="">None</option>
-              {destinations.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.name}
-                </option>
+          {plugin && requirement && (
+            <div className="flex flex-col gap-2 rounded-lg border p-4">
+              <p className="text-sm font-medium">Session ({requirement.sessionTypeId})</p>
+              {requirement.permissionsNote && <p className="text-sm text-muted-foreground">{requirement.permissionsNote}</p>}
+              <p className="text-sm text-muted-foreground">Requires: {requirement.requiredScopesOrRoles.join(', ') || 'no specific scopes declared'}</p>
+              {compatibleSessions.map((s) => (
+                <label key={s.id} className="flex items-center gap-2 text-sm">
+                  <input
+                    type="radio"
+                    name="session"
+                    className="accent-primary"
+                    checked={selectedSessionId === s.id}
+                    onChange={() => setSelectedSessionId(s.id)}
+                  />
+                  {s.label}
+                </label>
               ))}
-            </select>
-          </label>
-        )}
+              <div>
+                <Button type="button" variant="outline" size="sm" disabled={creatingSession} onClick={() => void createSession()}>
+                  {creatingSession ? 'Creating…' : 'Create new session'}
+                </Button>
+              </div>
+            </div>
+          )}
 
-        {plugin && (
-          <WizardSteps pluginId={plugin.manifest.id} steps={plugin.wizard} values={values} sessionId={selectedSessionId} onChange={(n, v) => setValues((prev) => ({ ...prev, [n]: v }))} />
-        )}
+          {plugin && (
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="add-record-name">Name</Label>
+              <Input id="add-record-name" value={name} onChange={(e) => setName(e.target.value)} placeholder={plugin.manifest.name} />
+            </div>
+          )}
 
-        {error && <p style={{ color: 'crimson' }}>{error}</p>}
+          {plugin && kind === 'source' && destinations.length > 0 && (
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="add-record-destination">Destination</Label>
+              <Select value={destinationId} onValueChange={setDestinationId}>
+                <SelectTrigger id="add-record-destination" className="w-full">
+                  <SelectValue placeholder="None" />
+                </SelectTrigger>
+                <SelectContent>
+                  {destinations.map((d) => (
+                    <SelectItem key={d.id} value={d.id}>
+                      {d.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
-        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-          <button type="button" onClick={onClose}>
+          {plugin && (
+            <WizardSteps
+              pluginId={plugin.manifest.id}
+              steps={plugin.wizard}
+              values={values}
+              sessionId={selectedSessionId}
+              onChange={(n, v) => setValues((prev) => ({ ...prev, [n]: v }))}
+            />
+          )}
+
+          {error && <p className="text-sm text-destructive">{error}</p>}
+        </fieldset>
+
+        <DialogFooter>
+          <Button type="button" variant="ghost" onClick={onClose}>
             Cancel
-          </button>
-          <button type="button" disabled={!plugin || submitting} onClick={() => void submit()}>
+          </Button>
+          <Button type="button" disabled={!plugin || submitting} onClick={() => void submit()}>
             {submitting ? 'Adding…' : 'Add'}
-          </button>
-        </div>
-      </div>
-    </div>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

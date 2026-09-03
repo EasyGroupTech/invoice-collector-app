@@ -1,5 +1,9 @@
 import { useEffect, useState } from 'react';
 import type { Session } from 'invoice-collector-plugin-sdk';
+import { toast } from 'sonner';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { runJobAndWait } from '../jobs';
 
 /** §6's Sessions UI: lists established sessions, their status, and a Reconnect action. Creating a
@@ -9,7 +13,6 @@ import { runJobAndWait } from '../jobs';
 export function SessionsPage() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [busySessionId, setBusySessionId] = useState<string | undefined>(undefined);
-  const [error, setError] = useState<string | undefined>(undefined);
 
   async function refresh() {
     setSessions(await window.api.sessionsList());
@@ -21,52 +24,61 @@ export function SessionsPage() {
 
   async function reconnect(session: Session) {
     setBusySessionId(session.id);
-    setError(undefined);
     try {
       await runJobAndWait(window.api.sessionsReconnect({ pluginId: session.createdByPluginId, sessionId: session.id }));
+      toast.success(`${session.label} reconnected`);
       await refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      toast.error(err instanceof Error ? err.message : String(err));
     } finally {
       setBusySessionId(undefined);
     }
   }
 
   return (
-    <div>
-      <h2>Sessions</h2>
-      {error && <p style={{ color: 'crimson' }}>{error}</p>}
-      <table>
-        <thead>
-          <tr>
-            <th style={{ textAlign: 'left' }}>Label</th>
-            <th style={{ textAlign: 'left' }}>Type</th>
-            <th style={{ textAlign: 'left' }}>Status</th>
-            <th style={{ textAlign: 'left' }}>Expires</th>
-            <th />
-          </tr>
-        </thead>
-        <tbody>
-          {sessions.map((s) => (
-            <tr key={s.id}>
-              <td>{s.label}</td>
-              <td>{s.sessionTypeId}</td>
-              <td>{s.status}</td>
-              <td>{s.expiresAt ?? '—'}</td>
-              <td>
-                <button type="button" disabled={busySessionId === s.id} onClick={() => void reconnect(s)}>
-                  {busySessionId === s.id ? 'Reconnecting…' : 'Reconnect'}
-                </button>
-              </td>
-            </tr>
-          ))}
-          {sessions.length === 0 && (
-            <tr>
-              <td colSpan={5}>No sessions yet — sessions are created from a source/destination's Add wizard.</td>
-            </tr>
-          )}
-        </tbody>
-      </table>
+    <div className="flex flex-col gap-6">
+      <div>
+        <h2 className="text-2xl font-semibold tracking-tight">Sessions</h2>
+        <p className="text-sm text-muted-foreground">Established connections a source or destination signs in through.</p>
+      </div>
+
+      <div className="rounded-lg border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Label</TableHead>
+              <TableHead>Type</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Expires</TableHead>
+              <TableHead />
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {sessions.map((s) => (
+              <TableRow key={s.id}>
+                <TableCell>{s.label}</TableCell>
+                <TableCell>{s.sessionTypeId}</TableCell>
+                <TableCell>
+                  <Badge variant={s.status === 'active' ? 'secondary' : 'destructive'}>{s.status}</Badge>
+                </TableCell>
+                <TableCell>{s.expiresAt ?? '—'}</TableCell>
+                <TableCell>
+                  <Button type="button" variant="outline" size="sm" disabled={busySessionId === s.id} onClick={() => void reconnect(s)}>
+                    {busySessionId === s.id ? 'Reconnecting…' : 'Reconnect'}
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+            {sessions.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={5} className="text-muted-foreground">
+                  No sessions yet — sessions are created from a source/destination's Add wizard.
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 }

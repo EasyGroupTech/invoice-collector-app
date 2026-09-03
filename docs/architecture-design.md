@@ -626,6 +626,14 @@ needs one rather than guessing the shape now. Relatedly, `PluginBackedRecord.ses
 only ever set at record-creation time, from whichever session the wizard's session step resolved —
 there's no separate "reassign a record's session" action yet.
 
+**Rendering stack: shadcn/ui's component set on Tailwind CSS v4 + Radix UI primitives.** This is
+the concrete choice behind "only core's own React components ever render" above — a small, fixed
+set of accessible, unstyled-by-default primitives (dialog, select, tabs, checkbox, ...) themed via
+CSS custom properties in one stylesheet, rather than a heavier component framework or hand-rolled
+styling per screen. Picked for the same reason the descriptor schema itself stays small: every
+screen (core's own and, indirectly, anything a plugin's `wizard`/`settingsPanel` describes) ends up
+visually consistent by construction, without a design system to maintain by hand alongside it.
+
 ## 9. Trust model
 
 Only **two** states, both at the core-app level.
