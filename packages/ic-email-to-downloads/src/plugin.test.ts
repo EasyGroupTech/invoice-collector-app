@@ -1,4 +1,4 @@
-import type { HttpApi, HttpRequestInput, HttpResponse, PluginContext } from 'invoice-collector-plugin-sdk';
+import type { HttpApi, HttpRequestInput, HttpResponse, PluginContext, Session } from 'invoice-collector-plugin-sdk';
 import { describe, expect, it, vi } from 'vitest';
 import plugin from './plugin.js';
 
@@ -45,6 +45,19 @@ function attachmentContentBytes(text: string): { contentBytes: string } {
   return { contentBytes: Buffer.from(text).toString('base64') };
 }
 
+function fakeSession(overrides: Partial<Session> = {}): Session {
+  return {
+    id: 'session-1',
+    sessionTypeId: 'microsoft-entra-delegated-device-code',
+    label: 'Microsoft 365 sign-in',
+    createdByPluginId: 'app.easygroup.source.email-mail',
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z',
+    status: 'active',
+    ...overrides,
+  };
+}
+
 describe('builtInSessionCreateInput', () => {
   it('builds the device-code input from the requirement\'s own declared scopes', () => {
     const input = plugin.builtInSessionCreateInput!({
@@ -60,6 +73,27 @@ describe('builtInSessionCreateInput', () => {
       scope: 'Mail.Read offline_access',
       label: 'Microsoft 365 sign-in',
     });
+  });
+});
+
+describe('suggestSessionLabel (§6 friendly session naming)', () => {
+  it('suggests the signed-in tenant\'s primary domain for a device-code session', async () => {
+    const http = dispatchingHttp([
+      { match: '/organization', response: fakeResponse(200, { value: [{ verifiedDomains: [{ name: 'contoso.com', isDefault: true }] }] }) },
+    ]);
+    const ctx = fakeContext(http);
+
+    const suggestion = await plugin.suggestSessionLabel!(ctx, fakeSession(), new AbortController().signal);
+
+    expect(suggestion).toBe('contoso.com');
+  });
+
+  it('returns undefined for a session type this plugin does not recognize', async () => {
+    const ctx = fakeContext(dispatchingHttp([]));
+
+    const suggestion = await plugin.suggestSessionLabel!(ctx, fakeSession({ sessionTypeId: 'some-other-session-type' }), new AbortController().signal);
+
+    expect(suggestion).toBeUndefined();
   });
 });
 

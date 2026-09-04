@@ -1,5 +1,5 @@
 import type { PluginManifest } from './manifest.js';
-import type { SessionPlugin, SessionRequirement } from './session.js';
+import type { Session, SessionPlugin, SessionRequirement } from './session.js';
 import type { PluginContext } from './context.js';
 import type { WizardStepDescriptor, SettingsPanelDescriptor } from './ui.js';
 
@@ -108,6 +108,23 @@ export interface BuiltInSessionInputProvider {
   builtInSessionCreateInput?(requirement: SessionRequirement): unknown;
 }
 
+/**
+ * Called once, right after a session this plugin uses has just been created — an opportunity to
+ * suggest a friendlier label than whatever the session type itself set (a built-in like the
+ * device-code one has no way to know it's talking to, say, "Graph Mail for Contoso Ltd" — it just
+ * sets whatever generic label the calling plugin supplied via `builtInSessionCreateInput`). The
+ * suggestion is made by calling *through* the now-established session (`ctx.http` with the
+ * session's own id already works for this — the session is fully persisted by the time this
+ * runs), e.g. looking up the signed-in tenant's own verified domain. Optional — a plugin with
+ * nothing better to suggest just omits this; a thrown/rejected call is treated the same as
+ * returning `undefined`, since a suggestion is a nice-to-have, never something session creation
+ * itself should be blocked on. The caller (core's own Sessions UI/wizard) decides whether and how
+ * to let the user accept, edit, or ignore the suggestion — this hook only ever proposes a string.
+ */
+export interface SessionLabelSuggester {
+  suggestSessionLabel?(ctx: PluginContext, session: Session, signal: AbortSignal): Promise<string | undefined>;
+}
+
 export interface PluginLifecycle {
   /**
    * Called once, automatically, when core detects this plugin's version increased from
@@ -123,7 +140,7 @@ export interface PluginLifecycle {
   ): Promise<{ records: PluginBackedRecord[] }>;
 }
 
-export interface SourcePlugin extends PluginLifecycle, WizardDataSourceProvider, BuiltInSessionInputProvider {
+export interface SourcePlugin extends PluginLifecycle, WizardDataSourceProvider, BuiltInSessionInputProvider, SessionLabelSuggester {
   manifest: PluginManifest;
   /** Which session type(s) this plugin can use, and what it needs from each — required, must
    * list at least one entry. */
@@ -152,7 +169,7 @@ export interface SourcePlugin extends PluginLifecycle, WizardDataSourceProvider,
   ): Promise<InvoiceContent>;
 }
 
-export interface DestinationPlugin extends PluginLifecycle, WizardDataSourceProvider, BuiltInSessionInputProvider {
+export interface DestinationPlugin extends PluginLifecycle, WizardDataSourceProvider, BuiltInSessionInputProvider, SessionLabelSuggester {
   manifest: PluginManifest;
   sessionRequirements: SessionRequirement[];
   /** See `SourcePlugin.sessionPlugin` — same mechanism, same reason. */

@@ -1,5 +1,5 @@
 import { readFile, writeFile } from 'node:fs/promises';
-import { app, BrowserWindow, dialog, ipcMain } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { microsoftEntraDelegatedDeviceCodeSessionPlugin } from 'invoice-collector-plugin-sdk';
@@ -29,6 +29,7 @@ import { createProfileManager } from '../../src/profiles.js';
 import { buildExcelReport, buildHtmlReport, buildReportRows } from '../../src/reporting.js';
 import { loadSboms, type SbomSource } from '../../src/sbom-registry.js';
 import { resolveSessionCreateInput } from '../../src/session-create-input.js';
+import { suggestSessionLabel } from '../../src/session-label-suggest.js';
 import { createSessionsRegistry, type SessionsRegistry } from '../../src/sessions-registry.js';
 import { resolveWizardListData } from '../../src/wizard-data.js';
 import { safeStorageEncryptor } from './safeStorageEncryptor.js';
@@ -43,8 +44,10 @@ import {
   type ProfileCreateInput,
   type ReconnectSessionInput,
   type RemoveRecordInput,
+  type RenameSessionInput,
   type ResolveWizardListDataInput,
   type RunCollectInput,
+  type SuggestSessionLabelInput,
 } from '../shared/ipcContracts.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -279,6 +282,21 @@ ipcMain.handle(Channels.SessionsReconnect, (_event, input: ReconnectSessionInput
   );
 });
 
+ipcMain.handle(Channels.SessionsSuggestLabel, async (_event, input: SuggestSessionLabelInput) => {
+  const stored = await sessionsRegistry.forPlugin(input.pluginId).get(input.sessionId);
+  if (!stored) return undefined;
+  return suggestSessionLabel(
+    { registry: pluginRegistry, createPluginServices, sessionsApiForPlugin: (pluginId) => sessionsRegistry.forPlugin(pluginId) },
+    input.pluginId,
+    stored.session,
+    new AbortController().signal,
+  );
+});
+
+ipcMain.handle(Channels.SessionsRename, (_event, input: RenameSessionInput) =>
+  sessionsRegistry.renameSession(input.pluginId, input.sessionId, input.label),
+);
+
 // --- Plugins ---
 // Installed-plugin persistence (reloading what's already in plugins/ across an app restart) is a
 // known gap, not silently skipped — see docs/implementation-plan.md's phase 1.11/1.12 notes.
@@ -437,6 +455,19 @@ ipcMain.handle(Channels.SettingsSaveAdvanced, async (_event, settings: AdvancedS
   await saveAdvancedSettings(advancedSettingsFile(app.getPath('userData')), settings);
   currentAdvancedSettings = settings;
   return currentAdvancedSettings;
+});
+
+// --- App ---
+
+// A device-code sign-in's own verification URL (Microsoft's own domain, never user-typed) needs
+// to open in the OS's real browser, not inside this app — shell.openExternal is the only way to
+// do that from the renderer. Restricted to https: so a compromised/malicious plugin's own progress
+// data can't smuggle a file:/javascript: URI through this generic channel.
+ipcMain.handle(Channels.AppOpenExternal, (_event, url: string) => {
+  if (!url.startsWith('https://')) {
+    throw new Error(`Refusing to open a non-https URL: ${url}`);
+  }
+  return shell.openExternal(url);
 });
 
 // --- Lifecycle ---

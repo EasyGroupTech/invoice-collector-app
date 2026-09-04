@@ -44,6 +44,10 @@ export const Channels = {
   SessionsList: 'sessions:list',
   SessionsCreate: 'sessions:create',
   SessionsReconnect: 'sessions:reconnect',
+  SessionsSuggestLabel: 'sessions:suggestLabel',
+  SessionsRename: 'sessions:rename',
+
+  AppOpenExternal: 'app:openExternal',
 
   PluginsList: 'plugins:list',
   PluginsInstall: 'plugins:install',
@@ -110,6 +114,19 @@ export interface ResolveWizardListDataInput {
 export interface ReconnectSessionInput {
   pluginId: string;
   sessionId: string;
+}
+
+/** §6's "friendly session name" follow-up — see `SessionLabelSuggester` in the SDK for what the
+ * plugin side of this actually does. */
+export interface SuggestSessionLabelInput {
+  pluginId: string;
+  sessionId: string;
+}
+
+export interface RenameSessionInput {
+  pluginId: string;
+  sessionId: string;
+  label: string;
 }
 
 export interface ProfileCreateInput {

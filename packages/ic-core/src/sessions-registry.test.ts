@@ -326,6 +326,33 @@ describe('SessionsRegistry', () => {
     });
   });
 
+  describe('renameSession (used by a plugin\'s suggestSessionLabel() flow, §6)', () => {
+    it("updates the session's own label, leaving everything else untouched", async () => {
+      registry.registerSessionPlugin(fakeSessionPlugin(BUILT_IN_TYPE));
+      const api = registry.forPlugin('ic-email-to-downloads');
+      const created = await api.create(BUILT_IN_TYPE, { label: 'Microsoft 365 sign-in' });
+
+      const renamed = await registry.renameSession('ic-email-to-downloads', created.id, 'contoso.com');
+
+      expect(renamed.label).toBe('contoso.com');
+      expect(renamed.id).toBe(created.id);
+      expect(renamed.status).toBe(created.status);
+      expect((await api.get(created.id))?.secret).toEqual({ token: 'initial-token' });
+    });
+
+    it('rejects a session id not visible to the calling plugin', async () => {
+      registry.registerSessionPlugin(fakeSessionPlugin(CUSTOM_TYPE));
+      const creator = registry.forPlugin('commercial-aws-plugin');
+      const created = await creator.create(CUSTOM_TYPE, { label: 'AWS keys' });
+
+      await expect(registry.renameSession('some-other-plugin', created.id, 'new name')).rejects.toThrow(/session not found/i);
+    });
+
+    it('rejects an id that was never a real session', async () => {
+      await expect(registry.renameSession('ic-email-to-downloads', 'not-a-real-id', 'new name')).rejects.toThrow(/session not found/i);
+    });
+  });
+
   describe('proactive refresh scheduling', () => {
     // Real fs I/O (used by loadSessionsFile/saveSessionsFile elsewhere in this file's other
     // tests) doesn't resolve within vitest's fake-timer flush budget — confirmed empirically:

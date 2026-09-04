@@ -28,11 +28,13 @@ import type {
   ProfileSummary,
   ReconnectSessionInput,
   RemoveRecordInput,
+  RenameSessionInput,
   ResolveWizardListDataInput,
   RunCollectInput,
   RunCollectResult,
   SbomEntry,
   Session,
+  SuggestSessionLabelInput,
   WizardListDataResult,
 } from '../../electron/shared/ipcContracts';
 
@@ -55,6 +57,8 @@ declare global {
       sessionsList(): Promise<Session[]>;
       sessionsCreate(input: CreateSessionInput): Promise<JobHandle>;
       sessionsReconnect(input: ReconnectSessionInput): Promise<JobHandle>;
+      sessionsSuggestLabel(input: SuggestSessionLabelInput): Promise<string | undefined>;
+      sessionsRename(input: RenameSessionInput): Promise<Session>;
 
       pluginsList(): Promise<InstalledPluginSummary[]>;
       pluginsInstall(input: InstallPluginInput): Promise<PluginInstallResult | PluginInstallNeedsConfirmation>;
@@ -75,6 +79,8 @@ declare global {
 
       settingsGetAdvanced(): Promise<AdvancedSettings>;
       settingsSaveAdvanced(settings: AdvancedSettings): Promise<AdvancedSettings>;
+
+      openExternal(url: string): Promise<void>;
 
       onJobProgress(callback: (event: JobProgressEvent) => void): () => void;
       onJobDone(callback: (event: JobDoneEvent) => void): () => void;

@@ -52,6 +52,7 @@ export type {
   WizardListDataResult,
   WizardDataSourceProvider,
   BuiltInSessionInputProvider,
+  SessionLabelSuggester,
   SourcePlugin,
   DestinationPlugin,
 } from './plugin.js';

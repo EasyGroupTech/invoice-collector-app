@@ -150,3 +150,26 @@ export async function getAttachmentBytes(http: HttpApi, sessionId: string, messa
   const body = response.json() as { contentBytes?: string };
   return new Uint8Array(Buffer.from(body.contentBytes ?? '', 'base64'));
 }
+
+interface RawVerifiedDomain {
+  name?: string;
+  isDefault?: boolean;
+}
+
+interface RawOrganization {
+  verifiedDomains?: RawVerifiedDomain[];
+}
+
+/** Used only for `SessionLabelSuggester` — a session's own friendly name defaults to the signed-in
+ * tenant's primary domain (its `isDefault: true` verified domain, falling back to the first one
+ * listed) rather than anything device/account-specific, since a mailbox session is really "signed
+ * in to this org" from the user's perspective. Returns `undefined` if the call fails or the tenant
+ * has no verified domain at all (a caller treats that as "no suggestion", not an error). */
+export async function getPrimaryDomain(http: HttpApi, sessionId: string, signal: AbortSignal): Promise<string | undefined> {
+  const url = `${GRAPH_BASE}/organization?$select=verifiedDomains`;
+  const response = await http.request({ url, sessionId }, signal);
+  if (response.status !== 200) return undefined;
+  const body = response.json() as GraphListResponse<RawOrganization>;
+  const domains = body.value[0]?.verifiedDomains ?? [];
+  return (domains.find((d) => d.isDefault) ?? domains[0])?.name;
+}

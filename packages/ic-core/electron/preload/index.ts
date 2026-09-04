@@ -23,11 +23,13 @@ import {
   type ProfileSummary,
   type ReconnectSessionInput,
   type RemoveRecordInput,
+  type RenameSessionInput,
   type ResolveWizardListDataInput,
   type RunCollectInput,
   type RunCollectResult,
   type SbomEntry,
   type Session,
+  type SuggestSessionLabelInput,
   type WizardListDataResult,
 } from '../shared/ipcContracts.js';
 
@@ -61,6 +63,9 @@ contextBridge.exposeInMainWorld('api', {
   sessionsList: (): Promise<Session[]> => ipcRenderer.invoke(Channels.SessionsList),
   sessionsCreate: (input: CreateSessionInput): Promise<JobHandle> => ipcRenderer.invoke(Channels.SessionsCreate, input),
   sessionsReconnect: (input: ReconnectSessionInput): Promise<JobHandle> => ipcRenderer.invoke(Channels.SessionsReconnect, input),
+  sessionsSuggestLabel: (input: SuggestSessionLabelInput): Promise<string | undefined> =>
+    ipcRenderer.invoke(Channels.SessionsSuggestLabel, input),
+  sessionsRename: (input: RenameSessionInput): Promise<Session> => ipcRenderer.invoke(Channels.SessionsRename, input),
 
   pluginsList: (): Promise<InstalledPluginSummary[]> => ipcRenderer.invoke(Channels.PluginsList),
   pluginsInstall: (input: InstallPluginInput): Promise<PluginInstallResult | PluginInstallNeedsConfirmation> =>
@@ -85,6 +90,8 @@ contextBridge.exposeInMainWorld('api', {
   settingsGetAdvanced: (): Promise<AdvancedSettings> => ipcRenderer.invoke(Channels.SettingsGetAdvanced),
   settingsSaveAdvanced: (settings: AdvancedSettings): Promise<AdvancedSettings> =>
     ipcRenderer.invoke(Channels.SettingsSaveAdvanced, settings),
+
+  openExternal: (url: string): Promise<void> => ipcRenderer.invoke(Channels.AppOpenExternal, url),
 
   onJobProgress,
   onJobDone,

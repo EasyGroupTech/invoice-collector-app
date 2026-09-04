@@ -46,6 +46,11 @@ export interface SessionsRegistry {
    * visible to `pluginId`, has no refresh() mechanism, or the refresh attempt itself fails (in
    * which case the session is still persisted as `needs-reconnect` before the throw). */
   recoverSession(pluginId: string, sessionId: string): Promise<Session>;
+  /** Updates a session's own label — e.g. once a plugin's `suggestSessionLabel()` hook (§6)
+   * resolves a friendlier name than whatever the session type itself set by default. Touches only
+   * the label; the secret/status/expiry are untouched. Scoped by the same cross-plugin visibility
+   * rule as `attachAuth`/`recoverSession`. */
+  renameSession(pluginId: string, sessionId: string, label: string): Promise<Session>;
   /**
    * Every session, unscoped by the cross-plugin sharing rule — not part of the plugin-facing
    * SessionsApi. For core's own Sessions UI (§6: "lists established sessions, their status... and
@@ -226,6 +231,17 @@ export function createSessionsRegistry(options: SessionsRegistryOptions): Sessio
     return toPublicSession(outcome.updated);
   }
 
+  async function renameSession(pluginId: string, sessionId: string, label: string): Promise<Session> {
+    const current = await state();
+    const stored = current.sessions.find((s) => s.id === sessionId);
+    if (!stored || !visibleTo(stored, pluginId)) {
+      throw new Error(`Session not found: ${sessionId}`);
+    }
+    const updated: StoredSession = { ...stored, label, updatedAt: now().toISOString() };
+    await persist({ ...current, sessions: upsert(current.sessions, updated) });
+    return toPublicSession(updated);
+  }
+
   function forPlugin(pluginId: string): SessionsApi {
     return {
       async list(sessionTypeId) {
@@ -329,6 +345,7 @@ export function createSessionsRegistry(options: SessionsRegistryOptions): Sessio
 
     attachAuth,
     recoverSession,
+    renameSession,
 
     async listAll() {
       const current = await state();

@@ -3,13 +3,14 @@ import type {
   InvoiceContent,
   PluginContext,
   PluginSourceRecord,
+  Session,
   SessionRequirement,
   SourcePlugin,
   WizardListDataRequest,
   WizardListDataResult,
 } from 'invoice-collector-plugin-sdk';
 import { buildInvoiceFileName } from './file-naming.js';
-import { getAttachmentBytes, getMessageDetail, listAttachments, listMessages } from './graph-mail.js';
+import { getAttachmentBytes, getMessageDetail, getPrimaryDomain, listAttachments, listMessages } from './graph-mail.js';
 import { htmlToText, parseInvoiceFields } from './invoice-text-parsing.js';
 import { matchesMailFilter, type MailSourceConfig } from './mail-filter.js';
 import { extractPdfText } from './pdf-text.js';
@@ -192,6 +193,16 @@ function builtInSessionCreateInput(requirement: SessionRequirement): unknown {
   };
 }
 
+/** The wizard's own friendly-name follow-up (§6): once a device-code session is established, its
+ * signed-in tenant's primary verified domain reads far better as a session name than the generic
+ * built-in label — the shared `microsoftEntraDelegatedDeviceCodeSessionPlugin` doesn't know this
+ * (it also serves ARM consumers, which have no "mailbox tenant domain" concept), so it lives here,
+ * in the one plugin that actually wants it. */
+async function suggestSessionLabel(ctx: PluginContext, session: Session, signal: AbortSignal): Promise<string | undefined> {
+  if (session.sessionTypeId !== SESSION_TYPE_ID) return undefined;
+  return getPrimaryDomain(ctx.http, session.id, signal);
+}
+
 const graphMailSource: SourcePlugin = {
   manifest: {
     id: 'app.easygroup.source.email-mail',
@@ -233,6 +244,7 @@ const graphMailSource: SourcePlugin = {
   ],
   resolveListData,
   builtInSessionCreateInput,
+  suggestSessionLabel,
   discover,
   fetchContent,
 };
