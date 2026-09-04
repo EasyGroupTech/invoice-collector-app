@@ -3,12 +3,11 @@ import type { PluginBackedRecord, Session } from 'invoice-collector-plugin-sdk';
 import { Plus, Settings as SettingsIcon, Wrench } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import type { InstalledPluginSummary } from '../../../electron/shared/ipcContracts';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import type { InstalledPluginSummary, InvoiceHistoryRecord } from '../../../electron/shared/ipcContracts';
 import { AddRecordDialog, SessionEstablishPanel, sessionFor, type RecordKind } from './SourcesDestinationsSection';
 
 const MONTH_NAMES = [
@@ -26,21 +25,19 @@ const MONTH_NAMES = [
   'December',
 ];
 
-/** The whole calendar month a Collect run's own `period` (§14) covers — the run-period selector
- * below is deliberately a plain month+year pair, not an arbitrary range, so "collect this month"
- * stays a one-glance decision; the Report card further down keeps its own free-form date range
- * for exporting whatever's already on file. */
+/** The whole calendar month a Collect run's own `period` (§14) covers. */
 function periodForMonth(year: number, month: number): { start: string; end: string } {
   const start = `${year}-${String(month).padStart(2, '0')}-01`;
   const end = new Date(year, month, 0).toISOString().slice(0, 10);
   return { start, end };
 }
 
-function defaultPeriod(): { start: string; end: string } {
-  const now = new Date();
-  const start = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().slice(0, 10);
-  const end = now.toISOString().slice(0, 10);
-  return { start, end };
+function issuedMonthKey(year: number, month: number): string {
+  return `${year}-${String(month).padStart(2, '0')}`;
+}
+
+function formatAmount(amount?: { value: number; currency: string }): string {
+  return amount ? `${amount.value.toFixed(2)} ${amount.currency}` : '—';
 }
 
 interface CollectPageProps {
@@ -65,8 +62,7 @@ export function CollectPage({ onOpenSettings }: CollectPageProps) {
   const [collecting, setCollecting] = useState(false);
   const [collectMonth, setCollectMonth] = useState(now.getMonth() + 1);
   const [collectYear, setCollectYear] = useState(now.getFullYear());
-  const [reportPeriod, setReportPeriod] = useState(defaultPeriod());
-  const [exportingReport, setExportingReport] = useState(false);
+  const [invoiceHistory, setInvoiceHistory] = useState<InvoiceHistoryRecord[]>([]);
 
   async function refresh() {
     setSources(await window.api.configListSources());
@@ -75,9 +71,21 @@ export function CollectPage({ onOpenSettings }: CollectPageProps) {
     setAllPlugins(await window.api.pluginsList());
   }
 
+  async function refreshInvoiceHistory() {
+    setInvoiceHistory(await window.api.historyListForMonth(issuedMonthKey(collectYear, collectMonth)));
+  }
+
   useEffect(() => {
     void refresh();
   }, []);
+
+  // §14.1 US13's collected-invoices table (below) — reloaded whenever the selected month changes,
+  // same as the reference app's own "switching to a month already worked on immediately shows its
+  // full history."
+  useEffect(() => {
+    void refreshInvoiceHistory();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [collectMonth, collectYear]);
 
   useEffect(() => window.api.onJobProgress((event) => setProgressLog((prev) => [...prev, event.message])), []);
 
@@ -119,22 +127,11 @@ export function CollectPage({ onOpenSettings }: CollectPageProps) {
         });
       });
       toast.success('Collect run finished');
+      await refreshInvoiceHistory();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : String(err));
     } finally {
       setCollecting(false);
-    }
-  }
-
-  async function exportReport(format: 'html' | 'excel') {
-    setExportingReport(true);
-    try {
-      const result = await window.api.reportExport({ period: reportPeriod, format });
-      if (result.exported) toast.success(`Report saved to ${result.filePath}`);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : String(err));
-    } finally {
-      setExportingReport(false);
     }
   }
 
@@ -150,104 +147,96 @@ export function CollectPage({ onOpenSettings }: CollectPageProps) {
         </Button>
       </div>
 
-      <Card>
-        <CardContent className="flex flex-col gap-4">
-          <fieldset disabled={collecting} className="flex flex-wrap items-end gap-4">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="collect-month">Month</Label>
-              <Select value={String(collectMonth)} onValueChange={(value) => setCollectMonth(Number(value))}>
-                <SelectTrigger id="collect-month" className="w-40">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {MONTH_NAMES.map((label, i) => (
-                    <SelectItem key={label} value={String(i + 1)}>
-                      {label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="collect-year">Year</Label>
-              <Input
-                id="collect-year"
-                type="number"
-                value={collectYear}
-                onChange={(e) => setCollectYear(e.target.valueAsNumber)}
-                className="w-28"
-              />
-            </div>
-            <Button type="button" disabled={sources.length === 0 || connectedCount < totalNeeded} onClick={() => void runCollect()}>
-              {collecting ? 'Collecting…' : 'Collect'}
-            </Button>
-            {totalNeeded > 0 && (
-              <div className="flex items-center gap-2">
-                <p className="text-sm text-muted-foreground">
-                  {connectedCount} of {totalNeeded} sessions connected
-                </p>
-                {connectedCount < totalNeeded && (
-                  <Button type="button" size="sm" variant="outline" onClick={() => setFixOpen(true)}>
-                    <Wrench />
-                    Fix
-                  </Button>
-                )}
-              </div>
+      <fieldset disabled={collecting} className="flex flex-wrap items-center gap-2">
+        <Select value={String(collectMonth)} onValueChange={(value) => setCollectMonth(Number(value))}>
+          <SelectTrigger id="collect-month" className="w-40">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {MONTH_NAMES.map((label, i) => (
+              <SelectItem key={label} value={String(i + 1)}>
+                {label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Input
+          id="collect-year"
+          type="number"
+          value={collectYear}
+          onChange={(e) => setCollectYear(e.target.valueAsNumber)}
+          className="w-28"
+        />
+        <Button type="button" disabled={sources.length === 0 || connectedCount < totalNeeded} onClick={() => void runCollect()}>
+          {collecting ? 'Collecting…' : 'Collect'}
+        </Button>
+        {totalNeeded > 0 && (
+          <div className="flex items-center gap-2">
+            <p className="text-sm text-muted-foreground">
+              {connectedCount} of {totalNeeded} sessions connected
+            </p>
+            {connectedCount < totalNeeded && (
+              <Button type="button" size="sm" variant="outline" onClick={() => setFixOpen(true)}>
+                <Wrench />
+                Fix
+              </Button>
             )}
-            <Button type="button" variant="outline" className="ml-auto" onClick={() => setAddingKind('source')}>
-              <Plus />
-              Add
-            </Button>
-          </fieldset>
-          {progressLog.length > 0 && (
-            <div className="max-h-32 overflow-y-auto rounded-lg border bg-muted/30 px-3 py-2 font-mono text-xs leading-relaxed">
-              {progressLog.map((line, index) => (
-                // A plain progress transcript, appended in arrival order — no id to key by.
-                <div key={index}>{line}</div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      <fieldset disabled={collecting} className="contents">
-        <Card>
-          <CardHeader>
-            <CardTitle>Report</CardTitle>
-            <p className="text-sm text-muted-foreground">Export what's on file for a period as HTML or Excel (§14.1 US20).</p>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-4">
-            <div className="flex items-end gap-2">
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="report-start">Start</Label>
-                <Input
-                  id="report-start"
-                  type="date"
-                  value={reportPeriod.start}
-                  onChange={(e) => setReportPeriod((prev) => ({ ...prev, start: e.target.value }))}
-                />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="report-end">End</Label>
-                <Input
-                  id="report-end"
-                  type="date"
-                  value={reportPeriod.end}
-                  onChange={(e) => setReportPeriod((prev) => ({ ...prev, end: e.target.value }))}
-                />
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button type="button" variant="outline" disabled={exportingReport} onClick={() => void exportReport('html')}>
-                Export as HTML
-              </Button>
-              <Button type="button" variant="outline" disabled={exportingReport} onClick={() => void exportReport('excel')}>
-                Export as Excel
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+          </div>
+        )}
+        <Button type="button" variant="outline" className="ml-auto" onClick={() => setAddingKind('source')}>
+          <Plus />
+          Add
+        </Button>
       </fieldset>
+
+      {progressLog.length > 0 && (
+        <div className="max-h-32 overflow-y-auto rounded-lg border bg-muted/30 px-3 py-2 font-mono text-xs leading-relaxed">
+          {progressLog.map((line, index) => (
+            // A plain progress transcript, appended in arrival order — no id to key by.
+            <div key={index}>{line}</div>
+          ))}
+        </div>
+      )}
+
+      <div>
+        <h3 className="text-lg font-semibold tracking-tight">Collected invoices</h3>
+        <p className="text-sm text-muted-foreground">What's on file for {MONTH_NAMES[collectMonth - 1]} {collectYear} (§14.1 US13).</p>
+      </div>
+
+      {invoiceHistory.length === 0 ? (
+        <p className="text-sm text-muted-foreground">Nothing collected for this month yet.</p>
+      ) : (
+        <div className="rounded-lg border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Source</TableHead>
+                <TableHead>Destination</TableHead>
+                <TableHead>Invoice</TableHead>
+                <TableHead>Issued</TableHead>
+                <TableHead>Amount</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Collected</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {invoiceHistory.map((r) => (
+                <TableRow key={`${r.sourceId}-${r.invoiceId}`}>
+                  <TableCell className="font-medium">{sources.find((s) => s.id === r.sourceId)?.name ?? r.sourceId}</TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {destinations.find((d) => d.id === r.destinationId)?.name ?? r.destinationId}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">{r.invoiceId}</TableCell>
+                  <TableCell>{r.issuedDate}</TableCell>
+                  <TableCell>{formatAmount(r.amount)}</TableCell>
+                  <TableCell>{r.status}</TableCell>
+                  <TableCell className="text-muted-foreground">{r.collectedAt}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
 
       {addingKind && (
         <AddRecordDialog
