@@ -1,6 +1,9 @@
-// Placeholder — the real Graph Mail source (discover()/fetchContent(), built-in field-extraction
-// rules) and local-folder destination land in implementation phase 1.14/1.15 (see
-// docs/implementation-plan.md). Manual field-rule capture is deferred past the first release —
-// see docs/architecture-design.md §14.3. This file exists only to give the monorepo scaffold
-// something real to typecheck/build/test against.
 export const PACKAGE_NAME = 'ic-email-to-downloads';
+
+// Phase 1.14a: the testable, plugin-free building blocks — Graph API calls, built-in
+// field-extraction, PDF text extraction. The actual SourcePlugin (discover()/fetchContent(),
+// wizard, session wiring — the real `manifest.main` default export) and the local-folder
+// destination are 1.14b/1.15, not built yet.
+export * from './graph-mail.js';
+export * from './invoice-text-parsing.js';
+export * from './pdf-text.js';

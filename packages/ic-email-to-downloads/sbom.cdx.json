@@ -1,0 +1,418 @@
+{
+  "$schema": "http://cyclonedx.org/schema/bom-1.6.schema.json",
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "version": 1,
+  "serialNumber": "urn:uuid:26928958-ddd8-4325-a025-7630d7326c9d",
+  "metadata": {
+    "timestamp": "2026-09-04T08:00:08.840Z",
+    "tools": {
+      "components": [
+        {
+          "type": "application",
+          "name": "npm",
+          "version": "11.3.0"
+        },
+        {
+          "type": "application",
+          "name": "cyclonedx-npm",
+          "group": "@cyclonedx",
+          "version": "6.0.1",
+          "author": "Jan Kowalleck",
+          "description": "Create CycloneDX Software Bill of Materials (SBOM) from NPM projects.",
+          "licenses": [
+            {
+              "license": {
+                "id": "Apache-2.0"
+              }
+            }
+          ],
+          "externalReferences": [
+            {
+              "url": "git+https://github.com/CycloneDX/cyclonedx-node-npm.git",
+              "type": "vcs",
+              "comment": "as detected from PackageJson property \"repository.url\""
+            },
+            {
+              "url": "https://github.com/CycloneDX/cyclonedx-node-npm#readme",
+              "type": "website",
+              "comment": "as detected from PackageJson property \"homepage\""
+            },
+            {
+              "url": "https://github.com/CycloneDX/cyclonedx-node-npm/issues",
+              "type": "issue-tracker",
+              "comment": "as detected from PackageJson property \"bugs.url\""
+            }
+          ],
+          "properties": [
+            {
+              "name": "cdx:npm:package:constraint:engine:node",
+              "value": ">=20.18.0"
+            },
+            {
+              "name": "cdx:npm:package:constraint:engine:npm",
+              "value": ">=9"
+            }
+          ]
+        },
+        {
+          "type": "library",
+          "name": "cyclonedx-library",
+          "group": "@cyclonedx",
+          "version": "10.2.0",
+          "author": "Jan Kowalleck",
+          "description": "Core functionality of CycloneDX for JavaScript (Node.js or WebBrowser).",
+          "licenses": [
+            {
+              "license": {
+                "id": "Apache-2.0"
+              }
+            }
+          ],
+          "externalReferences": [
+            {
+              "url": "git+https://github.com/CycloneDX/cyclonedx-javascript-library.git",
+              "type": "vcs",
+              "comment": "as detected from PackageJson property \"repository.url\""
+            },
+            {
+              "url": "https://github.com/CycloneDX/cyclonedx-javascript-library#readme",
+              "type": "website",
+              "comment": "as detected from PackageJson property \"homepage\""
+            },
+            {
+              "url": "https://github.com/CycloneDX/cyclonedx-javascript-library/issues",
+              "type": "issue-tracker",
+              "comment": "as detected from PackageJson property \"bugs.url\""
+            }
+          ],
+          "properties": [
+            {
+              "name": "cdx:npm:package:constraint:engine:node",
+              "value": ">=20.18.0"
+            }
+          ]
+        }
+      ]
+    },
+    "component": {
+      "type": "application",
+      "name": "invoice-collector-app",
+      "version": "0.0.0",
+      "bom-ref": "invoice-collector-app@0.0.0",
+      "description": "Open-source core app, plugin SDK, and reference plugin for Invoice Collector",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/invoice-collector-app@0.0.0",
+      "properties": [
+        {
+          "name": "cdx:npm:package:constraint:engine:node",
+          "value": ">=20"
+        },
+        {
+          "name": "cdx:npm:package:private",
+          "value": "true"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": ""
+        }
+      ]
+    }
+  },
+  "components": [
+    {
+      "type": "library",
+      "name": "ic-email-to-downloads",
+      "version": "0.0.0",
+      "bom-ref": "invoice-collector-app@0.0.0|ic-email-to-downloads@0.0.0",
+      "description": "Invoice Collector OSS reference plugin: graph-mail source + local-folder destination",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/ic-email-to-downloads@0.0.0",
+      "properties": [
+        {
+          "name": "cdx:npm:package:private",
+          "value": "true"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/ic-email-to-downloads"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "invoice-collector-plugin-sdk",
+      "version": "0.0.0",
+      "bom-ref": "invoice-collector-app@0.0.0|invoice-collector-plugin-sdk@0.0.0",
+      "description": "Plugin interface/contract package for Invoice Collector — types, session contracts, declarative UI descriptor types, the microsoft-entra-delegated-device-code built-in session implementation, and the generate-sbom build helper",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/invoice-collector-plugin-sdk@0.0.0",
+      "properties": [
+        {
+          "name": "cdx:npm:package:private",
+          "value": "true"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/invoice-collector-plugin-sdk"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "pdf-parse",
+      "version": "2.4.5",
+      "bom-ref": "invoice-collector-app@0.0.0|pdf-parse@2.4.5",
+      "author": "Mehmet Kozan",
+      "description": "Pure TypeScript, cross-platform module for extracting text, images, and tabular data from PDFs. Run directly in your browser or in Node!",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/pdf-parse@2.4.5",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/mehmet-kozan/pdf-parse.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://mehmet-kozan.github.io/pdf-parse/",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/mehmet-kozan/pdf-parse/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        },
+        {
+          "url": "https://registry.npmjs.org/pdf-parse/-/pdf-parse-2.4.5.tgz",
+          "type": "distribution",
+          "comment": "as detected from npm-ls property \"resolved\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:constraint:engine:node",
+          "value": ">=20.16.0 <21 || >=22.3.0"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/pdf-parse"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "canvas",
+      "group": "@napi-rs",
+      "version": "0.1.80",
+      "bom-ref": "invoice-collector-app@0.0.0|@napi-rs/canvas@0.1.80",
+      "description": "Canvas for Node.js with skia backend",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/%40napi-rs/canvas@0.1.80",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/Brooooooklyn/canvas.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://github.com/Brooooooklyn/canvas#readme",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/Brooooooklyn/canvas/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        },
+        {
+          "url": "https://registry.npmjs.org/@napi-rs/canvas/-/canvas-0.1.80.tgz",
+          "type": "distribution",
+          "comment": "as detected from npm-ls property \"resolved\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:constraint:engine:node",
+          "value": ">= 10"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@napi-rs/canvas"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "pdfjs-dist",
+      "version": "5.4.296",
+      "bom-ref": "invoice-collector-app@0.0.0|pdfjs-dist@5.4.296",
+      "description": "Generic build of Mozilla's PDF.js library.",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/pdfjs-dist@5.4.296",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/mozilla/pdf.js.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://mozilla.github.io/pdf.js/",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/mozilla/pdf.js/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        },
+        {
+          "url": "https://registry.npmjs.org/pdfjs-dist/-/pdfjs-dist-5.4.296.tgz",
+          "type": "distribution",
+          "comment": "as detected from npm-ls property \"resolved\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:constraint:engine:node",
+          "value": ">=20.16.0 || >=22.3.0"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/pdfjs-dist"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "canvas-darwin-arm64",
+      "group": "@napi-rs",
+      "version": "0.1.80",
+      "bom-ref": "invoice-collector-app@0.0.0|@napi-rs/canvas-darwin-arm64@0.1.80",
+      "description": "Canvas for Node.js with skia backend",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/%40napi-rs/canvas-darwin-arm64@0.1.80",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/Brooooooklyn/canvas.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://github.com/Brooooooklyn/canvas#readme",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/Brooooooklyn/canvas/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        },
+        {
+          "url": "https://registry.npmjs.org/@napi-rs/canvas-darwin-arm64/-/canvas-darwin-arm64-0.1.80.tgz",
+          "type": "distribution",
+          "comment": "as detected from npm-ls property \"resolved\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:constraint:engine:node",
+          "value": ">= 10"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@napi-rs/canvas-darwin-arm64"
+        }
+      ]
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "invoice-collector-app@0.0.0",
+      "dependsOn": [
+        "invoice-collector-app@0.0.0|ic-email-to-downloads@0.0.0"
+      ]
+    },
+    {
+      "ref": "invoice-collector-app@0.0.0|ic-email-to-downloads@0.0.0",
+      "dependsOn": [
+        "invoice-collector-app@0.0.0|invoice-collector-plugin-sdk@0.0.0",
+        "invoice-collector-app@0.0.0|pdf-parse@2.4.5"
+      ]
+    },
+    {
+      "ref": "invoice-collector-app@0.0.0|invoice-collector-plugin-sdk@0.0.0"
+    },
+    {
+      "ref": "invoice-collector-app@0.0.0|pdf-parse@2.4.5",
+      "dependsOn": [
+        "invoice-collector-app@0.0.0|@napi-rs/canvas@0.1.80",
+        "invoice-collector-app@0.0.0|pdfjs-dist@5.4.296"
+      ]
+    },
+    {
+      "ref": "invoice-collector-app@0.0.0|@napi-rs/canvas@0.1.80",
+      "dependsOn": [
+        "invoice-collector-app@0.0.0|@napi-rs/canvas-darwin-arm64@0.1.80"
+      ]
+    },
+    {
+      "ref": "invoice-collector-app@0.0.0|pdfjs-dist@5.4.296",
+      "dependsOn": [
+        "invoice-collector-app@0.0.0|@napi-rs/canvas@0.1.80"
+      ]
+    },
+    {
+      "ref": "invoice-collector-app@0.0.0|@napi-rs/canvas-darwin-arm64@0.1.80"
+    }
+  ]
+}
