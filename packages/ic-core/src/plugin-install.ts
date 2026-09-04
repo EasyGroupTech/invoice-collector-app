@@ -1,4 +1,4 @@
-import { readFile, rename, rm } from 'node:fs/promises';
+import { readdir, readFile, rename, rm } from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import {
@@ -162,25 +162,103 @@ export async function installPlugin(
     const loaded = await importModule(moduleUrl);
     const plugin = loaded.default as SourcePlugin | DestinationPlugin;
 
-    const sessionRequirementsCheck = validateSessionRequirements(plugin.sessionRequirements);
-    if (!sessionRequirementsCheck.valid) {
-      throw new Error(`Plugin ${manifest.id}'s sessionRequirements are invalid: ${sessionRequirementsCheck.errors.join('; ')}`);
-    }
-
-    const wizardDataSourcesCheck = validateWizardDataSources(plugin);
-    if (!wizardDataSourcesCheck.valid) {
-      throw new Error(`Plugin ${manifest.id}'s wizard/settingsPanel is invalid: ${wizardDataSourcesCheck.errors.join('; ')}`);
-    }
-
-    options.registry.register(plugin);
-    if (plugin.sessionPlugin) {
-      options.sessionsRegistry?.registerSessionPlugin(plugin.sessionPlugin);
-    }
+    validateAndRegisterPlugin(manifest, plugin, options.registry, options.sessionsRegistry);
 
     return { status: 'installed', manifest, tier };
   } catch (err) {
     await rm(installDir, { recursive: true, force: true });
     throw err;
+  }
+}
+
+/** Shared by `installPlugin()` and `reloadInstalledPlugins()` — the part of the pipeline that
+ * runs once a plugin's code has actually been loaded (fresh from a download, or reloaded from an
+ * earlier install already sitting on disk): validate its declared shape against what the loaded
+ * module actually exports, then register it (and its own `sessionPlugin`, if any). */
+function validateAndRegisterPlugin(
+  manifest: PluginManifest,
+  plugin: SourcePlugin | DestinationPlugin,
+  registry: PluginRegistry,
+  sessionsRegistry?: SessionsRegistry,
+): void {
+  const sessionRequirementsCheck = validateSessionRequirements(plugin.sessionRequirements);
+  if (!sessionRequirementsCheck.valid) {
+    throw new Error(`Plugin ${manifest.id}'s sessionRequirements are invalid: ${sessionRequirementsCheck.errors.join('; ')}`);
+  }
+
+  const wizardDataSourcesCheck = validateWizardDataSources(plugin);
+  if (!wizardDataSourcesCheck.valid) {
+    throw new Error(`Plugin ${manifest.id}'s wizard/settingsPanel is invalid: ${wizardDataSourcesCheck.errors.join('; ')}`);
+  }
+
+  registry.register(plugin);
+  if (plugin.sessionPlugin) {
+    sessionsRegistry?.registerSessionPlugin(plugin.sessionPlugin);
+  }
+}
+
+export interface ReloadInstalledPluginsOptions {
+  pluginsDir: string;
+  coreSdkVersion: string;
+  registry: PluginRegistry;
+  sessionsRegistry?: SessionsRegistry;
+  importModule?: (fileUrl: string) => Promise<{ default: unknown }>;
+  /** Called for a plugin directory that couldn't be reloaded (corrupt manifest, code that no
+   * longer imports cleanly, a pluginApiVersion the current core no longer supports, …) — one bad
+   * plugin must never take the rest of them (or the app's own boot) down with it. */
+  onError?: (pluginId: string, error: unknown) => void;
+}
+
+/**
+ * The other half of §5's "plugins aren't reloaded from disk at boot yet" gap (tracked since phase
+ * 1.11/1.12) — a plugin installed in an earlier run leaves its files under `pluginsDir` (§9.1's
+ * install pipeline never deletes them, "Uninstall: preserve, don't delete" applies just as much to
+ * an unclean shutdown as a deliberate uninstall), but nothing re-registers them into a fresh
+ * `PluginRegistry`/`SessionsRegistry` on the next launch — call this once at boot, after both
+ * registries exist, to close that gap generically for whatever's actually on disk, not for one
+ * specific plugin. Deliberately skips the parts of `installPlugin()` that only make sense for a
+ * *fresh* install (download, GitHub Artifact Attestation, the unverified-tier trust-ack prompt) —
+ * a plugin already sitting here was already vetted once; `pluginApiVersion` is the one check worth
+ * re-running, since a core upgrade since the last launch could have moved it outside the supported
+ * window (§9's own "surfaced as this plugin needs updating rather than silently dropped").
+ */
+export async function reloadInstalledPlugins(options: ReloadInstalledPluginsOptions): Promise<void> {
+  const importModule = options.importModule ?? ((url: string) => import(url));
+
+  let entries: string[];
+  try {
+    entries = await readdir(options.pluginsDir);
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') return;
+    throw err;
+  }
+
+  for (const entryName of entries) {
+    if (entryName.startsWith('.staging-')) continue;
+    const pluginDir = path.join(options.pluginsDir, entryName);
+
+    try {
+      const manifest = JSON.parse(await readFile(path.join(pluginDir, 'manifest.json'), 'utf-8')) as PluginManifest;
+
+      const manifestCheck = validateManifest(manifest);
+      if (!manifestCheck.valid) {
+        throw new Error(`Invalid plugin manifest: ${manifestCheck.errors.join('; ')}`);
+      }
+
+      if (!isPluginApiVersionSupported(manifest.pluginApiVersion, options.coreSdkVersion)) {
+        throw new Error(
+          `Plugin ${manifest.id}'s pluginApiVersion (${manifest.pluginApiVersion}) is outside the supported window for core ${options.coreSdkVersion}`,
+        );
+      }
+
+      const moduleUrl = pathToFileURL(path.join(pluginDir, manifest.main)).href;
+      const loaded = await importModule(moduleUrl);
+      const plugin = loaded.default as SourcePlugin | DestinationPlugin;
+
+      validateAndRegisterPlugin(manifest, plugin, options.registry, options.sessionsRegistry);
+    } catch (err) {
+      options.onError?.(entryName, err);
+    }
   }
 }
 

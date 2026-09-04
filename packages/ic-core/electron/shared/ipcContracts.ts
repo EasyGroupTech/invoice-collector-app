@@ -32,6 +32,7 @@ export const Channels = {
   ConfigListDestinations: 'config:listDestinations',
   ConfigCreateRecord: 'config:createRecord',
   ConfigRemoveRecord: 'config:removeRecord',
+  ConfigAssignSession: 'config:assignSession',
   ConfigExportAll: 'config:exportAll',
   ConfigImportAll: 'config:importAll',
 
@@ -61,6 +62,7 @@ export const Channels = {
   SbomExport: 'sbom:export',
 
   ReportExport: 'report:export',
+  ReportExportRows: 'report:exportRows',
 
   SettingsGetAdvanced: 'settings:getAdvanced',
   SettingsSaveAdvanced: 'settings:saveAdvanced',
@@ -79,6 +81,16 @@ export interface CreateRecordInput {
 export interface RemoveRecordInput {
   kind: 'source' | 'destination';
   id: string;
+}
+
+/** Attaches a session to a record created without one yet (or replaces a stale one) — the "Fix
+ * connections" flow (Collect page, phase 1.16 follow-up) walks broken records one at a time and
+ * calls this after each. Distinct from `CreateRecordInput.sessionId`, which only ever applies at
+ * creation time. */
+export interface AssignSessionInput {
+  kind: 'source' | 'destination';
+  id: string;
+  sessionId: string;
 }
 
 export interface CreateSessionInput {
@@ -139,6 +151,19 @@ export type FileExportResult = { exported: true; filePath: string } | { exported
 export interface ExportReportInput {
   period: CollectPeriod;
   format: 'html' | 'excel';
+}
+
+/**
+ * Exports exactly the rows the Collect page's "Collected invoices" table currently shows (already
+ * filtered client-side, per the reference app's own `exportCollected(filteredRows)`) — unlike
+ * `ExportReportInput` above, which re-derives everything for a period server-side and has no way
+ * to know about a client-side filter. `period` here is display-only (the exported file's own
+ * "Period: X to Y" header), not used to re-query.
+ */
+export interface ExportInvoiceRowsInput {
+  records: InvoiceHistoryRecord[];
+  period: CollectPeriod;
+  format: 'excel' | 'pdf';
 }
 
 export type {

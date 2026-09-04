@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { ArrowLeft, ChevronDown, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,15 +7,37 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { AdvancedSettings, SbomEntry } from '../../../electron/shared/ipcContracts';
+import { PluginsSection } from './PluginsSection';
+import { SessionsSection } from './SessionsSection';
+import { DestinationsSection, SourcesSection } from './SourcesDestinationsSection';
 
-/** §13's "Third-Party Licenses"/SBOM screen + §7's Advanced Settings, both framed as a
- * Settings/About area — kept as two sections of one page rather than separate tabs. */
-export function SettingsPage() {
+interface SettingsPageProps {
+  /** Back-arrow navigation to Collect, matching the reference app's own header button — not a
+   * tab list (§8, phase 1.16). */
+  onBack: () => void;
+}
+
+/** Sources/Destinations management, §6's Sessions UI, §9's Plugins management, §13's
+ * "Third-Party Licenses"/SBOM screen, and §7's Advanced Settings — six sections of one page
+ * rather than separate top-level tabs (phase 1.16: the reference app's own Settings page set
+ * real precedent for tolerating even more sections than this, at 7, in one scroll, without ever
+ * reaching for sub-tabs — Sources/Destinations were two of those sections there too, never on the
+ * primary Collect view). Sources/Destinations first, then Sessions/Plugins — all four things a
+ * user is more likely to actually need to act on — Advanced Settings/SBOM last, since both are
+ * closer to "set once" than "check regularly." */
+export function SettingsPage({ onBack }: SettingsPageProps) {
   return (
     <div className="flex flex-col gap-8">
-      <div>
+      <div className="flex items-center justify-between">
         <h2 className="text-2xl font-semibold tracking-tight">Settings</h2>
+        <Button variant="ghost" size="icon" className="size-12" onClick={onBack}>
+          <ArrowLeft className="size-6" />
+        </Button>
       </div>
+      <SourcesSection />
+      <DestinationsSection />
+      <SessionsSection />
+      <PluginsSection />
       <AdvancedSettingsSection />
       <SbomSection />
     </div>

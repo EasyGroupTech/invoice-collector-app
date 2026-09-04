@@ -17,7 +17,8 @@ import {
   type CreateRecordInput as ConfigCreateRecordInput,
 } from '../../src/config-store.js';
 import { createHttpApi, type SessionAuthResolver } from '../../src/http-client.js';
-import { installPlugin, uninstallPlugin } from '../../src/plugin-install.js';
+import { installPlugin, reloadInstalledPlugins, uninstallPlugin } from '../../src/plugin-install.js';
+import { renderHtmlToPdf } from './htmlToPdf.js';
 import { createInvoiceHistory } from '../../src/invoice-history.js';
 import { createJobRunner } from '../../src/job-runner.js';
 import { advancedSettingsFile, appLogFile, pluginsDir, profilePaths } from '../../src/paths.js';
@@ -33,8 +34,10 @@ import { resolveWizardListData } from '../../src/wizard-data.js';
 import { safeStorageEncryptor } from './safeStorageEncryptor.js';
 import {
   Channels,
+  type AssignSessionInput,
   type CreateRecordInput,
   type CreateSessionInput,
+  type ExportInvoiceRowsInput,
   type ExportReportInput,
   type InstallPluginInput,
   type ProfileCreateInput,
@@ -47,7 +50,7 @@ import {
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // dist/main -> ic-core's own package root is two levels up. Correct in dev; revisit once phase
-// 1.16's electron-builder config decides where a packaged build's resources actually live.
+// 1.17's electron-builder config decides where a packaged build's resources actually live.
 const IC_CORE_SBOM_PATH = path.join(__dirname, '../../sbom.cdx.json');
 // Resolved via real Node module resolution rather than a relative path from __dirname — robust
 // to however the SDK ends up laid out in node_modules (a workspace symlink today; still correct
@@ -71,7 +74,7 @@ const CORE_SDK_VERSION = '0.0.0';
 // reading/writing the same userData dir and safeStorage keychain entry, an active data-corruption
 // risk if both are ever run at once (confirmed live: the predecessor's dev instance was still
 // running while this was being built). The packaged dev build variant gets its own identity via
-// electron-builder config instead (phase 1.16, not built yet), since app.isPackaged is true for
+// electron-builder config instead (phase 1.17, not built yet), since app.isPackaged is true for
 // any packaged build regardless of channel.
 if (!app.isPackaged) {
   app.setName('Invoice Collector App Dev');
@@ -126,6 +129,17 @@ function rebuildProfileScopedServices(): void {
     createPluginServices,
   });
   sessionsRegistry.registerSessionPlugin(microsoftEntraDelegatedDeviceCodeSessionPlugin);
+  // A fresh SessionsRegistry starts with an empty custom-sessionPlugin map of its own — every
+  // plugin already loaded into pluginRegistry (whether from this same boot's reloadInstalledPlugins()
+  // call below, or installed earlier in this same running process) needs its own sessionPlugin, if
+  // any, re-registered here too, or SessionsApi.create() for it would silently break the next time
+  // a profile switch (ProfilesSwitch, §16) rebuilds this registry — the plugin *code* isn't
+  // profile-scoped and never gets reloaded on a switch, only this registry is.
+  for (const plugin of pluginRegistry.list()) {
+    if (plugin.sessionPlugin) {
+      sessionsRegistry.registerSessionPlugin(plugin.sessionPlugin);
+    }
+  }
   void sessionsRegistry.startScheduler();
 
   invoiceHistory = createInvoiceHistory(paths.invoiceHistoryFile);
@@ -205,6 +219,17 @@ ipcMain.handle(Channels.ConfigRemoveRecord, async (_event, input: RemoveRecordIn
   const store = await loadConfigFile(filePath);
   const key = input.kind === 'source' ? 'sources' : 'destinations';
   await saveConfigFile(filePath, { ...store, [key]: removeRecord(store[key], input.id) });
+});
+
+ipcMain.handle(Channels.ConfigAssignSession, async (_event, input: AssignSessionInput) => {
+  const filePath = await currentConfigFilePath();
+  const store = await loadConfigFile(filePath);
+  const key = input.kind === 'source' ? 'sources' : 'destinations';
+  const existing = store[key].find((r) => r.id === input.id);
+  if (!existing) throw new Error(`${input.kind} ${input.id} not found`);
+  const updated = { ...existing, sessionId: input.sessionId, updatedAt: new Date().toISOString() };
+  await saveConfigFile(filePath, { ...store, [key]: upsertRecord(store[key], updated) });
+  return updated;
 });
 
 ipcMain.handle(Channels.ConfigExportAll, async (_event, password: string) => {
@@ -385,6 +410,25 @@ ipcMain.handle(Channels.ReportExport, async (_event, input: ExportReportInput) =
   return { exported: true, filePath: result.filePath };
 });
 
+// Exports exactly the rows the renderer already has (and has already filtered) — see
+// ExportInvoiceRowsInput's own doc comment for why this doesn't re-query invoiceHistory itself.
+ipcMain.handle(Channels.ReportExportRows, async (_event, input: ExportInvoiceRowsInput) => {
+  const store = await loadConfigFile(await currentConfigFilePath());
+  const rows = buildReportRows(input.records, store.sources, store.destinations);
+
+  const isExcel = input.format === 'excel';
+  const content = isExcel ? await buildExcelReport(rows, input.period) : await renderHtmlToPdf(buildHtmlReport(rows, input.period));
+
+  const result = await dialog.showSaveDialog(mainWindow!, {
+    defaultPath: `collected-invoices-${input.period.start}-to-${input.period.end}.${isExcel ? 'xlsx' : 'pdf'}`,
+    filters: isExcel ? [{ name: 'Excel workbook', extensions: ['xlsx'] }] : [{ name: 'PDF document', extensions: ['pdf'] }],
+  });
+  if (result.canceled || !result.filePath) return { exported: false };
+
+  await writeFile(result.filePath, content);
+  return { exported: true, filePath: result.filePath };
+});
+
 // --- Advanced Settings (§7) ---
 
 ipcMain.handle(Channels.SettingsGetAdvanced, () => currentAdvancedSettings);
@@ -400,6 +444,19 @@ ipcMain.handle(Channels.SettingsSaveAdvanced, async (_event, settings: AdvancedS
 app.whenReady().then(async () => {
   await profileManager.init();
   currentAdvancedSettings = await loadAdvancedSettings(advancedSettingsFile(app.getPath('userData')));
+  // §5's "plugins aren't reloaded from disk at boot yet" gap — a plugin installed in an earlier
+  // run left real files under pluginsDir, but nothing re-registered them into this fresh launch's
+  // registry until now. Runs before rebuildProfileScopedServices() so its own sessionPlugin
+  // re-registration loop (sessionsRegistry doesn't exist yet at this point) picks up every plugin
+  // loaded here.
+  await reloadInstalledPlugins({
+    pluginsDir: pluginsDir(app.getPath('userData')),
+    coreSdkVersion: CORE_SDK_VERSION,
+    registry: pluginRegistry,
+    onError: (pluginId, error) => {
+      console.error(`Failed to reload plugin "${pluginId}" from disk:`, error);
+    },
+  });
   rebuildProfileScopedServices();
   createWindow();
 });

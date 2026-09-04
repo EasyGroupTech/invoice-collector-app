@@ -202,7 +202,7 @@ const graphMailSource: SourcePlugin = {
     // Genuinely true — this bundled reference plugin lives in this same public repo (§2/§9).
     // Whether that fact is ever actually checked against an attestation, or this simply loads
     // as a first-party bundled plugin without going through the generic install pipeline at
-    // all, is phase 1.16's own packaging decision, not this manifest's concern.
+    // all, is phase 1.17's own packaging decision, not this manifest's concern.
     repository: 'https://github.com/EasyGroupTech/invoice-collector-app',
     sbom: 'sbom.cdx.json',
     main: 'index.js',

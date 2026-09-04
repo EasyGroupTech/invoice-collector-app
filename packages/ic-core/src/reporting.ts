@@ -47,10 +47,13 @@ function escapeHtml(value: string): string {
   return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-const REPORT_COLUMNS = ['Source', 'Destination', 'Invoice', 'Issued', 'Amount', 'Status', 'Collected'] as const;
+/** Same columns, same order, same labels as the Collect page's own "Collected invoices" table
+ * (`CollectPage.tsx`) — exporting anything else would mean the file doesn't actually match what
+ * the user just filtered/looked at on screen before clicking Save. */
+const REPORT_COLUMNS = ['Name', 'Source', 'Date issued', 'Total amount', 'Status', 'Collected', 'Uploaded destination path'] as const;
 
 function rowCells(row: ReportRow): string[] {
-  return [row.sourceName, row.destinationName, row.invoiceId, row.issuedDate, formatAmount(row.amount), row.status, row.collectedAt];
+  return [row.invoiceId, row.sourceName, row.issuedDate, formatAmount(row.amount), row.status, row.collectedAt, row.destinationName];
 }
 
 /** A self-contained HTML document (inline `<style>`, no external assets) — meant to be handed

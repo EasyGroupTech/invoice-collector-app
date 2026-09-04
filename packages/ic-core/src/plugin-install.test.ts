@@ -1,11 +1,11 @@
 import { createHash } from 'node:crypto';
-import { mkdtemp, readdir, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { zipSync } from 'fflate';
 import type { DestinationPlugin, SessionPlugin, SourcePlugin } from 'invoice-collector-plugin-sdk';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { installPlugin, uninstallPlugin } from './plugin-install.js';
+import { installPlugin, reloadInstalledPlugins, uninstallPlugin } from './plugin-install.js';
 import { createPluginRegistry, type PluginRegistry } from './plugin-registry.js';
 import type { SessionsRegistry } from './sessions-registry.js';
 
@@ -501,5 +501,133 @@ describe('uninstallPlugin', () => {
 
   it('is a no-op, not a throw, when the plugin is not installed', async () => {
     await expect(uninstallPlugin('not-installed', { pluginsDir, registry })).resolves.toBeUndefined();
+  });
+});
+
+describe('reloadInstalledPlugins', () => {
+  let dir: string;
+  let pluginsDir: string;
+  let registry: PluginRegistry;
+
+  beforeEach(async () => {
+    dir = await mkdtemp(path.join(tmpdir(), 'ic-core-plugin-reload-'));
+    pluginsDir = path.join(dir, 'plugins');
+    registry = createPluginRegistry();
+  });
+
+  afterEach(async () => {
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  /** Writes a plugin directly onto disk, the shape §9.1's install pipeline would have already
+   * left behind from an earlier run — reloadInstalledPlugins() never downloads/extracts anything
+   * itself, so tests exercise it against files already in place, not a zip. */
+  async function writePluginOnDisk(id: string, manifestOverrides: Partial<typeof validManifest> = {}): Promise<void> {
+    const manifest = { ...validManifest, id, ...manifestOverrides };
+    const pluginDir = path.join(pluginsDir, id);
+    await mkdir(pluginDir, { recursive: true });
+    await writeFile(path.join(pluginDir, 'manifest.json'), JSON.stringify(manifest), 'utf-8');
+    await writeFile(path.join(pluginDir, 'sbom.cdx.json'), JSON.stringify(validSbom), 'utf-8');
+    await writeFile(path.join(pluginDir, 'index.js'), fakeSourceModuleSourceFor(id), 'utf-8');
+  }
+
+  function fakeSourceModuleSourceFor(id: string): string {
+    return `
+export default {
+  manifest: ${JSON.stringify({ ...validManifest, id, repository: undefined })},
+  sessionRequirements: [{ sessionTypeId: 'microsoft-entra-delegated-device-code', confirmsBuiltIn: true, requiredScopesOrRoles: [] }],
+  wizard: [],
+  discover: async function* () {},
+  fetchContent: async () => ({ fileName: 'a.pdf', mimeType: 'application/pdf', bytes: new Uint8Array() }),
+};
+`;
+  }
+
+  it('re-registers a plugin already sitting on disk from an earlier install, without downloading anything', async () => {
+    await writePluginOnDisk('app.easygroup.source.reload-test');
+
+    await reloadInstalledPlugins({ pluginsDir, coreSdkVersion: CORE_SDK_VERSION, registry });
+
+    expect(registry.get('app.easygroup.source.reload-test')).toBeDefined();
+  });
+
+  it('registers a reloaded plugin\'s own sessionPlugin, same as installPlugin()', async () => {
+    const id = 'app.easygroup.destination.reload-session-test';
+    const pluginDir = path.join(pluginsDir, id);
+    await mkdir(pluginDir, { recursive: true });
+    const customSessionTypeId = `${id}/custom`;
+    await writeFile(
+      path.join(pluginDir, 'manifest.json'),
+      JSON.stringify({ ...validManifest, id, kind: 'destination' }),
+      'utf-8',
+    );
+    await writeFile(path.join(pluginDir, 'sbom.cdx.json'), JSON.stringify(validSbom), 'utf-8');
+    await writeFile(
+      path.join(pluginDir, 'index.js'),
+      `
+export default {
+  manifest: ${JSON.stringify({ ...validManifest, id, kind: 'destination', repository: undefined })},
+  sessionRequirements: [{ sessionTypeId: ${JSON.stringify(customSessionTypeId)}, confirmsBuiltIn: false, requiredScopesOrRoles: [] }],
+  sessionPlugin: {
+    sessionTypeId: ${JSON.stringify(customSessionTypeId)},
+    create: async () => ({ label: 'test', secret: {} }),
+    test: async () => 'ok',
+    applyAuth: (_secret, request) => request,
+  },
+  wizard: [],
+  upload: async () => ({ status: 'uploaded' }),
+};
+`,
+      'utf-8',
+    );
+
+    const registerSessionPlugin = vi.fn();
+    await reloadInstalledPlugins({
+      pluginsDir,
+      coreSdkVersion: CORE_SDK_VERSION,
+      registry,
+      sessionsRegistry: { registerSessionPlugin } as unknown as SessionsRegistry,
+    });
+
+    expect(registerSessionPlugin).toHaveBeenCalledWith(expect.objectContaining({ sessionTypeId: customSessionTypeId }));
+  });
+
+  it('skips (via onError, not a throw) a plugin whose pluginApiVersion no longer supports the current core, while still loading the rest', async () => {
+    await writePluginOnDisk('app.easygroup.source.outdated', { pluginApiVersion: '^3.0.0' });
+    await writePluginOnDisk('app.easygroup.source.current');
+
+    const onError = vi.fn();
+    await reloadInstalledPlugins({ pluginsDir, coreSdkVersion: CORE_SDK_VERSION, registry, onError });
+
+    expect(registry.get('app.easygroup.source.outdated')).toBeUndefined();
+    expect(registry.get('app.easygroup.source.current')).toBeDefined();
+    expect(onError).toHaveBeenCalledWith('app.easygroup.source.outdated', expect.any(Error));
+  });
+
+  it('skips (via onError, not a throw) a directory with a missing or corrupt manifest.json', async () => {
+    await mkdir(path.join(pluginsDir, 'corrupt-plugin'), { recursive: true });
+    await writeFile(path.join(pluginsDir, 'corrupt-plugin', 'manifest.json'), 'not valid json{', 'utf-8');
+    await writePluginOnDisk('app.easygroup.source.fine');
+
+    const onError = vi.fn();
+    await reloadInstalledPlugins({ pluginsDir, coreSdkVersion: CORE_SDK_VERSION, registry, onError });
+
+    expect(registry.get('app.easygroup.source.fine')).toBeDefined();
+    expect(onError).toHaveBeenCalledWith('corrupt-plugin', expect.anything());
+  });
+
+  it('ignores a leftover .staging- directory from an interrupted install', async () => {
+    await mkdir(path.join(pluginsDir, '.staging-123-abc'), { recursive: true });
+    await writeFile(path.join(pluginsDir, '.staging-123-abc', 'manifest.json'), 'not valid json{', 'utf-8');
+
+    const onError = vi.fn();
+    await reloadInstalledPlugins({ pluginsDir, coreSdkVersion: CORE_SDK_VERSION, registry, onError });
+
+    expect(onError).not.toHaveBeenCalled();
+  });
+
+  it('is a no-op, not a throw, when pluginsDir does not exist yet (a fresh install with nothing installed)', async () => {
+    await expect(reloadInstalledPlugins({ pluginsDir, coreSdkVersion: CORE_SDK_VERSION, registry })).resolves.toBeUndefined();
+    expect(registry.list()).toHaveLength(0);
   });
 });

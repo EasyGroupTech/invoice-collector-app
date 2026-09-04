@@ -2,10 +2,12 @@ import { contextBridge, ipcRenderer } from 'electron';
 import {
   Channels,
   type AdvancedSettings,
+  type AssignSessionInput,
   type ConfigImportResult,
   type CreateRecordInput,
   type CreateSessionInput,
   type EncryptedConfigExportFile,
+  type ExportInvoiceRowsInput,
   type ExportReportInput,
   type FileExportResult,
   type InstallPluginInput,
@@ -46,6 +48,7 @@ contextBridge.exposeInMainWorld('api', {
   configListDestinations: (): Promise<PluginBackedRecord[]> => ipcRenderer.invoke(Channels.ConfigListDestinations),
   configCreateRecord: (input: CreateRecordInput): Promise<PluginBackedRecord> => ipcRenderer.invoke(Channels.ConfigCreateRecord, input),
   configRemoveRecord: (input: RemoveRecordInput): Promise<void> => ipcRenderer.invoke(Channels.ConfigRemoveRecord, input),
+  configAssignSession: (input: AssignSessionInput): Promise<PluginBackedRecord> => ipcRenderer.invoke(Channels.ConfigAssignSession, input),
   configExportAll: (password: string): Promise<EncryptedConfigExportFile> => ipcRenderer.invoke(Channels.ConfigExportAll, password),
   configImportAll: (file: EncryptedConfigExportFile, password: string): Promise<ConfigImportResult> =>
     ipcRenderer.invoke(Channels.ConfigImportAll, file, password),
@@ -77,6 +80,7 @@ contextBridge.exposeInMainWorld('api', {
   sbomExport: (id: string): Promise<FileExportResult> => ipcRenderer.invoke(Channels.SbomExport, id),
 
   reportExport: (input: ExportReportInput): Promise<FileExportResult> => ipcRenderer.invoke(Channels.ReportExport, input),
+  reportExportRows: (input: ExportInvoiceRowsInput): Promise<FileExportResult> => ipcRenderer.invoke(Channels.ReportExportRows, input),
 
   settingsGetAdvanced: (): Promise<AdvancedSettings> => ipcRenderer.invoke(Channels.SettingsGetAdvanced),
   settingsSaveAdvanced: (settings: AdvancedSettings): Promise<AdvancedSettings> =>
