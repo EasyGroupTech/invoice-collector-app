@@ -60,6 +60,12 @@ const sampleRows: ReportRow[] = [
 ];
 
 describe('buildHtmlReport', () => {
+  it("uses the same column order/labels as the Collect page's own Collected invoices table", () => {
+    const html = buildHtmlReport(sampleRows, { start: '2026-01-01', end: '2026-01-31' });
+    const headers = [...html.matchAll(/<th>(.*?)<\/th>/g)].map((m) => m[1]);
+    expect(headers).toEqual(['Name', 'Source', 'Date issued', 'Total amount', 'Status', 'Collected', 'Uploaded destination path']);
+  });
+
   it('includes the period, row count, and every row cell', () => {
     const html = buildHtmlReport(sampleRows, { start: '2026-01-01', end: '2026-01-31' });
     expect(html).toContain('2026-01-01');
