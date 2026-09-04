@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import type { PluginBackedRecord, Session } from 'invoice-collector-plugin-sdk';
 import { toast } from 'sonner';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -15,6 +16,8 @@ import { runJobAndWait } from '../jobs';
 
 type RecordKind = 'source' | 'destination';
 
+const NEEDS_ATTENTION_STATUSES: Session['status'][] = ['expired', 'needs-reconnect'];
+
 function defaultPeriod(): { start: string; end: string } {
   const now = new Date();
   const start = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().slice(0, 10);
@@ -22,13 +25,20 @@ function defaultPeriod(): { start: string; end: string } {
   return { start, end };
 }
 
+interface CollectPageProps {
+  /** Jumps to Settings' Sessions section (phase 1.16) — used by the stale-session summary below,
+   * since reconnecting is a session-level action that lives there, not a per-row action here. */
+  onOpenSettings: () => void;
+}
+
 /** §14's Collect flow, plus §5/§6/§8's Add-Source/Destination wizard. A record's session step
  * only ever looks at `sessionRequirements[0]` — a real simplification for a plugin that declares
  * more than one alternative session type, deferred until a real plugin actually needs that (same
  * "don't design for a hypothetical" reasoning as the other gaps this phase deferred). */
-export function CollectPage() {
+export function CollectPage({ onOpenSettings }: CollectPageProps) {
   const [sources, setSources] = useState<PluginBackedRecord[]>([]);
   const [destinations, setDestinations] = useState<PluginBackedRecord[]>([]);
+  const [sessions, setSessions] = useState<Session[]>([]);
   const [addingKind, setAddingKind] = useState<RecordKind | undefined>(undefined);
   const [progressLog, setProgressLog] = useState<string[]>([]);
   const [collecting, setCollecting] = useState(false);
@@ -38,6 +48,7 @@ export function CollectPage() {
   async function refresh() {
     setSources(await window.api.configListSources());
     setDestinations(await window.api.configListDestinations());
+    setSessions(await window.api.sessionsList());
   }
 
   useEffect(() => {
@@ -96,33 +107,25 @@ export function CollectPage() {
       </div>
 
       <fieldset disabled={collecting} className="contents">
-        <Card>
-          <CardHeader>
-            <CardTitle>Sources</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-4">
-            <RecordTable records={sources} onRemove={(id) => void removeRecord('source', id)} />
-            <div>
-              <Button type="button" variant="outline" onClick={() => setAddingKind('source')}>
-                Add Source
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+        <RecordCard
+          title="Sources"
+          records={sources}
+          sessions={sessions}
+          onRemove={(id) => void removeRecord('source', id)}
+          onAdd={() => setAddingKind('source')}
+          addLabel="Add Source"
+          onOpenSettings={onOpenSettings}
+        />
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Destinations</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-4">
-            <RecordTable records={destinations} onRemove={(id) => void removeRecord('destination', id)} />
-            <div>
-              <Button type="button" variant="outline" onClick={() => setAddingKind('destination')}>
-                Add Destination
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+        <RecordCard
+          title="Destinations"
+          records={destinations}
+          sessions={sessions}
+          onRemove={(id) => void removeRecord('destination', id)}
+          onAdd={() => setAddingKind('destination')}
+          addLabel="Add Destination"
+          onOpenSettings={onOpenSettings}
+        />
 
         <Card>
           <CardHeader>
@@ -198,7 +201,63 @@ export function CollectPage() {
   );
 }
 
-function RecordTable({ records, onRemove }: { records: PluginBackedRecord[]; onRemove: (id: string) => void }) {
+function sessionFor(record: PluginBackedRecord, sessions: Session[]): Session | undefined {
+  return record.sessionId ? sessions.find((s) => s.id === record.sessionId) : undefined;
+}
+
+function needsAttention(record: PluginBackedRecord, sessions: Session[]): boolean {
+  const session = sessionFor(record, sessions);
+  return session !== undefined && NEEDS_ATTENTION_STATUSES.includes(session.status);
+}
+
+interface RecordCardProps {
+  title: string;
+  records: PluginBackedRecord[];
+  sessions: Session[];
+  onRemove: (id: string) => void;
+  onAdd: () => void;
+  addLabel: string;
+  onOpenSettings: () => void;
+}
+
+/** A record whose session has gone stale (`expired`/`needs-reconnect`) surfaces here as a badge
+ * plus a card-level rollup — mirroring the reference app's own per-card `needsLoginCount` on
+ * `SourcesPage`/`DestinationsPage` — but the actual Reconnect action lives in Settings' Sessions
+ * section (phase 1.16), since a session can be shared across multiple records (§6) and reconnecting
+ * it there fixes all of them at once, not just the row you happened to click from. */
+function RecordCard({ title, records, sessions, onRemove, onAdd, addLabel, onOpenSettings }: RecordCardProps) {
+  const staleCount = records.filter((r) => needsAttention(r, sessions)).length;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{title}</CardTitle>
+        {staleCount > 0 && (
+          <>
+            <CardDescription>
+              {staleCount} need{staleCount === 1 ? 's' : ''} reconnecting
+            </CardDescription>
+            <CardAction>
+              <Button type="button" size="sm" variant="outline" onClick={onOpenSettings}>
+                Reconnect
+              </Button>
+            </CardAction>
+          </>
+        )}
+      </CardHeader>
+      <CardContent className="flex flex-col gap-4">
+        <RecordTable records={records} sessions={sessions} onRemove={onRemove} />
+        <div>
+          <Button type="button" variant="outline" onClick={onAdd}>
+            {addLabel}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function RecordTable({ records, sessions, onRemove }: { records: PluginBackedRecord[]; sessions: Session[]; onRemove: (id: string) => void }) {
   return (
     <div className="rounded-lg border">
       <Table>
@@ -207,6 +266,7 @@ function RecordTable({ records, onRemove }: { records: PluginBackedRecord[]; onR
             <TableHead>Name</TableHead>
             <TableHead>Plugin</TableHead>
             <TableHead />
+            <TableHead />
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -214,6 +274,7 @@ function RecordTable({ records, onRemove }: { records: PluginBackedRecord[]; onR
             <TableRow key={r.id}>
               <TableCell>{r.name}</TableCell>
               <TableCell>{r.pluginId}</TableCell>
+              <TableCell>{needsAttention(r, sessions) && <Badge variant="destructive">{sessionFor(r, sessions)?.status}</Badge>}</TableCell>
               <TableCell>
                 <Button type="button" variant="outline" size="sm" onClick={() => onRemove(r.id)}>
                   Remove
@@ -223,7 +284,7 @@ function RecordTable({ records, onRemove }: { records: PluginBackedRecord[]; onR
           ))}
           {records.length === 0 && (
             <TableRow>
-              <TableCell colSpan={3} className="text-muted-foreground">
+              <TableCell colSpan={4} className="text-muted-foreground">
                 None yet.
               </TableCell>
             </TableRow>

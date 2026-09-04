@@ -47,7 +47,7 @@ import {
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // dist/main -> ic-core's own package root is two levels up. Correct in dev; revisit once phase
-// 1.16's electron-builder config decides where a packaged build's resources actually live.
+// 1.17's electron-builder config decides where a packaged build's resources actually live.
 const IC_CORE_SBOM_PATH = path.join(__dirname, '../../sbom.cdx.json');
 // Resolved via real Node module resolution rather than a relative path from __dirname — robust
 // to however the SDK ends up laid out in node_modules (a workspace symlink today; still correct
@@ -71,7 +71,7 @@ const CORE_SDK_VERSION = '0.0.0';
 // reading/writing the same userData dir and safeStorage keychain entry, an active data-corruption
 // risk if both are ever run at once (confirmed live: the predecessor's dev instance was still
 // running while this was being built). The packaged dev build variant gets its own identity via
-// electron-builder config instead (phase 1.16, not built yet), since app.isPackaged is true for
+// electron-builder config instead (phase 1.17, not built yet), since app.isPackaged is true for
 // any packaged build regardless of channel.
 if (!app.isPackaged) {
   app.setName('Invoice Collector App Dev');

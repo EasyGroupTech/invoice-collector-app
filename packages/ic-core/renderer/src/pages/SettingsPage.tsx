@@ -7,15 +7,23 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { AdvancedSettings, SbomEntry } from '../../../electron/shared/ipcContracts';
+import { PluginsSection } from './PluginsSection';
+import { SessionsSection } from './SessionsSection';
 
-/** §13's "Third-Party Licenses"/SBOM screen + §7's Advanced Settings, both framed as a
- * Settings/About area — kept as two sections of one page rather than separate tabs. */
+/** §6's Sessions UI, §9's Plugins management, §13's "Third-Party Licenses"/SBOM screen, and §7's
+ * Advanced Settings — four sections of one page rather than separate top-level tabs (phase 1.16:
+ * the reference app's own Settings page set real precedent for tolerating even more sections than
+ * this, at 7, in one scroll, without ever reaching for sub-tabs). Sessions/Plugins first — the
+ * two a user is more likely to actually need to act on — Advanced Settings/SBOM last, since both
+ * are closer to "set once" than "check regularly." */
 export function SettingsPage() {
   return (
     <div className="flex flex-col gap-8">
       <div>
         <h2 className="text-2xl font-semibold tracking-tight">Settings</h2>
       </div>
+      <SessionsSection />
+      <PluginsSection />
       <AdvancedSettingsSection />
       <SbomSection />
     </div>
