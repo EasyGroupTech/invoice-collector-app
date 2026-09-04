@@ -84,7 +84,6 @@ export function CollectPage({ onOpenSettings }: CollectPageProps) {
   // instead of the stale value it closed over (same reasoning as the reference app's own
   // wasCancelledRef), letting it show a neutral "cancelled" toast instead of an error one.
   const wasCancelledRef = useRef(false);
-  const logScrollRef = useRef<HTMLDivElement | null>(null);
 
   async function refresh() {
     setSources(await window.api.configListSources());
@@ -100,12 +99,6 @@ export function CollectPage({ onOpenSettings }: CollectPageProps) {
   useEffect(() => {
     void refresh();
   }, []);
-
-  // Keeps the progress log scrolled to its latest line as events stream in.
-  useEffect(() => {
-    const el = logScrollRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
-  }, [progressLog]);
 
   // §14.1 US13's collected-invoices table (below) — reloaded whenever the selected month changes,
   // same as the reference app's own "switching to a month already worked on immediately shows its
@@ -269,17 +262,7 @@ export function CollectPage({ onOpenSettings }: CollectPageProps) {
         </Button>
       </div>
 
-      {progressLog.length > 0 && (
-        <div ref={logScrollRef} className="max-h-32 overflow-y-auto rounded-lg border bg-muted/30 px-3 py-2 font-mono text-xs leading-relaxed">
-          {progressLog.slice(-5).map((line, index) => (
-            // A plain progress transcript, appended in arrival order — no id to key by. Only the
-            // last 5 lines, matching the reference app's own log display, not the full transcript.
-            <div key={index} className={line.includes('FAILED') ? 'text-destructive' : undefined}>
-              {line}
-            </div>
-          ))}
-        </div>
-      )}
+      <ProgressLog lines={progressLog} />
 
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold tracking-tight">Collected invoices</h3>
@@ -388,6 +371,79 @@ export function CollectPage({ onOpenSettings }: CollectPageProps) {
           onFixed={() => void refresh()}
         />
       )}
+    </div>
+  );
+}
+
+const DEFAULT_LOG_LINES = 3;
+const MIN_LOG_LINES = 1;
+const FALLBACK_LINE_HEIGHT_PX = 20;
+
+/**
+ * Always rendered (not just while a run is in flight) — a run's own history is worth glancing at
+ * even after it finishes, and a placeholder is clearer than the block just not existing yet.
+ * Height defaults to `DEFAULT_LOG_LINES` and is user-resizable via the bottom drag handle; the
+ * resize snaps to whole line increments as you drag (measured from the element's own computed
+ * `line-height`, not a hardcoded guess) rather than tracking the mouse pixel-for-pixel, so the
+ * bottom edge never stops mid-line.
+ */
+function ProgressLog({ lines }: { lines: string[] }) {
+  const contentRef = useRef<HTMLDivElement | null>(null);
+  const [visibleLines, setVisibleLines] = useState(DEFAULT_LOG_LINES);
+  const [lineHeight, setLineHeight] = useState(FALLBACK_LINE_HEIGHT_PX);
+
+  useEffect(() => {
+    if (!contentRef.current) return;
+    const parsed = parseFloat(window.getComputedStyle(contentRef.current).lineHeight);
+    if (!Number.isNaN(parsed)) setLineHeight(parsed);
+  }, []);
+
+  // Keeps the log scrolled to its latest line as events stream in.
+  useEffect(() => {
+    const el = contentRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [lines]);
+
+  function onDragStart(e: React.MouseEvent) {
+    e.preventDefault();
+    const startY = e.clientY;
+    const startLines = visibleLines;
+
+    function onMove(ev: MouseEvent) {
+      const deltaLines = Math.round((ev.clientY - startY) / lineHeight);
+      setVisibleLines(Math.max(MIN_LOG_LINES, startLines + deltaLines));
+    }
+    function onUp() {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    }
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  }
+
+  return (
+    <div className="rounded-lg border bg-muted/30">
+      <div
+        ref={contentRef}
+        className="overflow-y-auto px-3 py-2 font-mono text-xs leading-relaxed"
+        style={{ height: visibleLines * lineHeight }}
+      >
+        {lines.length === 0 ? (
+          <div className="text-muted-foreground">Start collection to see the progress.</div>
+        ) : (
+          // A plain progress transcript, appended in arrival order — no id to key by.
+          lines.map((line, index) => (
+            <div key={index} className={line.includes('FAILED') ? 'text-destructive' : undefined}>
+              {line}
+            </div>
+          ))
+        )}
+      </div>
+      <div
+        onMouseDown={onDragStart}
+        title="Drag to resize"
+        className="mx-auto my-1 h-1.5 w-10 cursor-ns-resize rounded-full bg-border hover:bg-muted-foreground/50"
+      />
     </div>
   );
 }
