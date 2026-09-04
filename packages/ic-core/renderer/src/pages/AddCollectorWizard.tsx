@@ -6,14 +6,14 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
-import type { InstalledPluginSummary } from '../../../electron/shared/ipcContracts';
+import type { InstalledPluginSummary as PluginSummary } from '../../../electron/shared/ipcContracts';
 import { validateWizardValues, type WizardFieldValues } from '../../../src/wizard-form-state.js';
 import { WizardSteps } from '../descriptors/WizardSteps';
-import { SessionEstablishPanel } from './SourcesDestinationsSection';
+import { runJobAndWait } from '../jobs';
 
 type WizardStep = 'select' | 'connect' | 'configure';
 
-type DestinationChoice = { kind: 'existing'; record: PluginBackedRecord } | { kind: 'new'; plugin: InstalledPluginSummary };
+type DestinationChoice = { kind: 'existing'; record: PluginBackedRecord } | { kind: 'new'; plugin: PluginSummary };
 
 /** Encodes a destination <Select>'s value as `existing:<recordId>` or `new:<pluginId>` — a plain
  * string is all Radix `Select` items support, and this is the cheapest way to carry "which of the
@@ -25,7 +25,7 @@ function encodeDestinationChoice(choice: DestinationChoice): string {
 function decodeDestinationChoice(
   value: string | undefined,
   existingDestinations: PluginBackedRecord[],
-  destinationPlugins: InstalledPluginSummary[],
+  destinationPlugins: PluginSummary[],
 ): DestinationChoice | undefined {
   if (!value) return undefined;
   if (value.startsWith('existing:')) {
@@ -36,7 +36,115 @@ function decodeDestinationChoice(
   return plugin && { kind: 'new', plugin };
 }
 
+type SessionChoice = { kind: 'existing'; sessionId: string } | { kind: 'new' };
+
+function decodeSessionChoice(value: string | undefined): SessionChoice | undefined {
+  if (!value) return undefined;
+  if (value === 'new') return { kind: 'new' };
+  return { kind: 'existing', sessionId: value.slice('existing:'.length) };
+}
+
+function compatibleSessionsFor(plugin: PluginSummary, sessions: Session[]): Session[] {
+  const requirement = plugin.sessionRequirements[0];
+  if (!requirement) return [];
+  return sessions.filter((s) => s.sessionTypeId === requirement.sessionTypeId && (requirement.confirmsBuiltIn || s.createdByPluginId === plugin.manifest.id));
+}
+
 const LOCAL_FOLDER_DESTINATION_PLUGIN_ID = 'app.easygroup.destination.local-folder';
+
+interface SessionModeSelectProps {
+  id: string;
+  label: string;
+  compatibleSessions: Session[];
+  value: string | undefined;
+  onChange: (value: string) => void;
+}
+
+/** Step 2's own connection picker — "reuse one of these" or "create new", as one dropdown rather
+ * than a radio list + a separate button, matching the same existing-vs-new pattern the "Collect
+ * to" destination picker (step 1) already uses. Which one it resolves to only decides what step 3
+ * shows next (a `SessionCreatePanel`, or nothing) — nothing is actually established here. */
+function SessionModeSelect({ id, label, compatibleSessions, value, onChange }: SessionModeSelectProps) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <Label htmlFor={id}>{label}</Label>
+      <Select value={value} onValueChange={onChange}>
+        <SelectTrigger id={id} className="w-full">
+          <SelectValue placeholder="Select…" />
+        </SelectTrigger>
+        <SelectContent>
+          {compatibleSessions.length > 0 && (
+            <SelectGroup>
+              <SelectLabel>Existing sessions</SelectLabel>
+              {compatibleSessions.map((s) => (
+                <SelectItem key={s.id} value={`existing:${s.id}`}>
+                  {s.label}
+                </SelectItem>
+              ))}
+            </SelectGroup>
+          )}
+          <SelectGroup>
+            <SelectLabel>Create new</SelectLabel>
+            <SelectItem value="new">Create a new session</SelectItem>
+          </SelectGroup>
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
+
+interface SessionCreatePanelProps {
+  plugin: PluginSummary;
+  onCreated: (session: Session) => void;
+}
+
+/** Step 3's "establish it" half of what step 2 chose "create new" for — the plugin's own
+ * permissions note/required-scopes instructions, plus whatever input the session type itself
+ * needs to actually create one (today's built-ins gather that interactively — a device-code
+ * prompt, a native folder picker — rather than a typed field, but this is the generic slot for a
+ * session type that does need one, per the SDK's own `BuiltInSessionInputProvider` gap). */
+function SessionCreatePanel({ plugin, onCreated }: SessionCreatePanelProps) {
+  const [creating, setCreating] = useState(false);
+  const [created, setCreated] = useState<Session | undefined>(undefined);
+  const [error, setError] = useState<string | undefined>(undefined);
+  const requirement = plugin.sessionRequirements[0];
+
+  if (!requirement) return null;
+
+  async function createSession() {
+    setCreating(true);
+    setError(undefined);
+    try {
+      const session = await runJobAndWait<Session>(
+        window.api.sessionsCreate({ pluginId: plugin.manifest.id, sessionTypeId: requirement.sessionTypeId }),
+      );
+      setCreated(session);
+      onCreated(session);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-2 rounded-lg border p-4">
+      <p className="text-sm font-medium">Connect: {plugin.manifest.name}</p>
+      {requirement.permissionsNote && <p className="text-sm text-muted-foreground">{requirement.permissionsNote}</p>}
+      <p className="text-sm text-muted-foreground">Requires: {requirement.requiredScopesOrRoles.join(', ') || 'no specific scopes declared'}</p>
+      {created ? (
+        <p className="text-sm text-muted-foreground">Connected as “{created.label}”.</p>
+      ) : (
+        <div>
+          <Button type="button" variant="outline" size="sm" disabled={creating} onClick={() => void createSession()}>
+            {creating ? 'Creating…' : 'Create new session'}
+          </Button>
+        </div>
+      )}
+      {error && <p className="text-sm text-destructive">{error}</p>}
+    </div>
+  );
+}
 
 interface AddCollectorWizardProps {
   onClose: () => void;
@@ -47,22 +155,28 @@ interface AddCollectorWizardProps {
  * §14.1 US4/US7's guided "add a collector" flow — a source paired with where it collects to, in
  * one dialog, replacing the plain kind-scoped `AddRecordDialog` for the Collect page's own
  * top-level Add button (Settings' own Sources/Destinations sections keep using the simpler dialog
- * for adding just one thing at a time). Three steps: pick the source plugin and a destination
- * (reuse an existing one, or configure a new one, defaulting to reusing one if any already exist —
- * else to the local-folder destination, matching §14.1 US7's "zero-setup" framing), establish
- * whichever of the two need a session, then fill in each plugin's own config fields and submit.
+ * for adding just one thing at a time). Three steps:
+ * 1. **Select** — the source plugin and a destination (reuse an existing one, or configure a new
+ *    one, defaulting to reusing one if any already exist — else to the local-folder destination,
+ *    matching §14.1 US7's "zero-setup" framing).
+ * 2. **Connect (choice only)** — for whichever of source/destination needs a session, pick "reuse
+ *    an existing compatible one" or "create new", as a dropdown.
+ * 3. **Connect (establish) + configure** — for anything step 2 said "create new" for, the actual
+ *    instructions/input to establish it; then each plugin's own name + config fields; then submit.
  */
 export function AddCollectorWizard({ onClose, onCreated }: AddCollectorWizardProps) {
   const [step, setStep] = useState<WizardStep>('select');
-  const [sourcePlugins, setSourcePlugins] = useState<InstalledPluginSummary[]>([]);
-  const [destinationPlugins, setDestinationPlugins] = useState<InstalledPluginSummary[]>([]);
+  const [sourcePlugins, setSourcePlugins] = useState<PluginSummary[]>([]);
+  const [destinationPlugins, setDestinationPlugins] = useState<PluginSummary[]>([]);
   const [existingDestinations, setExistingDestinations] = useState<PluginBackedRecord[]>([]);
   const [sessions, setSessions] = useState<Session[]>([]);
 
   const [sourcePluginId, setSourcePluginId] = useState<string | undefined>(undefined);
   const [destinationChoiceValue, setDestinationChoiceValue] = useState<string | undefined>(undefined);
-  const [sourceSessionId, setSourceSessionId] = useState<string | undefined>(undefined);
-  const [destinationSessionId, setDestinationSessionId] = useState<string | undefined>(undefined);
+  const [sourceSessionChoiceValue, setSourceSessionChoiceValue] = useState<string | undefined>(undefined);
+  const [destinationSessionChoiceValue, setDestinationSessionChoiceValue] = useState<string | undefined>(undefined);
+  const [sourceCreatedSession, setSourceCreatedSession] = useState<Session | undefined>(undefined);
+  const [destinationCreatedSession, setDestinationCreatedSession] = useState<Session | undefined>(undefined);
   const [sourceName, setSourceName] = useState('');
   const [destinationName, setDestinationName] = useState('');
   const [sourceValues, setSourceValues] = useState<WizardFieldValues>({});
@@ -99,11 +213,38 @@ export function AddCollectorWizard({ onClose, onCreated }: AddCollectorWizardPro
 
   const sourceRequirement = sourcePlugin?.sessionRequirements[0];
   const destinationRequirement = destinationChoice?.kind === 'new' ? destinationChoice.plugin.sessionRequirements[0] : undefined;
+
+  const sourceCompatibleSessions = sourcePlugin ? compatibleSessionsFor(sourcePlugin, sessions) : [];
+  const destinationCompatibleSessions = destinationChoice?.kind === 'new' ? compatibleSessionsFor(destinationChoice.plugin, sessions) : [];
+
+  // Default each session picker once its own data is ready: reuse the first compatible existing
+  // session if one exists, else "create new" — same reuse-first reasoning as the destination
+  // default above.
+  useEffect(() => {
+    if (!sourceRequirement || sourceSessionChoiceValue !== undefined) return;
+    setSourceSessionChoiceValue(sourceCompatibleSessions.length > 0 ? `existing:${sourceCompatibleSessions[0].id}` : 'new');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sourceRequirement, sourceCompatibleSessions.length]);
+
+  useEffect(() => {
+    if (!destinationRequirement || destinationSessionChoiceValue !== undefined) return;
+    setDestinationSessionChoiceValue(destinationCompatibleSessions.length > 0 ? `existing:${destinationCompatibleSessions[0].id}` : 'new');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [destinationRequirement, destinationCompatibleSessions.length]);
+
+  const sourceSessionChoice = decodeSessionChoice(sourceSessionChoiceValue);
+  const destinationSessionChoice = decodeSessionChoice(destinationSessionChoiceValue);
+
+  const resolvedSourceSessionId = sourceSessionChoice?.kind === 'existing' ? sourceSessionChoice.sessionId : sourceCreatedSession?.id;
+  const resolvedDestinationSessionId =
+    destinationSessionChoice?.kind === 'existing' ? destinationSessionChoice.sessionId : destinationCreatedSession?.id;
+
   const canProceedFromSelect = sourcePlugin !== undefined && destinationChoice !== undefined;
-  const canProceedFromConnect = (!sourceRequirement || sourceSessionId !== undefined) && (!destinationRequirement || destinationSessionId !== undefined);
+  const canProceedFromConnect = (!sourceRequirement || sourceSessionChoice !== undefined) && (!destinationRequirement || destinationSessionChoice !== undefined);
+  const canSubmit = (!sourceRequirement || resolvedSourceSessionId !== undefined) && (!destinationRequirement || resolvedDestinationSessionId !== undefined);
 
   async function submit() {
-    if (!sourcePlugin || !destinationChoice) return;
+    if (!sourcePlugin || !destinationChoice || !canSubmit) return;
 
     const sourceValidation = validateWizardValues(sourcePlugin.wizard, sourceValues);
     if (!sourceValidation.valid) {
@@ -131,7 +272,7 @@ export function AddCollectorWizard({ onClose, onCreated }: AddCollectorWizardPro
                 pluginVersion: destinationChoice.plugin.manifest.version,
                 name: destinationName || destinationChoice.plugin.manifest.name,
                 config: destinationValues,
-                sessionId: destinationSessionId,
+                sessionId: resolvedDestinationSessionId,
               })
             ).id;
 
@@ -142,7 +283,7 @@ export function AddCollectorWizard({ onClose, onCreated }: AddCollectorWizardPro
         name: sourceName || sourcePlugin.manifest.name,
         config: sourceValues,
         destinationId,
-        sessionId: sourceSessionId,
+        sessionId: resolvedSourceSessionId,
       });
       toast.success(`${sourceName || sourcePlugin.manifest.name} added`);
       onCreated();
@@ -217,34 +358,22 @@ export function AddCollectorWizard({ onClose, onCreated }: AddCollectorWizardPro
           {step === 'connect' && (
             <>
               {sourcePlugin && sourceRequirement && (
-                <div className="flex flex-col gap-2">
-                  <p className="text-sm font-medium">Source connection</p>
-                  <SessionEstablishPanel
-                    plugin={sourcePlugin}
-                    sessions={sessions}
-                    selectedSessionId={sourceSessionId}
-                    onSelect={setSourceSessionId}
-                    onSessionCreated={(session) => {
-                      setSessions((prev) => [...prev, session]);
-                      setSourceSessionId(session.id);
-                    }}
-                  />
-                </div>
+                <SessionModeSelect
+                  id="wizard-source-session"
+                  label={`Source connection (${sourceRequirement.sessionTypeId})`}
+                  compatibleSessions={sourceCompatibleSessions}
+                  value={sourceSessionChoiceValue}
+                  onChange={setSourceSessionChoiceValue}
+                />
               )}
               {destinationChoice?.kind === 'new' && destinationRequirement && (
-                <div className="flex flex-col gap-2">
-                  <p className="text-sm font-medium">Destination connection</p>
-                  <SessionEstablishPanel
-                    plugin={destinationChoice.plugin}
-                    sessions={sessions}
-                    selectedSessionId={destinationSessionId}
-                    onSelect={setDestinationSessionId}
-                    onSessionCreated={(session) => {
-                      setSessions((prev) => [...prev, session]);
-                      setDestinationSessionId(session.id);
-                    }}
-                  />
-                </div>
+                <SessionModeSelect
+                  id="wizard-destination-session"
+                  label={`Destination connection (${destinationRequirement.sessionTypeId})`}
+                  compatibleSessions={destinationCompatibleSessions}
+                  value={destinationSessionChoiceValue}
+                  onChange={setDestinationSessionChoiceValue}
+                />
               )}
               {!sourceRequirement && !(destinationChoice?.kind === 'new' && destinationRequirement) && (
                 <p className="text-sm text-muted-foreground">Nothing needs connecting for this source/destination.</p>
@@ -254,6 +383,13 @@ export function AddCollectorWizard({ onClose, onCreated }: AddCollectorWizardPro
 
           {step === 'configure' && sourcePlugin && (
             <>
+              {sourcePlugin && sourceSessionChoice?.kind === 'new' && (
+                <SessionCreatePanel plugin={sourcePlugin} onCreated={setSourceCreatedSession} />
+              )}
+              {destinationChoice?.kind === 'new' && destinationSessionChoice?.kind === 'new' && (
+                <SessionCreatePanel plugin={destinationChoice.plugin} onCreated={setDestinationCreatedSession} />
+              )}
+
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="wizard-source-name">Source name</Label>
                 <Input
@@ -267,7 +403,7 @@ export function AddCollectorWizard({ onClose, onCreated }: AddCollectorWizardPro
                 pluginId={sourcePlugin.manifest.id}
                 steps={sourcePlugin.wizard}
                 values={sourceValues}
-                sessionId={sourceSessionId}
+                sessionId={resolvedSourceSessionId}
                 onChange={(n, v) => setSourceValues((prev) => ({ ...prev, [n]: v }))}
               />
 
@@ -286,7 +422,7 @@ export function AddCollectorWizard({ onClose, onCreated }: AddCollectorWizardPro
                     pluginId={destinationChoice.plugin.manifest.id}
                     steps={destinationChoice.plugin.wizard}
                     values={destinationValues}
-                    sessionId={destinationSessionId}
+                    sessionId={resolvedDestinationSessionId}
                     onChange={(n, v) => setDestinationValues((prev) => ({ ...prev, [n]: v }))}
                   />
                 </>
@@ -323,7 +459,7 @@ export function AddCollectorWizard({ onClose, onCreated }: AddCollectorWizardPro
               <Button type="button" variant="ghost" onClick={() => setStep('connect')}>
                 Back
               </Button>
-              <Button type="button" disabled={submitting} onClick={() => void submit()}>
+              <Button type="button" disabled={submitting || !canSubmit} onClick={() => void submit()}>
                 {submitting ? 'Adding…' : 'Add'}
               </Button>
             </>
