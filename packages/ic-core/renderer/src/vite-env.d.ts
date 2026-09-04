@@ -12,6 +12,7 @@ import type {
   CreateRecordInput,
   CreateSessionInput,
   EncryptedConfigExportFile,
+  ExportInvoiceRowsInput,
   ExportReportInput,
   FileExportResult,
   InstallPluginInput,
@@ -70,6 +71,7 @@ declare global {
       sbomExport(id: string): Promise<FileExportResult>;
 
       reportExport(input: ExportReportInput): Promise<FileExportResult>;
+      reportExportRows(input: ExportInvoiceRowsInput): Promise<FileExportResult>;
 
       settingsGetAdvanced(): Promise<AdvancedSettings>;
       settingsSaveAdvanced(settings: AdvancedSettings): Promise<AdvancedSettings>;

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { PluginBackedRecord, Session } from 'invoice-collector-plugin-sdk';
-import { Plus, Settings as SettingsIcon, Wrench } from 'lucide-react';
+import { FileSpreadsheet, FileText, Plus, Settings as SettingsIcon, Wrench, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -63,6 +63,8 @@ export function CollectPage({ onOpenSettings }: CollectPageProps) {
   const [collectMonth, setCollectMonth] = useState(now.getMonth() + 1);
   const [collectYear, setCollectYear] = useState(now.getFullYear());
   const [invoiceHistory, setInvoiceHistory] = useState<InvoiceHistoryRecord[]>([]);
+  const [nameFilter, setNameFilter] = useState('');
+  const [exportingInvoices, setExportingInvoices] = useState(false);
 
   async function refresh() {
     setSources(await window.api.configListSources());
@@ -135,6 +137,36 @@ export function CollectPage({ onOpenSettings }: CollectPageProps) {
     }
   }
 
+  function sourceName(id: string): string {
+    return sources.find((s) => s.id === id)?.name ?? id;
+  }
+
+  function destinationName(id: string): string {
+    return destinations.find((d) => d.id === id)?.name ?? id;
+  }
+
+  const filteredInvoiceHistory = invoiceHistory.filter((r) => {
+    const needle = nameFilter.trim().toLowerCase();
+    if (!needle) return true;
+    return [sourceName(r.sourceId), destinationName(r.destinationId), r.invoiceId].some((value) => value.toLowerCase().includes(needle));
+  });
+
+  async function exportInvoices(format: 'excel' | 'pdf') {
+    setExportingInvoices(true);
+    try {
+      const result = await window.api.reportExportRows({
+        records: filteredInvoiceHistory,
+        period: periodForMonth(collectYear, collectMonth),
+        format,
+      });
+      if (result.exported) toast.success(`Saved to ${result.filePath}`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : String(err));
+    } finally {
+      setExportingInvoices(false);
+    }
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
@@ -198,13 +230,47 @@ export function CollectPage({ onOpenSettings }: CollectPageProps) {
         </div>
       )}
 
-      <div>
+      <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold tracking-tight">Collected invoices</h3>
-        <p className="text-sm text-muted-foreground">What's on file for {MONTH_NAMES[collectMonth - 1]} {collectYear} (§14.1 US13).</p>
+        <div className="flex items-center gap-2">
+          <div className="relative w-48">
+            <Input placeholder="Filter…" value={nameFilter} onChange={(e) => setNameFilter(e.target.value)} className="pr-7" />
+            {nameFilter && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute top-1/2 right-1 size-4.5 -translate-y-1/2 rounded-full"
+                onClick={() => setNameFilter('')}
+              >
+                <X className="size-3" />
+              </Button>
+            )}
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={exportingInvoices || filteredInvoiceHistory.length === 0}
+            onClick={() => void exportInvoices('excel')}
+          >
+            <FileSpreadsheet />
+            Save Excel
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={exportingInvoices || filteredInvoiceHistory.length === 0}
+            onClick={() => void exportInvoices('pdf')}
+          >
+            <FileText />
+            Save PDF
+          </Button>
+        </div>
       </div>
 
-      {invoiceHistory.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Nothing collected for this month yet.</p>
+      {filteredInvoiceHistory.length === 0 ? (
+        <p className="text-sm text-muted-foreground">
+          {invoiceHistory.length === 0 ? 'Nothing collected for this month yet.' : 'No invoices match this filter.'}
+        </p>
       ) : (
         <div className="rounded-lg border">
           <Table>
@@ -220,12 +286,10 @@ export function CollectPage({ onOpenSettings }: CollectPageProps) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {invoiceHistory.map((r) => (
+              {filteredInvoiceHistory.map((r) => (
                 <TableRow key={`${r.sourceId}-${r.invoiceId}`}>
-                  <TableCell className="font-medium">{sources.find((s) => s.id === r.sourceId)?.name ?? r.sourceId}</TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {destinations.find((d) => d.id === r.destinationId)?.name ?? r.destinationId}
-                  </TableCell>
+                  <TableCell className="font-medium">{sourceName(r.sourceId)}</TableCell>
+                  <TableCell className="text-muted-foreground">{destinationName(r.destinationId)}</TableCell>
                   <TableCell className="text-muted-foreground">{r.invoiceId}</TableCell>
                   <TableCell>{r.issuedDate}</TableCell>
                   <TableCell>{formatAmount(r.amount)}</TableCell>

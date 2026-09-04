@@ -7,6 +7,7 @@ import {
   type CreateRecordInput,
   type CreateSessionInput,
   type EncryptedConfigExportFile,
+  type ExportInvoiceRowsInput,
   type ExportReportInput,
   type FileExportResult,
   type InstallPluginInput,
@@ -79,6 +80,7 @@ contextBridge.exposeInMainWorld('api', {
   sbomExport: (id: string): Promise<FileExportResult> => ipcRenderer.invoke(Channels.SbomExport, id),
 
   reportExport: (input: ExportReportInput): Promise<FileExportResult> => ipcRenderer.invoke(Channels.ReportExport, input),
+  reportExportRows: (input: ExportInvoiceRowsInput): Promise<FileExportResult> => ipcRenderer.invoke(Channels.ReportExportRows, input),
 
   settingsGetAdvanced: (): Promise<AdvancedSettings> => ipcRenderer.invoke(Channels.SettingsGetAdvanced),
   settingsSaveAdvanced: (settings: AdvancedSettings): Promise<AdvancedSettings> =>

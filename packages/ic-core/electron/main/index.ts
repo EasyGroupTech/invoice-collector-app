@@ -18,6 +18,7 @@ import {
 } from '../../src/config-store.js';
 import { createHttpApi, type SessionAuthResolver } from '../../src/http-client.js';
 import { installPlugin, uninstallPlugin } from '../../src/plugin-install.js';
+import { renderHtmlToPdf } from './htmlToPdf.js';
 import { createInvoiceHistory } from '../../src/invoice-history.js';
 import { createJobRunner } from '../../src/job-runner.js';
 import { advancedSettingsFile, appLogFile, pluginsDir, profilePaths } from '../../src/paths.js';
@@ -36,6 +37,7 @@ import {
   type AssignSessionInput,
   type CreateRecordInput,
   type CreateSessionInput,
+  type ExportInvoiceRowsInput,
   type ExportReportInput,
   type InstallPluginInput,
   type ProfileCreateInput,
@@ -390,6 +392,25 @@ ipcMain.handle(Channels.ReportExport, async (_event, input: ExportReportInput) =
   const result = await dialog.showSaveDialog(mainWindow!, {
     defaultPath: `collect-report-${input.period.start}-to-${input.period.end}.${isHtml ? 'html' : 'xlsx'}`,
     filters: isHtml ? [{ name: 'HTML', extensions: ['html'] }] : [{ name: 'Excel workbook', extensions: ['xlsx'] }],
+  });
+  if (result.canceled || !result.filePath) return { exported: false };
+
+  await writeFile(result.filePath, content);
+  return { exported: true, filePath: result.filePath };
+});
+
+// Exports exactly the rows the renderer already has (and has already filtered) — see
+// ExportInvoiceRowsInput's own doc comment for why this doesn't re-query invoiceHistory itself.
+ipcMain.handle(Channels.ReportExportRows, async (_event, input: ExportInvoiceRowsInput) => {
+  const store = await loadConfigFile(await currentConfigFilePath());
+  const rows = buildReportRows(input.records, store.sources, store.destinations);
+
+  const isExcel = input.format === 'excel';
+  const content = isExcel ? await buildExcelReport(rows, input.period) : await renderHtmlToPdf(buildHtmlReport(rows, input.period));
+
+  const result = await dialog.showSaveDialog(mainWindow!, {
+    defaultPath: `collected-invoices-${input.period.start}-to-${input.period.end}.${isExcel ? 'xlsx' : 'pdf'}`,
+    filters: isExcel ? [{ name: 'Excel workbook', extensions: ['xlsx'] }] : [{ name: 'PDF document', extensions: ['pdf'] }],
   });
   if (result.canceled || !result.filePath) return { exported: false };
 

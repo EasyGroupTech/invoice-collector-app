@@ -62,6 +62,7 @@ export const Channels = {
   SbomExport: 'sbom:export',
 
   ReportExport: 'report:export',
+  ReportExportRows: 'report:exportRows',
 
   SettingsGetAdvanced: 'settings:getAdvanced',
   SettingsSaveAdvanced: 'settings:saveAdvanced',
@@ -150,6 +151,19 @@ export type FileExportResult = { exported: true; filePath: string } | { exported
 export interface ExportReportInput {
   period: CollectPeriod;
   format: 'html' | 'excel';
+}
+
+/**
+ * Exports exactly the rows the Collect page's "Collected invoices" table currently shows (already
+ * filtered client-side, per the reference app's own `exportCollected(filteredRows)`) — unlike
+ * `ExportReportInput` above, which re-derives everything for a period server-side and has no way
+ * to know about a client-side filter. `period` here is display-only (the exported file's own
+ * "Period: X to Y" header), not used to re-query.
+ */
+export interface ExportInvoiceRowsInput {
+  records: InvoiceHistoryRecord[];
+  period: CollectPeriod;
+  format: 'excel' | 'pdf';
 }
 
 export type {
