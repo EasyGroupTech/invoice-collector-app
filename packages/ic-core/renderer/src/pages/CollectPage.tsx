@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { PluginBackedRecord, Session } from 'invoice-collector-plugin-sdk';
-import { FileSpreadsheet, FileText, Plus, Settings as SettingsIcon, Wrench, X } from 'lucide-react';
+import { Copy, FileSpreadsheet, FileText, Plus, Settings as SettingsIcon, Wrench, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -38,6 +38,18 @@ function issuedMonthKey(year: number, month: number): string {
 
 function formatAmount(amount?: { value: number; currency: string }): string {
   return amount ? `${amount.value.toFixed(2)} ${amount.currency}` : '—';
+}
+
+// Character-count truncation (not just CSS overflow) so the table's columns stay a predictable
+// width regardless of how long a destination name actually is — the full value is still available
+// via the cell's title tooltip and the copy button, matching the reference app's own pattern.
+function truncateText(value: string, maxLength: number): string {
+  return value.length > maxLength ? `${value.slice(0, maxLength)}…` : value;
+}
+
+async function copyToClipboard(value: string) {
+  await navigator.clipboard.writeText(value);
+  toast.success('Copied');
 }
 
 interface CollectPageProps {
@@ -276,27 +288,42 @@ export function CollectPage({ onOpenSettings }: CollectPageProps) {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead>Name</TableHead>
                 <TableHead>Source</TableHead>
-                <TableHead>Destination</TableHead>
-                <TableHead>Invoice</TableHead>
-                <TableHead>Issued</TableHead>
-                <TableHead>Amount</TableHead>
+                <TableHead>Date issued</TableHead>
+                <TableHead>Total amount</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Collected</TableHead>
+                <TableHead>Uploaded destination path</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredInvoiceHistory.map((r) => (
-                <TableRow key={`${r.sourceId}-${r.invoiceId}`}>
-                  <TableCell className="font-medium">{sourceName(r.sourceId)}</TableCell>
-                  <TableCell className="text-muted-foreground">{destinationName(r.destinationId)}</TableCell>
-                  <TableCell className="text-muted-foreground">{r.invoiceId}</TableCell>
-                  <TableCell>{r.issuedDate}</TableCell>
-                  <TableCell>{formatAmount(r.amount)}</TableCell>
-                  <TableCell>{r.status}</TableCell>
-                  <TableCell className="text-muted-foreground">{r.collectedAt}</TableCell>
-                </TableRow>
-              ))}
+              {filteredInvoiceHistory.map((r) => {
+                const destination = destinationName(r.destinationId);
+                return (
+                  <TableRow key={`${r.sourceId}-${r.invoiceId}`}>
+                    <TableCell className="font-medium">{r.invoiceId}</TableCell>
+                    <TableCell className="text-muted-foreground">{sourceName(r.sourceId)}</TableCell>
+                    <TableCell>{r.issuedDate}</TableCell>
+                    <TableCell>{formatAmount(r.amount)}</TableCell>
+                    <TableCell>{r.status}</TableCell>
+                    <TableCell className="text-muted-foreground">{r.collectedAt}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground" title={destination}>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="size-6 shrink-0"
+                          onClick={() => void copyToClipboard(destination)}
+                        >
+                          <Copy className="size-3.5" />
+                        </Button>
+                        <span>{truncateText(destination, 26)}</span>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </div>
