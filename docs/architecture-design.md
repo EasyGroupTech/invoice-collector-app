@@ -474,7 +474,12 @@ longer silently piggyback on a built-in session type's assumed behavior without 
 sign-off from its author that they've actually verified it fits, and (2) the exact
 roles/permissions a user needs to grant before this plugin can work becomes a structured, declared,
 load-time-validated fact instead of documentation that can silently drift from what the code
-actually requires.
+actually requires. This applies even to a plugin whose "connection" is a local OS resource rather
+than a remote API — e.g. the local-filesystem destination (§14.1 US7) still declares a real session
+type, because access to a folder is itself something the OS gates (a permission prompt) and
+something that can later be revoked or go stale (the folder gets deleted, permission gets pulled) —
+exactly the lifecycle `Session`/`SessionPlugin` already exists to model, not something to route
+around with an empty array.
 
 **UI**: a Sessions section (Settings, or its own page) lists established sessions, their status, a
 Reconnect action, and which Source/Destination records currently use each — and any wizard step
@@ -508,6 +513,21 @@ built-in writes its own `SessionPlugin` for now — any such type can be promote
 built-in set later, exactly the way `microsoft-entra-delegated-device-code` was promoted; the
 trigger for promotion is a second real consumer needing the same mechanism, not a hypothetical
 future one.
+
+**How "writes its own `SessionPlugin`" actually wires up (§14.1 US7's local-filesystem destination
+is the first real case).** `SourcePlugin`/`DestinationPlugin` carry an optional `sessionPlugin?:
+SessionPlugin` field — present exactly when the plugin declares a `confirmsBuiltIn: false`
+`sessionRequirements` entry and brings its own implementation for it. §9.1's install pipeline
+registers it into the Sessions registry as its very last step, right after registering the plugin
+itself, the plugin-code counterpart to the built-in's own boot-time registration above. Not every
+custom session type is really a *remote* connection either — the local-filesystem destination's
+own session represents OS-level folder-access permission (a native folder-picker dialog is what
+actually grants it, doubling as the OS's own consent step on a platform like macOS that gates
+access to protected folders) rather than a token; its `refresh()` repurposes the same
+`keepAliveIntervalMs` periodic-check mechanism §6 built for token renewal to instead periodically
+re-verify the folder is still there and writable, throwing (same as a real refresh failure) if the
+folder was deleted, moved, or its permissions were revoked — so a stale destination surfaces as
+`needs-reconnect` the same way an expired sign-in would, not silently.
 
 **Where this one built-in actually runs.** `invoice-collector-plugin-sdk` exports
 `microsoft-entra-delegated-device-code`'s `SessionPlugin` implementation as a plain value (real

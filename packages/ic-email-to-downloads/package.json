@@ -13,5 +13,8 @@
   "dependencies": {
     "invoice-collector-plugin-sdk": "*",
     "pdf-parse": "^2.4.5"
+  },
+  "devDependencies": {
+    "electron": "^43.2.0"
   }
 }

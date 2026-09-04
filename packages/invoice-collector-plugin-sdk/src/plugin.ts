@@ -1,5 +1,5 @@
 import type { PluginManifest } from './manifest.js';
-import type { SessionRequirement } from './session.js';
+import type { SessionPlugin, SessionRequirement } from './session.js';
 import type { PluginContext } from './context.js';
 import type { WizardStepDescriptor, SettingsPanelDescriptor } from './ui.js';
 
@@ -94,10 +94,15 @@ export interface WizardDataSourceProvider {
  * `sessionRequirements` are all custom (`confirmsBuiltIn: false`) doesn't need it, since its own
  * `SessionPlugin.create()` already defines what its input shape means.
  *
- * **Known gap, not yet closed**: this doesn't solve the same problem for a *custom* session
- * type's own `create()` input — collecting whatever a third-party `SessionPlugin` expects still
- * has no generic UI mechanism. Deferred until a real plugin actually needs one (the SDK ships
- * exactly one session type today, and it's built-in) rather than guessing the shape now.
+ * **Partial gap, still open**: this doesn't solve the general problem for a *custom* session
+ * type's own `create()` input when that input is a real, non-trivial shape (structured fields a
+ * plugin author needs collected from the user) — there's still no generic UI mechanism for that.
+ * The trivial sub-case — a custom `create()` that needs no programmatic input at all because it
+ * gathers everything interactively itself (an OS-native picker/prompt, e.g. the local-filesystem
+ * destination's folder-access session) — is already covered: this same hook works for a custom
+ * type too, since `resolveSessionCreateInput()` falls back to it whenever no input was otherwise
+ * supplied, regardless of `confirmsBuiltIn`. Only the non-trivial, real-input case is still
+ * deferred until a plugin actually needs it.
  */
 export interface BuiltInSessionInputProvider {
   builtInSessionCreateInput?(requirement: SessionRequirement): unknown;
@@ -123,6 +128,11 @@ export interface SourcePlugin extends PluginLifecycle, WizardDataSourceProvider,
   /** Which session type(s) this plugin can use, and what it needs from each — required, must
    * list at least one entry. */
   sessionRequirements: SessionRequirement[];
+  /** Present when this plugin brings its own custom session type (one or more
+   * `sessionRequirements` entries with `confirmsBuiltIn: false`) — core registers it in the
+   * Sessions registry alongside the plugin itself, at install time, the same way it registers the
+   * SDK's own built-ins at boot (§6). Omit when every declared sessionTypeId is a built-in. */
+  sessionPlugin?: SessionPlugin;
   wizard: WizardStepDescriptor[];
   settingsPanel?: SettingsPanelDescriptor;
   /** Lightweight enumeration only — metadata, never content. */
@@ -145,6 +155,8 @@ export interface SourcePlugin extends PluginLifecycle, WizardDataSourceProvider,
 export interface DestinationPlugin extends PluginLifecycle, WizardDataSourceProvider, BuiltInSessionInputProvider {
   manifest: PluginManifest;
   sessionRequirements: SessionRequirement[];
+  /** See `SourcePlugin.sessionPlugin` — same mechanism, same reason. */
+  sessionPlugin?: SessionPlugin;
   wizard: WizardStepDescriptor[];
   settingsPanel?: SettingsPanelDescriptor;
   /**

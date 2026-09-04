@@ -3,10 +3,11 @@ import { mkdtemp, readdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { zipSync } from 'fflate';
-import type { DestinationPlugin, SourcePlugin } from 'invoice-collector-plugin-sdk';
+import type { DestinationPlugin, SessionPlugin, SourcePlugin } from 'invoice-collector-plugin-sdk';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { installPlugin, uninstallPlugin } from './plugin-install.js';
 import { createPluginRegistry, type PluginRegistry } from './plugin-registry.js';
+import type { SessionsRegistry } from './sessions-registry.js';
 
 const CORE_SDK_VERSION = '1.0.0';
 
@@ -356,6 +357,105 @@ describe('installPlugin (destination plugin)', () => {
 
       expect(result.status).toBe('installed');
       expect(registry.listDestinations()).toHaveLength(1);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("registers a plugin's own sessionPlugin (a custom session type it brings itself) when a sessionsRegistry is supplied", async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), 'ic-core-plugin-install-session-'));
+    try {
+      const manifest = { ...validManifest, id: 'app.easygroup.destination.custom-session-test', kind: 'destination' as const };
+      const zip = buildZip({ 'manifest.json': JSON.stringify(manifest), 'sbom.cdx.json': JSON.stringify(validSbom) });
+      const registry = createPluginRegistry();
+      const customSessionPlugin: SessionPlugin = {
+        sessionTypeId: 'app.easygroup.destination.custom-session-test/folder-access',
+        create: async () => ({ label: 'test', secret: {} }),
+        test: async () => 'ok',
+        applyAuth: (_secret, request) => request,
+      };
+      const destinationPlugin: DestinationPlugin = {
+        manifest,
+        sessionRequirements: [{ sessionTypeId: customSessionPlugin.sessionTypeId, confirmsBuiltIn: false, requiredScopesOrRoles: [] }],
+        sessionPlugin: customSessionPlugin,
+        wizard: [],
+        upload: async () => ({ status: 'uploaded' }),
+      };
+      const registerSessionPlugin = vi.fn();
+
+      const result = await installPlugin('https://example.com/plugin.zip', {
+        pluginsDir: path.join(dir, 'plugins'),
+        coreSdkVersion: CORE_SDK_VERSION,
+        trustAckFilePath: path.join(dir, 'trust-ack.json'),
+        registry,
+        confirmUnverified: true,
+        fetchImpl: fetchReturningZip(zip),
+        importModule: async () => ({ default: destinationPlugin }),
+        sessionsRegistry: { registerSessionPlugin } as unknown as SessionsRegistry,
+      });
+
+      expect(result.status).toBe('installed');
+      expect(registerSessionPlugin).toHaveBeenCalledWith(customSessionPlugin);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('installs successfully without registering anything session-related when the plugin declares no sessionPlugin', async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), 'ic-core-plugin-install-no-session-'));
+    try {
+      const zip = buildZip({ 'manifest.json': JSON.stringify(validManifest), 'sbom.cdx.json': JSON.stringify(validSbom) });
+      const registry = createPluginRegistry();
+      const registerSessionPlugin = vi.fn();
+
+      const result = await installPlugin('https://example.com/plugin.zip', {
+        pluginsDir: path.join(dir, 'plugins'),
+        coreSdkVersion: CORE_SDK_VERSION,
+        trustAckFilePath: path.join(dir, 'trust-ack.json'),
+        registry,
+        confirmUnverified: true,
+        fetchImpl: fetchReturningZip(zip),
+        importModule: async () => ({ default: fakeSourcePlugin() }),
+        sessionsRegistry: { registerSessionPlugin } as unknown as SessionsRegistry,
+      });
+
+      expect(result.status).toBe('installed');
+      expect(registerSessionPlugin).not.toHaveBeenCalled();
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('installs successfully even when the plugin declares a sessionPlugin but no sessionsRegistry was supplied', async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), 'ic-core-plugin-install-session-no-registry-'));
+    try {
+      const manifest = { ...validManifest, id: 'app.easygroup.destination.no-sessions-registry-test', kind: 'destination' as const };
+      const zip = buildZip({ 'manifest.json': JSON.stringify(manifest), 'sbom.cdx.json': JSON.stringify(validSbom) });
+      const registry = createPluginRegistry();
+      const destinationPlugin: DestinationPlugin = {
+        manifest,
+        sessionRequirements: [{ sessionTypeId: 'custom-type', confirmsBuiltIn: false, requiredScopesOrRoles: [] }],
+        sessionPlugin: {
+          sessionTypeId: 'custom-type',
+          create: async () => ({ label: 'test', secret: {} }),
+          test: async () => 'ok',
+          applyAuth: (_secret, request) => request,
+        },
+        wizard: [],
+        upload: async () => ({ status: 'uploaded' }),
+      };
+
+      const result = await installPlugin('https://example.com/plugin.zip', {
+        pluginsDir: path.join(dir, 'plugins'),
+        coreSdkVersion: CORE_SDK_VERSION,
+        trustAckFilePath: path.join(dir, 'trust-ack.json'),
+        registry,
+        confirmUnverified: true,
+        fetchImpl: fetchReturningZip(zip),
+        importModule: async () => ({ default: destinationPlugin }),
+      });
+
+      expect(result.status).toBe('installed');
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
