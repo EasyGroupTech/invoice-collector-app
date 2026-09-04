@@ -61,12 +61,12 @@ identity, gated on `!app.isPackaged`, set in `packages/ic-core/electron/main/ind
 from the private predecessor repo's own dev identity (`Invoice Collector Dev`) — sharing one would
 mean two unrelated codebases reading/writing the same `userData` dir and keychain entry, a real
 data-corruption risk (confirmed live once already, while building this). There's no packaged build
-yet (phase 1.16, not built) — packaging its own dev-vs-release identity split is a decision for
+yet (phase 1.17, not built) — packaging its own dev-vs-release identity split is a decision for
 that phase, not this one.
 
 ## Live-testing without the full GUI
 
-No Level-1/E2E test suite exists yet (`docs/implementation-plan.md`'s phases 1.16–1.18 aren't
+No Level-1/E2E test suite exists yet (`docs/implementation-plan.md`'s phases 1.17–1.19 aren't
 built) — until then, verifying UI/main-process behavior against the real running app means:
 
 1. `npm run electron:dev --workspace ic-core -- --remote-debugging-port=9222`.
@@ -103,7 +103,7 @@ conditional native-binding load path behaves). A real `npm install`-produced `no
 alongside the compiled plugin code works; a hand `cp -R` of `node_modules` entries does not (fails
 differently — `Failed to load native binding` — since a blind copy doesn't replicate npm's
 platform-specific optional-dependency resolution). Not yet resolved for real packaging — phase
-1.16's own strategy needs to account for it; this is just the finding, not the fix.
+1.17's own strategy needs to account for it; this is just the finding, not the fix.
 
 ## Hard constraints
 
@@ -175,4 +175,4 @@ phase at all, `docs/architecture-design.md`'s own "known gap, not yet closed" ca
 through the relevant sections — don't duplicate a list here, it will drift. Two worth knowing about
 by name because they're easy to trip over silently: the `generate-sbom:*` npm scripts are currently
 broken (see Hard constraints above), and there's no packaged build / E2E suite / live-API test tier
-yet (phases 1.16–1.18).
+yet (phases 1.17–1.19).
