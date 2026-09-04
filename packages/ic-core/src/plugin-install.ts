@@ -13,6 +13,7 @@ import { parseGithubRepoUrl, verifyGithubArtifactAttestation, type VerifyAttesta
 import { isPluginApiVersionSupported } from './plugin-api-version.js';
 import type { PluginRegistry } from './plugin-registry.js';
 import { resolveInstallSource, type ResolveInstallSourceOptions } from './plugin-source-resolve.js';
+import type { SessionsRegistry } from './sessions-registry.js';
 import {
   acknowledgeUnverifiedInstall,
   hasAcknowledgedUnverifiedInstall,
@@ -46,6 +47,16 @@ export interface PluginInstallOptions {
   coreSdkVersion: string;
   trustAckFilePath: string;
   registry: PluginRegistry;
+  /**
+   * Where a plugin's own `sessionPlugin` (§6 — a custom session type it brings itself, e.g. a
+   * local-filesystem destination's folder-access session) gets registered so `SessionsApi.create()`
+   * can actually route to it. Optional, matching this plugin field itself being optional: a plugin
+   * with no `sessionPlugin` needs nothing registered, and a caller not yet wired up to a real
+   * SessionsRegistry (nothing has been, before this) just skips this step rather than failing —
+   * install still succeeds, but that plugin's own session type won't be creatable until a caller
+   * starts supplying one.
+   */
+  sessionsRegistry?: SessionsRegistry;
   confirmUnverified?: boolean;
   fetchImpl?: typeof fetch;
   resolveSourceOptions?: ResolveInstallSourceOptions;
@@ -58,7 +69,8 @@ export interface PluginInstallOptions {
 /**
  * §9.1's full install pipeline: resolve → download → extract → validate (manifest shape,
  * pluginApiVersion window, sbom present/parseable) → GitHub Artifact Attestation (OSS path only)
- * → trust-tier decision → dynamic import → sessionRequirements validation → register.
+ * → trust-tier decision → dynamic import → sessionRequirements validation → register (plugin
+ * itself, then its own `sessionPlugin`, if any).
  *
  * Every call re-runs resolve/download/extract/validate/attestation from scratch, even a second
  * call made purely to supply `confirmUnverified: true` — simpler and safer than trying to resume
@@ -161,6 +173,9 @@ export async function installPlugin(
     }
 
     options.registry.register(plugin);
+    if (plugin.sessionPlugin) {
+      options.sessionsRegistry?.registerSessionPlugin(plugin.sessionPlugin);
+    }
 
     return { status: 'installed', manifest, tier };
   } catch (err) {
