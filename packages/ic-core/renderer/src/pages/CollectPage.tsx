@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { PluginBackedRecord, Session } from 'invoice-collector-plugin-sdk';
+import { Settings as SettingsIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -101,9 +102,14 @@ export function CollectPage({ onOpenSettings }: CollectPageProps) {
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h2 className="text-2xl font-semibold tracking-tight">Collect</h2>
-        <p className="text-sm text-muted-foreground">Download invoices and upload them to each source's destination.</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-semibold tracking-tight">Collect</h2>
+          <p className="text-sm text-muted-foreground">Download invoices and upload them to each source's destination.</p>
+        </div>
+        <Button variant="ghost" size="icon" className="size-12" onClick={onOpenSettings}>
+          <SettingsIcon className="size-6" />
+        </Button>
       </div>
 
       <fieldset disabled={collecting} className="contents">

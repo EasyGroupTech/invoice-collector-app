@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { ArrowLeft, ChevronDown, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,17 +10,26 @@ import type { AdvancedSettings, SbomEntry } from '../../../electron/shared/ipcCo
 import { PluginsSection } from './PluginsSection';
 import { SessionsSection } from './SessionsSection';
 
+interface SettingsPageProps {
+  /** Back-arrow navigation to Collect, matching the reference app's own header button — not a
+   * tab list (§8, phase 1.16). */
+  onBack: () => void;
+}
+
 /** §6's Sessions UI, §9's Plugins management, §13's "Third-Party Licenses"/SBOM screen, and §7's
  * Advanced Settings — four sections of one page rather than separate top-level tabs (phase 1.16:
  * the reference app's own Settings page set real precedent for tolerating even more sections than
  * this, at 7, in one scroll, without ever reaching for sub-tabs). Sessions/Plugins first — the
  * two a user is more likely to actually need to act on — Advanced Settings/SBOM last, since both
  * are closer to "set once" than "check regularly." */
-export function SettingsPage() {
+export function SettingsPage({ onBack }: SettingsPageProps) {
   return (
     <div className="flex flex-col gap-8">
-      <div>
+      <div className="flex items-center justify-between">
         <h2 className="text-2xl font-semibold tracking-tight">Settings</h2>
+        <Button variant="ghost" size="icon" className="size-12" onClick={onBack}>
+          <ArrowLeft className="size-6" />
+        </Button>
       </div>
       <SessionsSection />
       <PluginsSection />
