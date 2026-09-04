@@ -8,7 +8,8 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { InstalledPluginSummary, InvoiceHistoryRecord } from '../../../electron/shared/ipcContracts';
-import { AddRecordDialog, SessionEstablishPanel, sessionFor, type RecordKind } from './SourcesDestinationsSection';
+import { AddCollectorWizard } from './AddCollectorWizard';
+import { SessionEstablishPanel, sessionFor, type RecordKind } from './SourcesDestinationsSection';
 
 const MONTH_NAMES = [
   'January',
@@ -68,7 +69,7 @@ export function CollectPage({ onOpenSettings }: CollectPageProps) {
   const [destinations, setDestinations] = useState<PluginBackedRecord[]>([]);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [allPlugins, setAllPlugins] = useState<InstalledPluginSummary[]>([]);
-  const [addingKind, setAddingKind] = useState<RecordKind | undefined>(undefined);
+  const [addWizardOpen, setAddWizardOpen] = useState(false);
   const [fixOpen, setFixOpen] = useState(false);
   const [progressLog, setProgressLog] = useState<string[]>([]);
   const [collecting, setCollecting] = useState(false);
@@ -256,7 +257,7 @@ export function CollectPage({ onOpenSettings }: CollectPageProps) {
             )}
           </div>
         )}
-        <Button type="button" variant="outline" className="ml-auto" disabled={collecting} onClick={() => setAddingKind('source')}>
+        <Button type="button" variant="outline" className="ml-auto" disabled={collecting} onClick={() => setAddWizardOpen(true)}>
           <Plus />
           Add
         </Button>
@@ -351,13 +352,11 @@ export function CollectPage({ onOpenSettings }: CollectPageProps) {
         </div>
       )}
 
-      {addingKind && (
-        <AddRecordDialog
-          kind={addingKind}
-          destinations={destinations}
-          onClose={() => setAddingKind(undefined)}
+      {addWizardOpen && (
+        <AddCollectorWizard
+          onClose={() => setAddWizardOpen(false)}
           onCreated={() => {
-            setAddingKind(undefined);
+            setAddWizardOpen(false);
             void refresh();
           }}
         />
