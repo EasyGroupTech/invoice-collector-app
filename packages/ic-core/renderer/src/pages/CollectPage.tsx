@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { PluginBackedRecord, Session } from 'invoice-collector-plugin-sdk';
-import { Copy, FileSpreadsheet, FileText, Plus, Settings as SettingsIcon, Wrench, X } from 'lucide-react';
+import { Copy, FileSpreadsheet, FileText, Loader2, PlayCircle, Plus, Settings as SettingsIcon, StopCircle, Wrench, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -77,6 +77,14 @@ export function CollectPage({ onOpenSettings }: CollectPageProps) {
   const [invoiceHistory, setInvoiceHistory] = useState<InvoiceHistoryRecord[]>([]);
   const [nameFilter, setNameFilter] = useState('');
   const [exportingInvoices, setExportingInvoices] = useState(false);
+  const [currentJobId, setCurrentJobId] = useState<string | undefined>(undefined);
+  // The upload pipeline catches an in-flight cancellation between invoices and keeps whatever it
+  // already finished (job:done still arrives with ok:false, error:'...cancelled') — tracked in a
+  // ref, not state, so runCollect()'s own already-running closure sees the flip immediately
+  // instead of the stale value it closed over (same reasoning as the reference app's own
+  // wasCancelledRef), letting it show a neutral "cancelled" toast instead of an error one.
+  const wasCancelledRef = useRef(false);
+  const logScrollRef = useRef<HTMLDivElement | null>(null);
 
   async function refresh() {
     setSources(await window.api.configListSources());
@@ -92,6 +100,12 @@ export function CollectPage({ onOpenSettings }: CollectPageProps) {
   useEffect(() => {
     void refresh();
   }, []);
+
+  // Keeps the progress log scrolled to its latest line as events stream in.
+  useEffect(() => {
+    const el = logScrollRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [progressLog]);
 
   // §14.1 US13's collected-invoices table (below) — reloaded whenever the selected month changes,
   // same as the reference app's own "switching to a month already worked on immediately shows its
@@ -126,12 +140,14 @@ export function CollectPage({ onOpenSettings }: CollectPageProps) {
   async function runCollect() {
     setCollecting(true);
     setProgressLog([]);
+    wasCancelledRef.current = false;
     try {
       const result = await window.api.collectRun({ sourceIds: 'all', period: periodForMonth(collectYear, collectMonth) });
       if ('error' in result) {
         toast.error(result.error);
         return;
       }
+      setCurrentJobId(result.jobId);
       await new Promise<void>((resolve, reject) => {
         const unsubscribe = window.api.onJobDone((event) => {
           if (event.jobId !== result.jobId) return;
@@ -143,10 +159,21 @@ export function CollectPage({ onOpenSettings }: CollectPageProps) {
       toast.success('Collect run finished');
       await refreshInvoiceHistory();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : String(err));
+      if (wasCancelledRef.current) {
+        toast('Collection cancelled');
+      } else {
+        toast.error(err instanceof Error ? err.message : String(err));
+      }
     } finally {
       setCollecting(false);
+      setCurrentJobId(undefined);
     }
+  }
+
+  async function cancelCollect() {
+    if (!currentJobId) return;
+    wasCancelledRef.current = true;
+    await window.api.jobsCancel(currentJobId);
   }
 
   function sourceName(id: string): string {
@@ -191,53 +218,65 @@ export function CollectPage({ onOpenSettings }: CollectPageProps) {
         </Button>
       </div>
 
-      <fieldset disabled={collecting} className="flex flex-wrap items-center gap-2">
-        <Select value={String(collectMonth)} onValueChange={(value) => setCollectMonth(Number(value))}>
-          <SelectTrigger id="collect-month" className="w-40">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {MONTH_NAMES.map((label, i) => (
-              <SelectItem key={label} value={String(i + 1)}>
-                {label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Input
-          id="collect-year"
-          type="number"
-          value={collectYear}
-          onChange={(e) => setCollectYear(e.target.valueAsNumber)}
-          className="w-28"
-        />
-        <Button type="button" disabled={sources.length === 0 || connectedCount < totalNeeded} onClick={() => void runCollect()}>
-          {collecting ? 'Collecting…' : 'Collect'}
-        </Button>
+      <div className="flex flex-wrap items-center gap-2">
+        <fieldset disabled={collecting} className="contents">
+          <Select value={String(collectMonth)} onValueChange={(value) => setCollectMonth(Number(value))}>
+            <SelectTrigger id="collect-month" className="w-40">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {MONTH_NAMES.map((label, i) => (
+                <SelectItem key={label} value={String(i + 1)}>
+                  {label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Input
+            id="collect-year"
+            type="number"
+            value={collectYear}
+            onChange={(e) => setCollectYear(e.target.valueAsNumber)}
+            className="w-28"
+          />
+          <Button type="button" disabled={sources.length === 0 || connectedCount < totalNeeded} onClick={() => void runCollect()}>
+            {collecting ? <Loader2 className="animate-spin" /> : <PlayCircle />}
+            {collecting ? 'Collecting…' : 'Collect'}
+          </Button>
+        </fieldset>
+        {collecting && (
+          <Button type="button" size="sm" variant="outline" onClick={() => void cancelCollect()}>
+            <StopCircle />
+            Cancel
+          </Button>
+        )}
         {totalNeeded > 0 && (
           <div className="flex items-center gap-2">
             <p className="text-sm text-muted-foreground">
               {connectedCount} of {totalNeeded} sessions connected
             </p>
             {connectedCount < totalNeeded && (
-              <Button type="button" size="sm" variant="outline" onClick={() => setFixOpen(true)}>
+              <Button type="button" size="sm" variant="outline" disabled={collecting} onClick={() => setFixOpen(true)}>
                 <Wrench />
                 Fix
               </Button>
             )}
           </div>
         )}
-        <Button type="button" variant="outline" className="ml-auto" onClick={() => setAddingKind('source')}>
+        <Button type="button" variant="outline" className="ml-auto" disabled={collecting} onClick={() => setAddingKind('source')}>
           <Plus />
           Add
         </Button>
-      </fieldset>
+      </div>
 
       {progressLog.length > 0 && (
-        <div className="max-h-32 overflow-y-auto rounded-lg border bg-muted/30 px-3 py-2 font-mono text-xs leading-relaxed">
-          {progressLog.map((line, index) => (
-            // A plain progress transcript, appended in arrival order — no id to key by.
-            <div key={index}>{line}</div>
+        <div ref={logScrollRef} className="max-h-32 overflow-y-auto rounded-lg border bg-muted/30 px-3 py-2 font-mono text-xs leading-relaxed">
+          {progressLog.slice(-5).map((line, index) => (
+            // A plain progress transcript, appended in arrival order — no id to key by. Only the
+            // last 5 lines, matching the reference app's own log display, not the full transcript.
+            <div key={index} className={line.includes('FAILED') ? 'text-destructive' : undefined}>
+              {line}
+            </div>
           ))}
         </div>
       )}
