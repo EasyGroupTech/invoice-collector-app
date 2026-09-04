@@ -9,5 +9,9 @@
     "typecheck": "tsc --noEmit",
     "build": "tsc -p tsconfig.build.json",
     "test": "vitest run"
+  },
+  "dependencies": {
+    "invoice-collector-plugin-sdk": "*",
+    "pdf-parse": "^2.4.5"
   }
 }

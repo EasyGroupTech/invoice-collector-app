@@ -17,7 +17,8 @@
     "test": "vitest run",
     "lint": "eslint .",
     "generate-sbom:ic-core": "generate-sbom --workspace ic-core --output packages/ic-core/sbom.cdx.json",
-    "generate-sbom:sdk": "generate-sbom --workspace invoice-collector-plugin-sdk --output packages/invoice-collector-plugin-sdk/sbom.cdx.json"
+    "generate-sbom:sdk": "generate-sbom --workspace invoice-collector-plugin-sdk --output packages/invoice-collector-plugin-sdk/sbom.cdx.json",
+    "generate-sbom:email-to-downloads": "generate-sbom --workspace ic-email-to-downloads --output packages/ic-email-to-downloads/sbom.cdx.json"
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",
