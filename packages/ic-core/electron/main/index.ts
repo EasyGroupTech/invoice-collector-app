@@ -33,6 +33,7 @@ import { resolveWizardListData } from '../../src/wizard-data.js';
 import { safeStorageEncryptor } from './safeStorageEncryptor.js';
 import {
   Channels,
+  type AssignSessionInput,
   type CreateRecordInput,
   type CreateSessionInput,
   type ExportReportInput,
@@ -205,6 +206,17 @@ ipcMain.handle(Channels.ConfigRemoveRecord, async (_event, input: RemoveRecordIn
   const store = await loadConfigFile(filePath);
   const key = input.kind === 'source' ? 'sources' : 'destinations';
   await saveConfigFile(filePath, { ...store, [key]: removeRecord(store[key], input.id) });
+});
+
+ipcMain.handle(Channels.ConfigAssignSession, async (_event, input: AssignSessionInput) => {
+  const filePath = await currentConfigFilePath();
+  const store = await loadConfigFile(filePath);
+  const key = input.kind === 'source' ? 'sources' : 'destinations';
+  const existing = store[key].find((r) => r.id === input.id);
+  if (!existing) throw new Error(`${input.kind} ${input.id} not found`);
+  const updated = { ...existing, sessionId: input.sessionId, updatedAt: new Date().toISOString() };
+  await saveConfigFile(filePath, { ...store, [key]: upsertRecord(store[key], updated) });
+  return updated;
 });
 
 ipcMain.handle(Channels.ConfigExportAll, async (_event, password: string) => {

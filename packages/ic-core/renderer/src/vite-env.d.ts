@@ -7,6 +7,7 @@
 // changes (same convention CLAUDE.md already documents for the private predecessor app).
 import type {
   AdvancedSettings,
+  AssignSessionInput,
   ConfigImportResult,
   CreateRecordInput,
   CreateSessionInput,
@@ -41,6 +42,7 @@ declare global {
       configListDestinations(): Promise<PluginBackedRecord[]>;
       configCreateRecord(input: CreateRecordInput): Promise<PluginBackedRecord>;
       configRemoveRecord(input: RemoveRecordInput): Promise<void>;
+      configAssignSession(input: AssignSessionInput): Promise<PluginBackedRecord>;
       configExportAll(password: string): Promise<EncryptedConfigExportFile>;
       configImportAll(file: EncryptedConfigExportFile, password: string): Promise<ConfigImportResult>;
 

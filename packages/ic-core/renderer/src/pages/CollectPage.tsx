@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { PluginBackedRecord, Session } from 'invoice-collector-plugin-sdk';
-import { Settings as SettingsIcon } from 'lucide-react';
+import { Plus, Settings as SettingsIcon, Wrench } from 'lucide-react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -18,6 +18,31 @@ import { runJobAndWait } from '../jobs';
 type RecordKind = 'source' | 'destination';
 
 const NEEDS_ATTENTION_STATUSES: Session['status'][] = ['expired', 'needs-reconnect'];
+
+const MONTH_NAMES = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+];
+
+/** The whole calendar month a Collect run's own `period` (§14) covers — the run-period selector
+ * below is deliberately a plain month+year pair, not an arbitrary range, so "collect this month"
+ * stays a one-glance decision; the Report card further down keeps its own free-form date range
+ * for exporting whatever's already on file. */
+function periodForMonth(year: number, month: number): { start: string; end: string } {
+  const start = `${year}-${String(month).padStart(2, '0')}-01`;
+  const end = new Date(year, month, 0).toISOString().slice(0, 10);
+  return { start, end };
+}
 
 function defaultPeriod(): { start: string; end: string } {
   const now = new Date();
@@ -37,12 +62,17 @@ interface CollectPageProps {
  * more than one alternative session type, deferred until a real plugin actually needs that (same
  * "don't design for a hypothetical" reasoning as the other gaps this phase deferred). */
 export function CollectPage({ onOpenSettings }: CollectPageProps) {
+  const now = new Date();
   const [sources, setSources] = useState<PluginBackedRecord[]>([]);
   const [destinations, setDestinations] = useState<PluginBackedRecord[]>([]);
   const [sessions, setSessions] = useState<Session[]>([]);
+  const [allPlugins, setAllPlugins] = useState<InstalledPluginSummary[]>([]);
   const [addingKind, setAddingKind] = useState<RecordKind | undefined>(undefined);
+  const [fixOpen, setFixOpen] = useState(false);
   const [progressLog, setProgressLog] = useState<string[]>([]);
   const [collecting, setCollecting] = useState(false);
+  const [collectMonth, setCollectMonth] = useState(now.getMonth() + 1);
+  const [collectYear, setCollectYear] = useState(now.getFullYear());
   const [reportPeriod, setReportPeriod] = useState(defaultPeriod());
   const [exportingReport, setExportingReport] = useState(false);
 
@@ -50,6 +80,7 @@ export function CollectPage({ onOpenSettings }: CollectPageProps) {
     setSources(await window.api.configListSources());
     setDestinations(await window.api.configListDestinations());
     setSessions(await window.api.sessionsList());
+    setAllPlugins(await window.api.pluginsList());
   }
 
   useEffect(() => {
@@ -57,6 +88,26 @@ export function CollectPage({ onOpenSettings }: CollectPageProps) {
   }, []);
 
   useEffect(() => window.api.onJobProgress((event) => setProgressLog((prev) => [...prev, event.message])), []);
+
+  function pluginFor(record: PluginBackedRecord): InstalledPluginSummary | undefined {
+    return allPlugins.find((p) => p.manifest.id === record.pluginId);
+  }
+
+  function isConnected(record: PluginBackedRecord): boolean {
+    return sessionFor(record, sessions)?.status === 'active';
+  }
+
+  // Every source/destination whose installed plugin actually declares a session requirement —
+  // a record whose plugin needs no session at all (e.g. a plugin with no sessionRequirements)
+  // never counts against, or toward, the summary below.
+  const connectableRecords: ConnectableRecord[] = [
+    ...sources.map((record) => ({ kind: 'source' as const, record, plugin: pluginFor(record) })),
+    ...destinations.map((record) => ({ kind: 'destination' as const, record, plugin: pluginFor(record) })),
+  ].filter((r): r is ConnectableRecord => r.plugin !== undefined && r.plugin.sessionRequirements.length > 0);
+
+  const totalNeeded = connectableRecords.length;
+  const connectedCount = connectableRecords.filter((r) => isConnected(r.record)).length;
+  const brokenRecords = connectableRecords.filter((r) => !isConnected(r.record));
 
   async function removeRecord(kind: RecordKind, id: string) {
     await window.api.configRemoveRecord({ kind, id });
@@ -67,7 +118,7 @@ export function CollectPage({ onOpenSettings }: CollectPageProps) {
     setCollecting(true);
     setProgressLog([]);
     try {
-      const result = await window.api.collectRun({ sourceIds: 'all', period: defaultPeriod() });
+      const result = await window.api.collectRun({ sourceIds: 'all', period: periodForMonth(collectYear, collectMonth) });
       if ('error' in result) {
         toast.error(result.error);
         return;
@@ -112,6 +163,66 @@ export function CollectPage({ onOpenSettings }: CollectPageProps) {
         </Button>
       </div>
 
+      <Card>
+        <CardContent className="flex flex-col gap-4">
+          <fieldset disabled={collecting} className="flex flex-wrap items-end gap-4">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="collect-month">Month</Label>
+              <Select value={String(collectMonth)} onValueChange={(value) => setCollectMonth(Number(value))}>
+                <SelectTrigger id="collect-month" className="w-40">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {MONTH_NAMES.map((label, i) => (
+                    <SelectItem key={label} value={String(i + 1)}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="collect-year">Year</Label>
+              <Input
+                id="collect-year"
+                type="number"
+                value={collectYear}
+                onChange={(e) => setCollectYear(e.target.valueAsNumber)}
+                className="w-28"
+              />
+            </div>
+            <Button type="button" disabled={sources.length === 0 || connectedCount < totalNeeded} onClick={() => void runCollect()}>
+              {collecting ? 'Collecting…' : 'Collect'}
+            </Button>
+            {totalNeeded > 0 && (
+              <div className="flex items-center gap-2">
+                <p className="text-sm text-muted-foreground">
+                  {connectedCount} of {totalNeeded} sessions connected
+                </p>
+                {connectedCount < totalNeeded && (
+                  <Button type="button" size="sm" variant="outline" onClick={() => setFixOpen(true)}>
+                    <Wrench />
+                    Fix
+                  </Button>
+                )}
+              </div>
+            )}
+            <Button type="button" variant="outline" className="ml-auto" onClick={() => setAddingKind('source')}>
+              <Plus />
+              Add
+            </Button>
+          </fieldset>
+          {progressLog.length > 0 && (
+            <div className="max-h-32 overflow-y-auto rounded-lg border bg-muted/30 px-3 py-2 font-mono text-xs leading-relaxed">
+              {progressLog.map((line, index) => (
+                // A plain progress transcript, appended in arrival order — no id to key by.
+                <div key={index}>{line}</div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       <fieldset disabled={collecting} className="contents">
         <RecordCard
           title="Sources"
@@ -132,27 +243,6 @@ export function CollectPage({ onOpenSettings }: CollectPageProps) {
           addLabel="Add Destination"
           onOpenSettings={onOpenSettings}
         />
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Run</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-4">
-            <div>
-              <Button type="button" disabled={sources.length === 0} onClick={() => void runCollect()}>
-                {collecting ? 'Collecting…' : 'Run Collect'}
-              </Button>
-            </div>
-            {progressLog.length > 0 && (
-              <div className="max-h-32 overflow-y-auto rounded-lg border bg-muted/30 px-3 py-2 font-mono text-xs leading-relaxed">
-                {progressLog.map((line, index) => (
-                  // A plain progress transcript, appended in arrival order — no id to key by.
-                  <div key={index}>{line}</div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
 
         <Card>
           <CardHeader>
@@ -201,6 +291,15 @@ export function CollectPage({ onOpenSettings }: CollectPageProps) {
             setAddingKind(undefined);
             void refresh();
           }}
+        />
+      )}
+
+      {fixOpen && (
+        <FixConnectionsDialog
+          brokenRecords={brokenRecords}
+          sessions={sessions}
+          onClose={() => setFixOpen(false)}
+          onFixed={() => void refresh()}
         />
       )}
     </div>
@@ -313,7 +412,6 @@ function AddRecordDialog({ kind, destinations, onClose, onCreated }: AddRecordDi
   const [selectedPluginId, setSelectedPluginId] = useState<string | undefined>(undefined);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [selectedSessionId, setSelectedSessionId] = useState<string | undefined>(undefined);
-  const [creatingSession, setCreatingSession] = useState(false);
   const [name, setName] = useState('');
   const [destinationId, setDestinationId] = useState<string | undefined>(undefined);
   const [values, setValues] = useState<WizardFieldValues>({});
@@ -326,29 +424,6 @@ function AddRecordDialog({ kind, destinations, onClose, onCreated }: AddRecordDi
   }, [kind]);
 
   const plugin = plugins.find((p) => p.manifest.id === selectedPluginId);
-  const requirement = plugin?.sessionRequirements[0];
-  const compatibleSessions = requirement
-    ? sessions.filter(
-        (s) => s.sessionTypeId === requirement.sessionTypeId && (requirement.confirmsBuiltIn || s.createdByPluginId === plugin.manifest.id),
-      )
-    : [];
-
-  async function createSession() {
-    if (!plugin || !requirement) return;
-    setCreatingSession(true);
-    setError(undefined);
-    try {
-      const session = await runJobAndWait<Session>(
-        window.api.sessionsCreate({ pluginId: plugin.manifest.id, sessionTypeId: requirement.sessionTypeId }),
-      );
-      setSessions((prev) => [...prev, session]);
-      setSelectedSessionId(session.id);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setCreatingSession(false);
-    }
-  }
 
   async function submit() {
     if (!plugin) return;
@@ -402,29 +477,17 @@ function AddRecordDialog({ kind, destinations, onClose, onCreated }: AddRecordDi
             </Select>
           </div>
 
-          {plugin && requirement && (
-            <div className="flex flex-col gap-2 rounded-lg border p-4">
-              <p className="text-sm font-medium">Session ({requirement.sessionTypeId})</p>
-              {requirement.permissionsNote && <p className="text-sm text-muted-foreground">{requirement.permissionsNote}</p>}
-              <p className="text-sm text-muted-foreground">Requires: {requirement.requiredScopesOrRoles.join(', ') || 'no specific scopes declared'}</p>
-              {compatibleSessions.map((s) => (
-                <label key={s.id} className="flex items-center gap-2 text-sm">
-                  <input
-                    type="radio"
-                    name="session"
-                    className="accent-primary"
-                    checked={selectedSessionId === s.id}
-                    onChange={() => setSelectedSessionId(s.id)}
-                  />
-                  {s.label}
-                </label>
-              ))}
-              <div>
-                <Button type="button" variant="outline" size="sm" disabled={creatingSession} onClick={() => void createSession()}>
-                  {creatingSession ? 'Creating…' : 'Create new session'}
-                </Button>
-              </div>
-            </div>
+          {plugin && (
+            <SessionEstablishPanel
+              plugin={plugin}
+              sessions={sessions}
+              selectedSessionId={selectedSessionId}
+              onSelect={setSelectedSessionId}
+              onSessionCreated={(session) => {
+                setSessions((prev) => [...prev, session]);
+                setSelectedSessionId(session.id);
+              }}
+            />
           )}
 
           {plugin && (
@@ -471,6 +534,153 @@ function AddRecordDialog({ kind, destinations, onClose, onCreated }: AddRecordDi
           </Button>
           <Button type="button" disabled={!plugin || submitting} onClick={() => void submit()}>
             {submitting ? 'Adding…' : 'Add'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+interface SessionEstablishPanelProps {
+  plugin: InstalledPluginSummary;
+  sessions: Session[];
+  selectedSessionId: string | undefined;
+  onSelect: (sessionId: string) => void;
+  onSessionCreated: (session: Session) => void;
+}
+
+/** The "pick an existing compatible session, or create a new one" block shared by
+ * `AddRecordDialog` and `FixConnectionsDialog` — only ever looks at `sessionRequirements[0]`,
+ * same established simplification as the rest of this file. Renders nothing for a plugin with no
+ * session requirement at all. */
+function SessionEstablishPanel({ plugin, sessions, selectedSessionId, onSelect, onSessionCreated }: SessionEstablishPanelProps) {
+  const [creatingSession, setCreatingSession] = useState(false);
+  const [error, setError] = useState<string | undefined>(undefined);
+  const requirement = plugin.sessionRequirements[0];
+
+  if (!requirement) return null;
+
+  const compatibleSessions = sessions.filter(
+    (s) => s.sessionTypeId === requirement.sessionTypeId && (requirement.confirmsBuiltIn || s.createdByPluginId === plugin.manifest.id),
+  );
+
+  async function createSession() {
+    setCreatingSession(true);
+    setError(undefined);
+    try {
+      const session = await runJobAndWait<Session>(
+        window.api.sessionsCreate({ pluginId: plugin.manifest.id, sessionTypeId: requirement.sessionTypeId }),
+      );
+      onSessionCreated(session);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setCreatingSession(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-2 rounded-lg border p-4">
+      <p className="text-sm font-medium">Session ({requirement.sessionTypeId})</p>
+      {requirement.permissionsNote && <p className="text-sm text-muted-foreground">{requirement.permissionsNote}</p>}
+      <p className="text-sm text-muted-foreground">Requires: {requirement.requiredScopesOrRoles.join(', ') || 'no specific scopes declared'}</p>
+      {compatibleSessions.map((s) => (
+        <label key={s.id} className="flex items-center gap-2 text-sm">
+          <input
+            type="radio"
+            name={`session-${plugin.manifest.id}`}
+            className="accent-primary"
+            checked={selectedSessionId === s.id}
+            onChange={() => onSelect(s.id)}
+          />
+          {s.label}
+        </label>
+      ))}
+      <div>
+        <Button type="button" variant="outline" size="sm" disabled={creatingSession} onClick={() => void createSession()}>
+          {creatingSession ? 'Creating…' : 'Create new session'}
+        </Button>
+      </div>
+      {error && <p className="text-sm text-destructive">{error}</p>}
+    </div>
+  );
+}
+
+interface ConnectableRecord {
+  kind: RecordKind;
+  record: PluginBackedRecord;
+  plugin: InstalledPluginSummary;
+}
+
+interface FixConnectionsDialogProps {
+  brokenRecords: ConnectableRecord[];
+  sessions: Session[];
+  onClose: () => void;
+  /** Called after each successful assignment — lets the Collect page's own connectivity summary
+   * and badges update live as the user works through the list, not just once at the end. */
+  onFixed: () => void;
+}
+
+/** Walks `brokenRecords` one at a time, establishing (or reconnecting) each one's session in turn
+ * — the "Fix" shortcut from the Collect page's connectivity summary. Snapshots both props into
+ * local state on open rather than reading them live: `onFixed()` triggers the Collect page to
+ * refresh, which recomputes its own `brokenRecords` (shrinking it — the record just fixed drops
+ * out) and could otherwise change size out from under this dialog's own `index`, skipping the
+ * next one. Auto-closes once every record in the snapshot has been fixed. */
+function FixConnectionsDialog({ brokenRecords: initialBrokenRecords, sessions: initialSessions, onClose, onFixed }: FixConnectionsDialogProps) {
+  const [brokenRecords] = useState(initialBrokenRecords);
+  const [index, setIndex] = useState(0);
+  const [sessions, setSessions] = useState(initialSessions);
+  const [assigning, setAssigning] = useState(false);
+  const [error, setError] = useState<string | undefined>(undefined);
+
+  const current = brokenRecords[index];
+
+  useEffect(() => {
+    if (!current) onClose();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [current]);
+
+  if (!current) return null;
+
+  async function assign(sessionId: string) {
+    setAssigning(true);
+    setError(undefined);
+    try {
+      await window.api.configAssignSession({ kind: current.kind, id: current.record.id, sessionId });
+      onFixed();
+      setIndex((i) => i + 1);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setAssigning(false);
+    }
+  }
+
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="flex max-h-[80vh] flex-col gap-4 overflow-y-auto sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>
+            Connect {current.record.name} ({index + 1} of {brokenRecords.length})
+          </DialogTitle>
+        </DialogHeader>
+        <fieldset disabled={assigning} className="contents">
+          <SessionEstablishPanel
+            plugin={current.plugin}
+            sessions={sessions}
+            selectedSessionId={undefined}
+            onSelect={(sessionId) => void assign(sessionId)}
+            onSessionCreated={(session) => {
+              setSessions((prev) => [...prev, session]);
+              void assign(session.id);
+            }}
+          />
+        </fieldset>
+        {error && <p className="text-sm text-destructive">{error}</p>}
+        <DialogFooter>
+          <Button type="button" variant="ghost" onClick={onClose}>
+            Cancel
           </Button>
         </DialogFooter>
       </DialogContent>
