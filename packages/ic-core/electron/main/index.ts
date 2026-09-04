@@ -17,7 +17,7 @@ import {
   type CreateRecordInput as ConfigCreateRecordInput,
 } from '../../src/config-store.js';
 import { createHttpApi, type SessionAuthResolver } from '../../src/http-client.js';
-import { installPlugin, uninstallPlugin } from '../../src/plugin-install.js';
+import { installPlugin, reloadInstalledPlugins, uninstallPlugin } from '../../src/plugin-install.js';
 import { renderHtmlToPdf } from './htmlToPdf.js';
 import { createInvoiceHistory } from '../../src/invoice-history.js';
 import { createJobRunner } from '../../src/job-runner.js';
@@ -129,6 +129,17 @@ function rebuildProfileScopedServices(): void {
     createPluginServices,
   });
   sessionsRegistry.registerSessionPlugin(microsoftEntraDelegatedDeviceCodeSessionPlugin);
+  // A fresh SessionsRegistry starts with an empty custom-sessionPlugin map of its own — every
+  // plugin already loaded into pluginRegistry (whether from this same boot's reloadInstalledPlugins()
+  // call below, or installed earlier in this same running process) needs its own sessionPlugin, if
+  // any, re-registered here too, or SessionsApi.create() for it would silently break the next time
+  // a profile switch (ProfilesSwitch, §16) rebuilds this registry — the plugin *code* isn't
+  // profile-scoped and never gets reloaded on a switch, only this registry is.
+  for (const plugin of pluginRegistry.list()) {
+    if (plugin.sessionPlugin) {
+      sessionsRegistry.registerSessionPlugin(plugin.sessionPlugin);
+    }
+  }
   void sessionsRegistry.startScheduler();
 
   invoiceHistory = createInvoiceHistory(paths.invoiceHistoryFile);
@@ -433,6 +444,19 @@ ipcMain.handle(Channels.SettingsSaveAdvanced, async (_event, settings: AdvancedS
 app.whenReady().then(async () => {
   await profileManager.init();
   currentAdvancedSettings = await loadAdvancedSettings(advancedSettingsFile(app.getPath('userData')));
+  // §5's "plugins aren't reloaded from disk at boot yet" gap — a plugin installed in an earlier
+  // run left real files under pluginsDir, but nothing re-registered them into this fresh launch's
+  // registry until now. Runs before rebuildProfileScopedServices() so its own sessionPlugin
+  // re-registration loop (sessionsRegistry doesn't exist yet at this point) picks up every plugin
+  // loaded here.
+  await reloadInstalledPlugins({
+    pluginsDir: pluginsDir(app.getPath('userData')),
+    coreSdkVersion: CORE_SDK_VERSION,
+    registry: pluginRegistry,
+    onError: (pluginId, error) => {
+      console.error(`Failed to reload plugin "${pluginId}" from disk:`, error);
+    },
+  });
   rebuildProfileScopedServices();
   createWindow();
 });
