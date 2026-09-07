@@ -18,6 +18,7 @@ those docs are.
 
 ## Working conventions
 
+- **Only commit when explicitly asked.** Don't commit proactively after finishing a change.
 - **The commit message explains *why*, not just what** — same reasoning as `docs/implementation-plan.md`
   itself: this repo treats the git log as real decision history, not a changelog.
 - **Before considering a phase done**: `npm run typecheck`, `npm run build`, `npm test`, `npm run

@@ -318,6 +318,7 @@ ipcMain.handle(Channels.PluginsInstall, (_event, input: InstallPluginInput) =>
     coreSdkVersion: CORE_SDK_VERSION,
     trustAckFilePath: profilePaths(profileManager.getActiveProfileDir()).trustAckFile,
     registry: pluginRegistry,
+    sessionsRegistry,
     confirmUnverified: input.confirmUnverified,
   }),
 );
