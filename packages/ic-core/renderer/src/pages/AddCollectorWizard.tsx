@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { PluginBackedRecord, Session } from 'invoice-collector-plugin-sdk';
+import { Copy, ExternalLink, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -134,54 +135,66 @@ function SessionModeSelect({ id, label, compatibleSessions, value, onChange }: S
  * `ctx.progress.report(message, {userCode, verificationUri, verificationUriComplete})` — the SDK
  * nests this under `event.data` rather than flattening it onto the event itself, unlike the
  * reference app's own (unrelated) `JobProgressEvent` shape. */
-function extractDeviceCodeInfo(
-  progressLog: JobProgressEvent[],
-): { userCode: string; verificationUri: string; verificationUriComplete?: string } | undefined {
+function extractDeviceCodeInfo(progressLog: JobProgressEvent[]): { userCode: string; verificationUri: string } | undefined {
   for (let i = progressLog.length - 1; i >= 0; i--) {
-    const data = progressLog[i].data as { userCode?: string; verificationUri?: string; verificationUriComplete?: string } | undefined;
+    const data = progressLog[i].data as { userCode?: string; verificationUri?: string } | undefined;
     if (data?.userCode && data.verificationUri) {
-      return { userCode: data.userCode, verificationUri: data.verificationUri, verificationUriComplete: data.verificationUriComplete };
+      return { userCode: data.userCode, verificationUri: data.verificationUri };
     }
   }
   return undefined;
 }
 
+async function copyToClipboard(value: string, label: string) {
+  await navigator.clipboard.writeText(value);
+  toast.success(`${label} copied`);
+}
+
 /** The live "here's the code, go sign in" half of the device-code flow (RFC 8628) — without this,
- * a device-code session create just looks stuck until it eventually times out. Mirrors the
- * reference app's own `DeviceCodePrompt`, adapted to this app's nested `event.data` shape and its
- * own `window.api.openExternal` (real OS browser, not an in-app navigation). */
+ * a device-code session create just looks stuck until it eventually times out. Ported from the
+ * reference app's own `DeviceCodePrompt` (link + code, each with its own copy button, the link
+ * itself clickable via `window.api.openExternal` — real OS browser, not an in-app navigation),
+ * adapted only for this app's nested `event.data` progress shape. */
 function DeviceCodeSignInPrompt({ progressLog }: { progressLog: JobProgressEvent[] }) {
-  const [copied, setCopied] = useState(false);
   const info = extractDeviceCodeInfo(progressLog);
 
   if (!info) {
-    return <p className="text-sm text-muted-foreground">Starting sign-in…</p>;
+    return (
+      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <Loader2 className="size-4 animate-spin" />
+        {progressLog[progressLog.length - 1]?.message ?? 'Starting…'}
+      </div>
+    );
   }
 
-  const openUrl = info.verificationUriComplete ?? info.verificationUri;
+  const { userCode, verificationUri } = info;
 
   return (
-    <div className="flex flex-col gap-2 rounded-lg border bg-muted/40 p-3">
-      <p className="text-sm">
-        Go to <span className="font-medium">{info.verificationUri}</span> and enter the code below.
-      </p>
-      <div className="flex flex-wrap items-center gap-2">
-        <code className="rounded bg-background px-2 py-1 text-lg font-semibold tracking-widest">{info.userCode}</code>
-        <Button
+    <div className="flex flex-col gap-3 rounded-md border p-3">
+      <div className="flex items-center gap-2">
+        <span className="w-16 shrink-0 text-xs text-muted-foreground">Go to</span>
+        <button
           type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => {
-            void navigator.clipboard.writeText(info.userCode);
-            setCopied(true);
-            setTimeout(() => setCopied(false), 1500);
-          }}
+          onClick={() => void window.api.openExternal(verificationUri)}
+          className="flex items-center gap-1 truncate text-sm text-primary underline underline-offset-2"
         >
-          {copied ? 'Copied' : 'Copy code'}
+          {verificationUri}
+          <ExternalLink className="size-3.5 shrink-0" />
+        </button>
+        <Button variant="ghost" size="icon" className="ml-auto shrink-0" onClick={() => void copyToClipboard(verificationUri, 'Link')}>
+          <Copy />
         </Button>
-        <Button type="button" variant="outline" size="sm" onClick={() => void window.api.openExternal(openUrl)}>
-          Open sign-in page
+      </div>
+      <div className="flex items-center gap-2">
+        <span className="w-16 shrink-0 text-xs text-muted-foreground">Enter code</span>
+        <code className="rounded bg-muted px-2 py-1 text-sm font-medium tracking-wide">{userCode}</code>
+        <Button variant="ghost" size="icon" className="ml-auto shrink-0" onClick={() => void copyToClipboard(userCode, 'Code')}>
+          <Copy />
         </Button>
+      </div>
+      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+        <Loader2 className="size-3.5 animate-spin" />
+        Waiting for you to complete sign-in…
       </div>
     </div>
   );
