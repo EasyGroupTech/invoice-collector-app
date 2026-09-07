@@ -5,8 +5,10 @@ import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { DeviceCodeSignInPrompt, extractDeviceCodeInfo } from '@/components/DeviceCodeSignInPrompt';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { runJobAndWait } from '../jobs';
+import { useJob } from '../hooks/useJob';
 
 const NEEDS_ATTENTION_STATUSES: Session['status'][] = ['expired', 'needs-reconnect'];
 
@@ -14,6 +16,13 @@ const NEEDS_ATTENTION_STATUSES: Session['status'][] = ['expired', 'needs-reconne
  * *new* session isn't here — §6 frames that as part of a source/destination's own Add wizard flow
  * ("any wizard step that needs a connection offers 'use an existing session' ... alongside
  * 'create a new one'"), not a bare button on this page.
+ *
+ * Reconnect tries a silent refresh-token renewal first (`SessionsRegistry.reconnect()`'s own
+ * refresh-before-create fallback) — most of the time this finishes instantly with nothing to show.
+ * Only when that fails (or the session type has no refresh mechanism at all) does the backend fall
+ * back to the full interactive create() flow, and only then does this open a dialog with the live
+ * device-code prompt — a plain "Reconnecting…" button with no way to see the code would otherwise
+ * leave that fallback silently unusable.
  *
  * A Settings section (§8, phase 1.16), collapsed by default like `PluginsSection` — but, matching
  * the reference app's own `SourcesPage` card-header rollup, a stale session still surfaces a count
@@ -23,6 +32,7 @@ export function SessionsSection() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [busySessionId, setBusySessionId] = useState<string | undefined>(undefined);
   const [collapsed, setCollapsed] = useState(true);
+  const reconnectJob = useJob<Session>();
 
   async function refresh() {
     setSessions(await window.api.sessionsList());
@@ -35,17 +45,35 @@ export function SessionsSection() {
   async function reconnect(session: Session) {
     setBusySessionId(session.id);
     try {
-      await runJobAndWait(window.api.sessionsReconnect({ pluginId: session.createdByPluginId, sessionId: session.id }));
-      toast.success(`${session.label} reconnected`);
-      await refresh();
+      await reconnectJob.start(window.api.sessionsReconnect({ pluginId: session.createdByPluginId, sessionId: session.id }));
     } catch (err) {
       toast.error(err instanceof Error ? err.message : String(err));
-    } finally {
       setBusySessionId(undefined);
     }
   }
 
+  function cancelReconnect() {
+    reconnectJob.cancel();
+    setBusySessionId(undefined);
+  }
+
+  // Reacts to the reconnect job's own terminal result, whichever path it actually took (a silent
+  // refresh or the interactive fallback) — `reconnect()` above only awaits the job *starting*.
+  useEffect(() => {
+    if (!reconnectJob.result || !busySessionId) return;
+    const label = sessions.find((s) => s.id === busySessionId)?.label ?? 'Session';
+    if (reconnectJob.result.ok) {
+      toast.success(`${label} reconnected`);
+      void refresh();
+    } else {
+      toast.error(reconnectJob.result.error);
+    }
+    setBusySessionId(undefined);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reconnectJob.result]);
+
   const needsAttentionCount = sessions.filter((s) => NEEDS_ATTENTION_STATUSES.includes(s.status)).length;
+  const deviceCodeInfo = busySessionId && !reconnectJob.result ? extractDeviceCodeInfo(reconnectJob.progressLog) : undefined;
 
   return (
     <Card className="py-0">
@@ -96,7 +124,7 @@ export function SessionsSection() {
                     </TableCell>
                     <TableCell>{s.expiresAt ?? '—'}</TableCell>
                     <TableCell>
-                      <Button type="button" variant="outline" size="sm" disabled={busySessionId === s.id} onClick={() => void reconnect(s)}>
+                      <Button type="button" variant="outline" size="sm" disabled={busySessionId !== undefined} onClick={() => void reconnect(s)}>
                         {busySessionId === s.id ? 'Reconnecting…' : 'Reconnect'}
                       </Button>
                     </TableCell>
@@ -114,6 +142,22 @@ export function SessionsSection() {
           </div>
         </CardContent>
       )}
+
+      {deviceCodeInfo !== undefined ? (
+        <Dialog open onOpenChange={(open) => !open && cancelReconnect()}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Sign in to reconnect</DialogTitle>
+            </DialogHeader>
+            <DeviceCodeSignInPrompt progressLog={reconnectJob.progressLog} />
+            <DialogFooter>
+              <Button type="button" variant="ghost" onClick={cancelReconnect}>
+                Cancel
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      ) : null}
     </Card>
   );
 }

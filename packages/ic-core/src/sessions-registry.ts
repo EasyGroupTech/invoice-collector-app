@@ -298,6 +298,19 @@ export function createSessionsRegistry(options: SessionsRegistryOptions): Sessio
           throw new Error(`Session not found: ${sessionId}`);
         }
 
+        // Try a silent refresh-token renewal first — same mechanism the proactive scheduler and
+        // 401-triggered recovery already use. Only fall back to the full interactive create() flow
+        // (a brand new device-code sign-in, for the built-in) when there's no refresh mechanism or
+        // it actually failed — a user-facing Reconnect click shouldn't force a new sign-in prompt
+        // when the existing refresh token still works.
+        const refreshOutcome = await attemptRefresh(stored);
+        if (refreshOutcome.kind === 'refreshed' || refreshOutcome.kind === 'unchanged') {
+          const latest = await state();
+          await persist({ ...latest, sessions: upsert(latest.sessions, refreshOutcome.updated) });
+          scheduleFor(refreshOutcome.updated);
+          return toPublicSession(refreshOutcome.updated);
+        }
+
         const plugin = plugins.get(stored.sessionTypeId);
         if (!plugin) {
           throw new Error(`No SessionPlugin registered for session type "${stored.sessionTypeId}"`);
