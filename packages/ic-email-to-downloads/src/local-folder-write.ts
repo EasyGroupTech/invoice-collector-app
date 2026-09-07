@@ -39,9 +39,9 @@ export async function writeInvoiceToFolder(
   const filePath = path.join(folderPath, invoice.fileName);
 
   if (await fileExists(filePath)) {
-    return { status: 'already-existed' };
+    return { status: 'already-existed', location: filePath };
   }
 
   await writeFile(filePath, invoice.bytes);
-  return { status: 'uploaded' };
+  return { status: 'uploaded', location: filePath };
 }

@@ -53,7 +53,7 @@ describe('localFolderDestination.upload', () => {
     const ctx = fakeContextWithFolder(dir);
     const result = await localFolderDestination.upload(ctx, fakeRecord({ sessionId: 'session-1' }), fakeInvoice(), signal);
 
-    expect(result).toEqual({ status: 'uploaded' });
+    expect(result).toEqual({ status: 'uploaded', location: path.join(dir, 'INV-1_invoice.pdf') });
     expect(await readFile(path.join(dir, 'INV-1_invoice.pdf'))).toEqual(Buffer.from([1, 2, 3]));
   });
 

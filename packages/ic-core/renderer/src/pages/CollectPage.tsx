@@ -187,6 +187,14 @@ export function CollectPage({ onOpenSettings }: CollectPageProps) {
     return sources.find((s) => s.id === id)?.name ?? id;
   }
 
+  // Looked up live from the current source config, not persisted per invoice-history record —
+  // unlike the reference app's own per-discovery `scopeLabel` (a multi-scope billing provider's
+  // own concept), this is a single label the user sets once when creating the source (§14.1's Add
+  // Collector wizard), so it never varies row to row within one source.
+  function sourceScope(id: string): string {
+    return sources.find((s) => s.id === id)?.scope ?? '';
+  }
+
   function destinationName(id: string): string {
     return destinations.find((d) => d.id === id)?.name ?? id;
   }
@@ -194,7 +202,9 @@ export function CollectPage({ onOpenSettings }: CollectPageProps) {
   const filteredInvoiceHistory = invoiceHistory.filter((r) => {
     const needle = nameFilter.trim().toLowerCase();
     if (!needle) return true;
-    return [sourceName(r.sourceId), destinationName(r.destinationId), r.invoiceId].some((value) => value.toLowerCase().includes(needle));
+    return [sourceName(r.sourceId), sourceScope(r.sourceId), destinationName(r.destinationId), r.invoiceId].some((value) =>
+      value.toLowerCase().includes(needle),
+    );
   });
 
   async function exportInvoices(format: 'excel' | 'pdf') {
@@ -357,6 +367,7 @@ export function CollectPage({ onOpenSettings }: CollectPageProps) {
               <TableRow>
                 <TableHead>Name</TableHead>
                 <TableHead>Source</TableHead>
+                <TableHead>Scope</TableHead>
                 <TableHead>Date issued</TableHead>
                 <TableHead>Total amount</TableHead>
                 <TableHead>Status</TableHead>
@@ -366,11 +377,20 @@ export function CollectPage({ onOpenSettings }: CollectPageProps) {
             </TableHeader>
             <TableBody>
               {filteredInvoiceHistory.map((r) => {
-                const destination = destinationName(r.destinationId);
+                // The invoice's own actual upload location, when known — falls back to the
+                // destination's bare name only for a record written before that field existed, or
+                // by a destination type that reported no location.
+                const destination = r.location ?? destinationName(r.destinationId);
+                const scope = sourceScope(r.sourceId);
                 return (
                   <TableRow key={`${r.sourceId}-${r.invoiceId}`}>
-                    <TableCell className="font-medium">{r.invoiceId}</TableCell>
+                    <TableCell className="font-medium" title={r.invoiceId}>
+                      {truncateText(r.invoiceId, 30)}
+                    </TableCell>
                     <TableCell className="text-muted-foreground">{sourceName(r.sourceId)}</TableCell>
+                    <TableCell className="text-muted-foreground" title={scope}>
+                      {truncateText(scope, 20)}
+                    </TableCell>
                     <TableCell>{r.issuedDate}</TableCell>
                     <TableCell>{formatAmount(r.amount)}</TableCell>
                     <TableCell>{r.status}</TableCell>

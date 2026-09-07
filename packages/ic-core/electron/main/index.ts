@@ -210,6 +210,7 @@ ipcMain.handle(Channels.ConfigCreateRecord, async (_event, input: CreateRecordIn
     config: input.config,
     destinationId: input.destinationId,
     sessionId: input.sessionId,
+    scope: input.scope,
   };
   const record = createRecord(recordInput);
   const key = input.kind === 'source' ? 'sources' : 'destinations';

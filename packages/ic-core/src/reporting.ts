@@ -4,7 +4,10 @@ import type { InvoiceHistoryRecord } from './invoice-history.js';
 
 export interface ReportRow {
   sourceName: string;
-  destinationName: string;
+  /** The invoice's own actual upload location (`InvoiceHistoryRecord.location`) when known —
+   * falls back to the destination's name only for a record written before that field existed, or
+   * by a destination type that reported no location. */
+  destinationPath: string;
   invoiceId: string;
   issuedDate: string;
   amount?: { value: number; currency: string };
@@ -30,7 +33,7 @@ export function buildReportRows(records: InvoiceHistoryRecord[], sources: NameLo
 
   return records.map((r) => ({
     sourceName: sourceNames.get(r.sourceId) ?? r.sourceId,
-    destinationName: destinationNames.get(r.destinationId) ?? r.destinationId,
+    destinationPath: r.location ?? destinationNames.get(r.destinationId) ?? r.destinationId,
     invoiceId: r.invoiceId,
     issuedDate: r.issuedDate,
     amount: r.amount,
@@ -53,7 +56,7 @@ function escapeHtml(value: string): string {
 const REPORT_COLUMNS = ['Name', 'Source', 'Date issued', 'Total amount', 'Status', 'Collected', 'Uploaded destination path'] as const;
 
 function rowCells(row: ReportRow): string[] {
-  return [row.invoiceId, row.sourceName, row.issuedDate, formatAmount(row.amount), row.status, row.collectedAt, row.destinationName];
+  return [row.invoiceId, row.sourceName, row.issuedDate, formatAmount(row.amount), row.status, row.collectedAt, row.destinationPath];
 }
 
 /** A self-contained HTML document (inline `<style>`, no external assets) — meant to be handed

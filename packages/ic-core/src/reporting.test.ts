@@ -25,7 +25,7 @@ describe('buildReportRows', () => {
     expect(rows).toEqual([
       {
         sourceName: 'Contoso Mailbox',
-        destinationName: 'Downloads',
+        destinationPath: 'Downloads',
         invoiceId: 'inv-1',
         issuedDate: '2026-01-15',
         amount: undefined,
@@ -38,7 +38,16 @@ describe('buildReportRows', () => {
   it('falls back to the bare id when the source/destination is no longer in config', () => {
     const rows = buildReportRows([historyRecord()], [], []);
     expect(rows[0].sourceName).toBe('source-1');
-    expect(rows[0].destinationName).toBe('dest-1');
+    expect(rows[0].destinationPath).toBe('dest-1');
+  });
+
+  it("uses the invoice's own actual upload location over the destination's bare name, when present", () => {
+    const rows = buildReportRows(
+      [historyRecord({ location: '/Users/me/Downloads/INV-1_invoice.pdf' })],
+      [{ id: 'source-1', name: 'Contoso Mailbox' }],
+      [{ id: 'dest-1', name: 'Downloads' }],
+    );
+    expect(rows[0].destinationPath).toBe('/Users/me/Downloads/INV-1_invoice.pdf');
   });
 
   it('carries amount through unchanged when present', () => {
@@ -50,7 +59,7 @@ describe('buildReportRows', () => {
 const sampleRows: ReportRow[] = [
   {
     sourceName: 'Contoso Mailbox',
-    destinationName: 'Downloads',
+    destinationPath: 'Downloads',
     invoiceId: 'inv-1',
     issuedDate: '2026-01-15',
     amount: { value: 42.5, currency: 'USD' },

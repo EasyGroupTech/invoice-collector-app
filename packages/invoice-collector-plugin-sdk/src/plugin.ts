@@ -21,6 +21,14 @@ export interface PluginBackedRecord {
    * silently truncates what the user just asked for.
    */
   collectFromDate?: string;
+  /**
+   * Sources only. A free-text label the user optionally assigns when creating the source (§14.1's
+   * Add Collector wizard), shown alongside its own invoices in the Collect page's history table.
+   * Empty/unset by default — purely a user organizational label (e.g. distinguishing two Graph
+   * Mail collectors against the same mailbox with different filters), never derived automatically
+   * the way a multi-scope billing provider might set one per discovered invoice.
+   */
+  scope?: string;
   /** Plugin-owned JSON, non-secret, non-session config only. */
   config: unknown;
   createdAt: string;
@@ -53,6 +61,13 @@ export interface InvoiceContent {
 
 export interface UploadResult {
   status: 'uploaded' | 'already-existed' | 'overwritten';
+  /**
+   * Where the invoice actually landed — a filesystem path for a local-folder-style destination, a
+   * URL for a cloud one, whatever's meaningful for a user to go find the file afterward. Optional:
+   * a destination type without a stable "here's where it is" answer can omit this; the UI falls
+   * back to the destination's own name instead.
+   */
+  location?: string;
 }
 
 /**

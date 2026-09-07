@@ -167,19 +167,35 @@ describe('createInvoiceHistory (DedupChecker)', () => {
 
   it('record() then has() reports true for the same (sourceId, invoiceId)', async () => {
     const history = createInvoiceHistory(filePath);
-    await history.record('source-1', 'dest-1', invoice, 'uploaded');
+    await history.record('source-1', 'dest-1', invoice, { status: 'uploaded' });
     expect(await history.has('source-1', 'inv-1')).toBe(true);
   });
 
   it('has() is scoped per source — a different source with the same invoiceId is not a match', async () => {
     const history = createInvoiceHistory(filePath);
-    await history.record('source-1', 'dest-1', invoice, 'uploaded');
+    await history.record('source-1', 'dest-1', invoice, { status: 'uploaded' });
     expect(await history.has('source-2', 'inv-1')).toBe(false);
+  });
+
+  it('record() persists the upload result\'s own location, if supplied', async () => {
+    const history = createInvoiceHistory(filePath);
+    await history.record('source-1', 'dest-1', invoice, { status: 'uploaded', location: '/Users/me/Downloads/inv-1.pdf' });
+
+    const [stored] = await history.listForMonth('2026-01');
+    expect(stored.location).toBe('/Users/me/Downloads/inv-1.pdf');
+  });
+
+  it('record() leaves location undefined when the upload result did not supply one', async () => {
+    const history = createInvoiceHistory(filePath);
+    await history.record('source-1', 'dest-1', invoice, { status: 'uploaded' });
+
+    const [stored] = await history.listForMonth('2026-01');
+    expect(stored.location).toBeUndefined();
   });
 
   it('persists across instances (real file-backed store, not in-memory only)', async () => {
     const first = createInvoiceHistory(filePath);
-    await first.record('source-1', 'dest-1', invoice, 'uploaded');
+    await first.record('source-1', 'dest-1', invoice, { status: 'uploaded' });
 
     const second = createInvoiceHistory(filePath);
     expect(await second.has('source-1', 'inv-1')).toBe(true);
@@ -187,8 +203,8 @@ describe('createInvoiceHistory (DedupChecker)', () => {
 
   it('prune() removes invoices outside the retention window and persists the result', async () => {
     const history = createInvoiceHistory(filePath);
-    await history.record('source-1', 'dest-1', { id: 'old', issuedDate: '2020-01-01' }, 'uploaded');
-    await history.record('source-1', 'dest-1', { id: 'recent', issuedDate: '2026-01-01' }, 'uploaded');
+    await history.record('source-1', 'dest-1', { id: 'old', issuedDate: '2020-01-01' }, { status: 'uploaded' });
+    await history.record('source-1', 'dest-1', { id: 'recent', issuedDate: '2026-01-01' }, { status: 'uploaded' });
 
     await history.prune(new Date('2026-06-15'));
 
@@ -201,8 +217,8 @@ describe('createInvoiceHistory (DedupChecker)', () => {
 
   it('listForMonth() returns recorded invoices for the given month', async () => {
     const history = createInvoiceHistory(filePath);
-    await history.record('source-1', 'dest-1', { id: 'a', issuedDate: '2026-01-15' }, 'uploaded');
-    await history.record('source-1', 'dest-1', { id: 'b', issuedDate: '2026-02-01' }, 'uploaded');
+    await history.record('source-1', 'dest-1', { id: 'a', issuedDate: '2026-01-15' }, { status: 'uploaded' });
+    await history.record('source-1', 'dest-1', { id: 'b', issuedDate: '2026-02-01' }, { status: 'uploaded' });
 
     const january = await history.listForMonth('2026-01');
 
@@ -211,9 +227,9 @@ describe('createInvoiceHistory (DedupChecker)', () => {
 
   it('listForPeriod() returns recorded invoices within an arbitrary ISO date range', async () => {
     const history = createInvoiceHistory(filePath);
-    await history.record('source-1', 'dest-1', { id: 'a', issuedDate: '2026-01-15' }, 'uploaded');
-    await history.record('source-1', 'dest-1', { id: 'b', issuedDate: '2026-01-28' }, 'uploaded');
-    await history.record('source-1', 'dest-1', { id: 'c', issuedDate: '2026-02-05' }, 'uploaded');
+    await history.record('source-1', 'dest-1', { id: 'a', issuedDate: '2026-01-15' }, { status: 'uploaded' });
+    await history.record('source-1', 'dest-1', { id: 'b', issuedDate: '2026-01-28' }, { status: 'uploaded' });
+    await history.record('source-1', 'dest-1', { id: 'c', issuedDate: '2026-02-05' }, { status: 'uploaded' });
 
     const result = await history.listForPeriod({ start: '2026-01-20', end: '2026-02-01' });
 

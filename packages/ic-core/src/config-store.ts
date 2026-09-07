@@ -44,6 +44,8 @@ export interface CreateRecordInput {
   config: unknown;
   destinationId?: string | null;
   sessionId?: string;
+  /** Sources only — see `PluginBackedRecord.scope`. */
+  scope?: string;
 }
 
 export function createRecord(input: CreateRecordInput): PluginBackedRecord {
@@ -55,6 +57,7 @@ export function createRecord(input: CreateRecordInput): PluginBackedRecord {
     pluginVersion: input.pluginVersion,
     destinationId: input.destinationId,
     sessionId: input.sessionId,
+    scope: input.scope,
     config: input.config,
     createdAt: now,
     updatedAt: now,

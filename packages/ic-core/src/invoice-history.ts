@@ -17,6 +17,9 @@ export interface InvoiceHistoryRecord {
   issuedDate: string;
   amount?: { value: number; currency: string };
   status: UploadResult['status'];
+  /** Where the invoice actually landed — see `UploadResult.location`. Unset for a record written
+   * before this field existed, or by a destination type that reported no location. */
+  location?: string;
   collectedAt: string;
 }
 
@@ -120,7 +123,7 @@ export function createInvoiceHistory(filePath: string): InvoiceHistory {
       return store.invoices.some((r) => r.sourceId === sourceId && r.invoiceId === invoiceId);
     },
 
-    async record(sourceId, destinationId, invoice: DiscoveredInvoice, status) {
+    async record(sourceId, destinationId, invoice: DiscoveredInvoice, result: UploadResult) {
       const store = await state();
       const record: InvoiceHistoryRecord = {
         sourceId,
@@ -128,7 +131,8 @@ export function createInvoiceHistory(filePath: string): InvoiceHistory {
         invoiceId: invoice.id,
         issuedDate: invoice.issuedDate,
         amount: invoice.amount,
-        status,
+        status: result.status,
+        location: result.location,
         collectedAt: new Date().toISOString(),
       };
       await persist(upsertInvoiceHistoryRecord(store, record));

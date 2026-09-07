@@ -15,10 +15,10 @@ describe('writeInvoiceToFolder', () => {
     await rm(dir, { recursive: true, force: true });
   });
 
-  it('writes a new file and reports uploaded', async () => {
+  it('writes a new file and reports uploaded, with the actual path it wrote to', async () => {
     const result = await writeInvoiceToFolder(dir, { fileName: 'INV-1_invoice.pdf', mimeType: 'application/pdf', bytes: new Uint8Array([1, 2, 3]) });
 
-    expect(result).toEqual({ status: 'uploaded' });
+    expect(result).toEqual({ status: 'uploaded', location: path.join(dir, 'INV-1_invoice.pdf') });
     expect(await readFile(path.join(dir, 'INV-1_invoice.pdf'))).toEqual(Buffer.from([1, 2, 3]));
   });
 
@@ -27,17 +27,17 @@ describe('writeInvoiceToFolder', () => {
 
     const result = await writeInvoiceToFolder(nested, { fileName: 'a.pdf', mimeType: 'application/pdf', bytes: new Uint8Array([1]) });
 
-    expect(result).toEqual({ status: 'uploaded' });
+    expect(result).toEqual({ status: 'uploaded', location: path.join(nested, 'a.pdf') });
     expect(await readFile(path.join(nested, 'a.pdf'))).toEqual(Buffer.from([1]));
   });
 
-  it('reports already-existed and never overwrites a file already at that exact path', async () => {
+  it('reports already-existed (with its path) and never overwrites a file already at that exact path', async () => {
     const filePath = path.join(dir, 'a.pdf');
     await writeFile(filePath, Buffer.from([9, 9, 9]));
 
     const result = await writeInvoiceToFolder(dir, { fileName: 'a.pdf', mimeType: 'application/pdf', bytes: new Uint8Array([1, 2, 3]) });
 
-    expect(result).toEqual({ status: 'already-existed' });
+    expect(result).toEqual({ status: 'already-existed', location: filePath });
     expect(await readFile(filePath)).toEqual(Buffer.from([9, 9, 9]));
   });
 });

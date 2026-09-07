@@ -30,7 +30,7 @@ export interface DedupChecker {
     sourceId: string,
     destinationId: string,
     invoice: DiscoveredInvoice,
-    status: UploadResult['status'],
+    result: UploadResult,
   ): Promise<void>;
 }
 
@@ -176,7 +176,7 @@ export async function runCollectPipeline(
             // this: createdByPluginId has to be the plugin that actually created a session).
             const destinationCtx = buildContext(deps, destination.pluginId, report, source.id);
             const uploadResult = await destinationPlugin.upload(destinationCtx, destination, { ...discovered, ...content }, signal);
-            await deps.dedup.record(source.id, destinationId, discovered, uploadResult.status);
+            await deps.dedup.record(source.id, destinationId, discovered, uploadResult);
             outcomes.push({
               sourceId: source.id,
               destinationId,

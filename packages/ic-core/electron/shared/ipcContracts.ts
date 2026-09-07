@@ -80,6 +80,8 @@ export interface CreateRecordInput {
   config: unknown;
   destinationId?: string | null;
   sessionId?: string;
+  /** Sources only — see `PluginBackedRecord.scope`. */
+  scope?: string;
 }
 
 export interface RemoveRecordInput {

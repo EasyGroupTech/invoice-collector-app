@@ -41,6 +41,16 @@ describe('createRecord', () => {
     const record = createRecord({ name: 'A', pluginId: 'p', pluginVersion: '1.0.0', config: {} });
     expect(record.sessionId).toBeUndefined();
   });
+
+  it('carries an optional scope through, if supplied', () => {
+    const record = createRecord({ name: 'A', pluginId: 'p', pluginVersion: '1.0.0', config: {}, scope: 'Finance department' });
+    expect(record.scope).toBe('Finance department');
+  });
+
+  it('leaves scope undefined when not supplied — empty by default', () => {
+    const record = createRecord({ name: 'A', pluginId: 'p', pluginVersion: '1.0.0', config: {} });
+    expect(record.scope).toBeUndefined();
+  });
 });
 
 describe('upsertRecord / removeRecord', () => {

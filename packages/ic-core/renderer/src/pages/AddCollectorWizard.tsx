@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react';
 import type { PluginBackedRecord, Session } from 'invoice-collector-plugin-sdk';
-import { Copy, ExternalLink, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
+import { DeviceCodeSignInPrompt } from '@/components/DeviceCodeSignInPrompt';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
-import type { InstalledPluginSummary as PluginSummary, JobProgressEvent, SessionRequirement } from '../../../electron/shared/ipcContracts';
+import type { InstalledPluginSummary as PluginSummary, SessionRequirement } from '../../../electron/shared/ipcContracts';
 import { validateWizardValues, type WizardFieldValues } from '../../../src/wizard-form-state.js';
 import { WizardSteps } from '../descriptors/WizardSteps';
 import { useJob } from '../hooks/useJob';
@@ -131,75 +131,6 @@ function SessionModeSelect({ id, label, compatibleSessions, value, onChange }: S
   );
 }
 
-/** Scans a job's progress log, most recent first, for the device-code flow's own
- * `ctx.progress.report(message, {userCode, verificationUri, verificationUriComplete})` — the SDK
- * nests this under `event.data` rather than flattening it onto the event itself, unlike the
- * reference app's own (unrelated) `JobProgressEvent` shape. */
-function extractDeviceCodeInfo(progressLog: JobProgressEvent[]): { userCode: string; verificationUri: string } | undefined {
-  for (let i = progressLog.length - 1; i >= 0; i--) {
-    const data = progressLog[i].data as { userCode?: string; verificationUri?: string } | undefined;
-    if (data?.userCode && data.verificationUri) {
-      return { userCode: data.userCode, verificationUri: data.verificationUri };
-    }
-  }
-  return undefined;
-}
-
-async function copyToClipboard(value: string, label: string) {
-  await navigator.clipboard.writeText(value);
-  toast.success(`${label} copied`);
-}
-
-/** The live "here's the code, go sign in" half of the device-code flow (RFC 8628) — without this,
- * a device-code session create just looks stuck until it eventually times out. Ported from the
- * reference app's own `DeviceCodePrompt` (link + code, each with its own copy button, the link
- * itself clickable via `window.api.openExternal` — real OS browser, not an in-app navigation),
- * adapted only for this app's nested `event.data` progress shape. */
-function DeviceCodeSignInPrompt({ progressLog }: { progressLog: JobProgressEvent[] }) {
-  const info = extractDeviceCodeInfo(progressLog);
-
-  if (!info) {
-    return (
-      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        <Loader2 className="size-4 animate-spin" />
-        {progressLog[progressLog.length - 1]?.message ?? 'Starting…'}
-      </div>
-    );
-  }
-
-  const { userCode, verificationUri } = info;
-
-  return (
-    <div className="flex flex-col gap-3 rounded-md border p-3">
-      <div className="flex items-center gap-2">
-        <span className="w-16 shrink-0 text-xs text-muted-foreground">Go to</span>
-        <button
-          type="button"
-          onClick={() => void window.api.openExternal(verificationUri)}
-          className="flex items-center gap-1 truncate text-sm text-primary underline underline-offset-2"
-        >
-          {verificationUri}
-          <ExternalLink className="size-3.5 shrink-0" />
-        </button>
-        <Button variant="ghost" size="icon" className="ml-auto shrink-0" onClick={() => void copyToClipboard(verificationUri, 'Link')}>
-          <Copy />
-        </Button>
-      </div>
-      <div className="flex items-center gap-2">
-        <span className="w-16 shrink-0 text-xs text-muted-foreground">Enter code</span>
-        <code className="rounded bg-muted px-2 py-1 text-sm font-medium tracking-wide">{userCode}</code>
-        <Button variant="ghost" size="icon" className="ml-auto shrink-0" onClick={() => void copyToClipboard(userCode, 'Code')}>
-          <Copy />
-        </Button>
-      </div>
-      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-        <Loader2 className="size-3.5 animate-spin" />
-        Waiting for you to complete sign-in…
-      </div>
-    </div>
-  );
-}
-
 export interface EstablishedSession {
   session: Session;
   name: string;
@@ -307,6 +238,7 @@ export function AddCollectorWizard({ onClose, onCreated }: AddCollectorWizardPro
   const [sourceEstablished, setSourceEstablished] = useState<EstablishedSession | undefined>(undefined);
   const [destinationEstablished, setDestinationEstablished] = useState<EstablishedSession | undefined>(undefined);
   const [sourceName, setSourceName] = useState('');
+  const [sourceScope, setSourceScope] = useState('');
   const [destinationName, setDestinationName] = useState('');
   const [sourceValues, setSourceValues] = useState<WizardFieldValues>({});
   const [destinationValues, setDestinationValues] = useState<WizardFieldValues>({});
@@ -473,6 +405,7 @@ export function AddCollectorWizard({ onClose, onCreated }: AddCollectorWizardPro
         config: sourceValues,
         destinationId,
         sessionId: resolvedSourceSessionId,
+        scope: sourceScope || undefined,
       });
       toast.success(`${sourceName || sourcePlugin.manifest.name} added`);
       onCreated();
@@ -624,6 +557,15 @@ export function AddCollectorWizard({ onClose, onCreated }: AddCollectorWizardPro
                   value={sourceName}
                   onChange={(e) => setSourceName(e.target.value)}
                   placeholder={sourcePlugin.manifest.name}
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="wizard-source-scope">Scope (optional)</Label>
+                <Input
+                  id="wizard-source-scope"
+                  value={sourceScope}
+                  onChange={(e) => setSourceScope(e.target.value)}
+                  placeholder="e.g. Finance department"
                 />
               </div>
               <WizardSteps
