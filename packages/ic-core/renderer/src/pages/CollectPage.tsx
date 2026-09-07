@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import type { PluginBackedRecord, Session } from 'invoice-collector-plugin-sdk';
-import { Copy, FileSpreadsheet, FileText, Loader2, PlayCircle, Plus, Settings as SettingsIcon, StopCircle, Wrench, X } from 'lucide-react';
+import { ChevronDown, Copy, FileSpreadsheet, FileText, Loader2, PlayCircle, Plus, Settings as SettingsIcon, StopCircle, Wrench, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -119,6 +120,18 @@ export function CollectPage({ onOpenSettings }: CollectPageProps) {
     return sessionFor(record, sessions)?.status === 'active';
   }
 
+  // Per-source readiness for the split Collect button's "collect one" dropdown — narrower than the
+  // "Collect" (all) button's own global `connectedCount < totalNeeded` gate, since a single source
+  // only needs its own session and its own destination's session, not every record's.
+  function sourceReady(source: PluginBackedRecord): boolean {
+    const sourcePlugin = pluginFor(source);
+    if (sourcePlugin && sourcePlugin.sessionRequirements.length > 0 && !isConnected(source)) return false;
+    const destination = destinations.find((d) => d.id === source.destinationId);
+    const destinationPlugin = destination ? pluginFor(destination) : undefined;
+    if (destination && destinationPlugin && destinationPlugin.sessionRequirements.length > 0 && !isConnected(destination)) return false;
+    return true;
+  }
+
   // Every source/destination whose installed plugin actually declares a session requirement —
   // a record whose plugin needs no session at all (e.g. a plugin with no sessionRequirements)
   // never counts against, or toward, the summary below.
@@ -131,12 +144,12 @@ export function CollectPage({ onOpenSettings }: CollectPageProps) {
   const connectedCount = connectableRecords.filter((r) => isConnected(r.record)).length;
   const brokenRecords = connectableRecords.filter((r) => !isConnected(r.record));
 
-  async function runCollect() {
+  async function runCollect(sourceIds: 'all' | string[]) {
     setCollecting(true);
     setProgressLog([]);
     wasCancelledRef.current = false;
     try {
-      const result = await window.api.collectRun({ sourceIds: 'all', period: periodForMonth(collectYear, collectMonth) });
+      const result = await window.api.collectRun({ sourceIds, period: periodForMonth(collectYear, collectMonth) });
       if ('error' in result) {
         toast.error(result.error);
         return;
@@ -150,7 +163,7 @@ export function CollectPage({ onOpenSettings }: CollectPageProps) {
           else reject(new Error(event.error));
         });
       });
-      toast.success('Collect run finished');
+      toast.success(sourceIds === 'all' ? 'Collect run finished' : `Collected ${sourceName(sourceIds[0])}`);
       await refreshInvoiceHistory();
     } catch (err) {
       if (wasCancelledRef.current) {
@@ -233,10 +246,41 @@ export function CollectPage({ onOpenSettings }: CollectPageProps) {
             onChange={(e) => setCollectYear(e.target.valueAsNumber)}
             className="w-28"
           />
-          <Button type="button" disabled={sources.length === 0 || connectedCount < totalNeeded} onClick={() => void runCollect()}>
-            {collecting ? <Loader2 className="animate-spin" /> : <PlayCircle />}
-            {collecting ? 'Collecting…' : 'Collect'}
-          </Button>
+          <div className="flex">
+            <Button
+              type="button"
+              className="rounded-r-none"
+              disabled={sources.length === 0 || connectedCount < totalNeeded}
+              onClick={() => void runCollect('all')}
+            >
+              {collecting ? <Loader2 className="animate-spin" /> : <PlayCircle />}
+              {collecting ? 'Collecting…' : 'Collect'}
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  type="button"
+                  className="rounded-l-none border-l border-l-primary-foreground/20 px-2"
+                  disabled={sources.length === 0}
+                >
+                  <ChevronDown />
+                  <span className="sr-only">Collect a specific collector</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuLabel>Collect one</DropdownMenuLabel>
+                {sources.map((source) => (
+                  <DropdownMenuItem
+                    key={source.id}
+                    disabled={!sourceReady(source)}
+                    onSelect={() => void runCollect([source.id])}
+                  >
+                    {source.name}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </fieldset>
         {collecting && (
           <Button type="button" size="sm" variant="outline" onClick={() => void cancelCollect()}>
