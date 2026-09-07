@@ -234,10 +234,13 @@ const graphMailSource: SourcePlugin = {
       kind: 'list',
       name: 'messagePreview',
       label: `Matching messages (last ${PREVIEW_WINDOW_DAYS} days)`,
+      // Order matters here beyond just labeling — the wizard renders this as a two-line block per
+      // message (subject, then every other column joined), not a table, so this is display order:
+      // subject as the prominent first line, received-date-then-sender as the second.
       columns: [
         { key: 'subject', label: 'Subject' },
-        { key: 'from', label: 'From' },
         { key: 'received', label: 'Received' },
+        { key: 'from', label: 'From' },
       ],
       dataSource: 'messagePreview',
     },
