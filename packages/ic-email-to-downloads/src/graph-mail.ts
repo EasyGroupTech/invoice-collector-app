@@ -141,14 +141,18 @@ export async function listAttachments(http: HttpApi, sessionId: string, messageI
     .map((a) => ({ id: a.id, name: a.name, contentType: a.contentType ?? 'application/octet-stream' }));
 }
 
-/** Graph inlines a fileAttachment's bytes as base64 `contentBytes` for anything under its ~3MB
- * cutoff — every real invoice PDF this source will ever see fits comfortably under that. */
+/** Fetches raw bytes via the attachment's own `/$value` segment (Graph's documented way to get
+ * "the raw contents of a file... attachment" — https://learn.microsoft.com/graph/api/attachment-get)
+ * rather than `?$select=contentBytes` on the attachment resource itself — confirmed live that the
+ * latter returns a bare `HTTP 400` for at least some real attachments, a known Graph rough edge
+ * `$select`-ing down to just that one property, not something specific to this plugin's own
+ * request shape. `/$value` also skips the base64 round-trip entirely (raw bytes, not a JSON-wrapped
+ * base64 string), so there's no `contentBytes` field to decode any more either. */
 export async function getAttachmentBytes(http: HttpApi, sessionId: string, messageId: string, attachmentId: string, signal: AbortSignal): Promise<Uint8Array> {
-  const url = `${GRAPH_BASE}/me/messages/${encodeURIComponent(messageId)}/attachments/${encodeURIComponent(attachmentId)}?$select=contentBytes`;
+  const url = `${GRAPH_BASE}/me/messages/${encodeURIComponent(messageId)}/attachments/${encodeURIComponent(attachmentId)}/$value`;
   const response = await http.request({ url, sessionId }, signal);
   assertOk(response.status, 'attachment content');
-  const body = response.json() as { contentBytes?: string };
-  return new Uint8Array(Buffer.from(body.contentBytes ?? '', 'base64'));
+  return new Uint8Array(response.arrayBuffer());
 }
 
 interface RawVerifiedDomain {

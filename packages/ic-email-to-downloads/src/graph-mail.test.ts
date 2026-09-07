@@ -12,6 +12,18 @@ function fakeResponse(status: number, body: unknown): HttpResponse {
   };
 }
 
+function fakeBinaryResponse(status: number, bytes: Uint8Array): HttpResponse {
+  return {
+    status,
+    headers: {},
+    json: () => {
+      throw new Error('not JSON');
+    },
+    text: () => new TextDecoder().decode(bytes),
+    arrayBuffer: () => bytes.buffer as ArrayBuffer,
+  };
+}
+
 function fakeHttp(responses: HttpResponse[]): HttpApi {
   let call = 0;
   return { request: vi.fn(async () => responses[call++] ?? responses[responses.length - 1]) };
@@ -104,14 +116,28 @@ describe('listAttachments', () => {
 });
 
 describe('getAttachmentBytes', () => {
-  it('decodes the base64 contentBytes into real bytes', async () => {
+  it('returns the raw bytes from the /$value endpoint', async () => {
     const original = new TextEncoder().encode('hello pdf');
-    const base64 = Buffer.from(original).toString('base64');
-    const http = fakeHttp([fakeResponse(200, { contentBytes: base64 })]);
+    const http = fakeHttp([fakeBinaryResponse(200, original)]);
 
     const bytes = await getAttachmentBytes(http, 'session-1', 'm1', 'a1', new AbortController().signal);
 
     expect(new TextDecoder().decode(bytes)).toBe('hello pdf');
+  });
+
+  it('requests the /$value raw-content segment, not $select=contentBytes', async () => {
+    const http = fakeHttp([fakeBinaryResponse(200, new Uint8Array())]);
+
+    await getAttachmentBytes(http, 'session-1', 'm1', 'a1', new AbortController().signal);
+
+    const callArgs = (http.request as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    expect(callArgs.url).toMatch(/\/attachments\/a1\/\$value$/);
+    expect(callArgs.url).not.toContain('$select');
+  });
+
+  it('throws a clear error on a non-200 response', async () => {
+    const http = fakeHttp([fakeBinaryResponse(403, new Uint8Array())]);
+    await expect(getAttachmentBytes(http, 'session-1', 'm1', 'a1', new AbortController().signal)).rejects.toThrow(/HTTP 403/);
   });
 });
 

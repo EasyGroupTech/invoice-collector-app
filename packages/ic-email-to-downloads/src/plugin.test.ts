@@ -41,8 +41,17 @@ function record(overrides: Partial<{ sessionId: string; config: unknown }> = {})
   };
 }
 
-function attachmentContentBytes(text: string): { contentBytes: string } {
-  return { contentBytes: Buffer.from(text).toString('base64') };
+function fakeBinaryResponse(status: number, text: string): HttpResponse {
+  const bytes = new TextEncoder().encode(text);
+  return {
+    status,
+    headers: {},
+    json: () => {
+      throw new Error('not JSON');
+    },
+    text: () => text,
+    arrayBuffer: () => bytes.buffer as ArrayBuffer,
+  };
 }
 
 function fakeSession(overrides: Partial<Session> = {}): Session {
@@ -165,7 +174,7 @@ describe('discover', () => {
       { match: '/me/messages?', response: fakeResponse(200, { value: [{ id: 'm1', subject: 'Your bill is ready', receivedDateTime: '2026-02-05T00:00:00Z', hasAttachments: true }] }) },
       { match: '/me/messages/m1?', response: fakeResponse(200, { subject: 'Your bill is ready', receivedDateTime: '2026-02-05T00:00:00Z', body: { contentType: 'html', content: '<p>Sign in to view your invoice.</p>' } }) },
       { match: '/attachments?', response: fakeResponse(200, { value: [{ '@odata.type': '#microsoft.graph.fileAttachment', id: 'a1', name: 'bill.pdf', contentType: 'application/pdf', isInline: false }] }) },
-      { match: '/attachments/a1', response: fakeResponse(200, attachmentContentBytes(pdf)) },
+      { match: '/attachments/a1', response: fakeBinaryResponse(200, pdf) },
     ]);
 
     const outcomes = [];
@@ -202,7 +211,7 @@ describe('discover', () => {
       { match: '/me/messages?', response: fakeResponse(200, { value: [{ id: 'm1', subject: 'Invoice', receivedDateTime: '2026-01-10T00:00:00Z', hasAttachments: true }] }) },
       { match: '/me/messages/m1?', response: fakeResponse(200, { subject: 'Invoice', receivedDateTime: '2026-01-10T00:00:00Z', body: { contentType: 'text', content: 'Nothing recognizable here.' } }) },
       { match: '/attachments?', response: fakeResponse(200, { value: [{ '@odata.type': '#microsoft.graph.fileAttachment', id: 'a1', name: 'invoice.pdf', contentType: 'application/pdf', isInline: false }] }) },
-      { match: '/attachments/a1', response: fakeResponse(200, attachmentContentBytes('%PDF-1.4\ncorrupt with no recognizable fields\n%%EOF')) },
+      { match: '/attachments/a1', response: fakeBinaryResponse(200, '%PDF-1.4\ncorrupt with no recognizable fields\n%%EOF') },
     ]);
 
     const outcomes = [];
@@ -253,7 +262,7 @@ describe('discover', () => {
 
 describe('fetchContent', () => {
   it('downloads the attachment and names the file from the invoice number discover() found', async () => {
-    const http = dispatchingHttp([{ match: '/attachments/a1', response: fakeResponse(200, attachmentContentBytes('pdf bytes here')) }]);
+    const http = dispatchingHttp([{ match: '/attachments/a1', response: fakeBinaryResponse(200, 'pdf bytes here') }]);
 
     const content = await plugin.fetchContent(
       fakeContext(http),
