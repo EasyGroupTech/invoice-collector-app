@@ -21,6 +21,7 @@ import type {
   JobDoneEvent,
   JobHandle,
   JobProgressEvent,
+  LogReadResult,
   PluginBackedRecord,
   PluginInstallNeedsConfirmation,
   PluginInstallResult,
@@ -83,6 +84,9 @@ declare global {
 
       settingsGetAdvanced(): Promise<AdvancedSettings>;
       settingsSaveAdvanced(settings: AdvancedSettings): Promise<AdvancedSettings>;
+
+      logsRead(): Promise<LogReadResult>;
+      logsDownload(): Promise<FileExportResult>;
 
       openExternal(url: string): Promise<void>;
 

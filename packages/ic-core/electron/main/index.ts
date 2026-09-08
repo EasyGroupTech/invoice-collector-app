@@ -1,9 +1,10 @@
-import { readFile, writeFile } from 'node:fs/promises';
-import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
+import { copyFile, readFile, writeFile } from 'node:fs/promises';
+import { app, BrowserWindow, dialog, ipcMain, shell, type IpcMainInvokeEvent } from 'electron';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { microsoftEntraDelegatedDeviceCodeSessionPlugin } from 'invoice-collector-plugin-sdk';
 import { defaultAdvancedSettings, loadAdvancedSettings, saveAdvancedSettings, type AdvancedSettings } from '../../src/advanced-settings.js';
+import { logAppEvent, logCollectionEvent, readLogTail, sanitizeIpcArgsForLog } from '../../src/app-log.js';
 import { createCollectJobGuard } from '../../src/collect-job-guard.js';
 import { runCollectPipeline } from '../../src/collect-pipeline.js';
 import { decryptConfigExport, encryptConfigExport, type EncryptedConfigExportFile } from '../../src/config-export-crypto.js';
@@ -84,6 +85,30 @@ if (!app.isPackaged) {
 }
 
 let mainWindow: BrowserWindow | null = null;
+
+// One continuous operational log, not per-profile (paths.ts's own appLogFile is base-dir-scoped) —
+// the same file plugin-log.ts's createPluginLog already appends "[pluginId]"-tagged lines to.
+const APP_LOG_FILE = appLogFile(app.getPath('userData'));
+
+// Wraps every ipcMain.handle(channel, listener) registered AFTER this call (so it must run before
+// any of them below) to log the channel name, sanitized arguments, and success/failure — ported
+// from the reference app's own installIpcAuditLogging, a single interception point that gives an
+// audit trail of every action the user took without instrumenting each handler individually.
+function installIpcAuditLogging(): void {
+  const originalHandle = ipcMain.handle.bind(ipcMain);
+  ipcMain.handle = ((channel: string, listener: (event: IpcMainInvokeEvent, ...args: unknown[]) => unknown) => {
+    return originalHandle(channel, async (event, ...args: unknown[]) => {
+      void logAppEvent(APP_LOG_FILE, `${channel} ${JSON.stringify(sanitizeIpcArgsForLog(channel, args))}`);
+      try {
+        return await listener(event, ...args);
+      } catch (err) {
+        void logAppEvent(APP_LOG_FILE, `${channel} FAILED: ${err instanceof Error ? err.message : String(err)}`);
+        throw err;
+      }
+    });
+  }) as typeof ipcMain.handle;
+}
+installIpcAuditLogging();
 
 const profileManager = createProfileManager(app.getPath('userData'));
 const pluginRegistry = createPluginRegistry();
@@ -193,6 +218,7 @@ function createWindow(): void {
 }
 
 jobRunner.onProgress((event) => mainWindow?.webContents.send(Channels.JobProgress, event));
+jobRunner.onProgress((event) => void logCollectionEvent(APP_LOG_FILE, event.message));
 jobRunner.onDone((event) => mainWindow?.webContents.send(Channels.JobDone, event));
 
 // --- Config ---
@@ -486,6 +512,28 @@ ipcMain.handle(Channels.SettingsSaveAdvanced, async (_event, settings: AdvancedS
   await saveAdvancedSettings(advancedSettingsFile(app.getPath('userData')), settings);
   currentAdvancedSettings = settings;
   return currentAdvancedSettings;
+});
+
+// --- Logs ---
+
+ipcMain.handle(Channels.LogsRead, () => readLogTail(APP_LOG_FILE));
+
+ipcMain.handle(Channels.LogsDownload, async () => {
+  const result = await dialog.showSaveDialog(mainWindow!, {
+    defaultPath: `invoice-collector-log-${new Date().toISOString().slice(0, 10)}.txt`,
+    filters: [{ name: 'Log file', extensions: ['txt', 'log'] }],
+  });
+  if (result.canceled || !result.filePath) return { exported: false };
+
+  try {
+    await copyFile(APP_LOG_FILE, result.filePath);
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+      throw new Error('Nothing has been logged yet.');
+    }
+    throw err;
+  }
+  return { exported: true, filePath: result.filePath };
 });
 
 // --- App ---

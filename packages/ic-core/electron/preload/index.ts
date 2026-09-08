@@ -16,6 +16,7 @@ import {
   type JobDoneEvent,
   type JobHandle,
   type JobProgressEvent,
+  type LogReadResult,
   type PluginBackedRecord,
   type PluginInstallNeedsConfirmation,
   type PluginInstallResult,
@@ -94,6 +95,9 @@ contextBridge.exposeInMainWorld('api', {
   settingsGetAdvanced: (): Promise<AdvancedSettings> => ipcRenderer.invoke(Channels.SettingsGetAdvanced),
   settingsSaveAdvanced: (settings: AdvancedSettings): Promise<AdvancedSettings> =>
     ipcRenderer.invoke(Channels.SettingsSaveAdvanced, settings),
+
+  logsRead: (): Promise<LogReadResult> => ipcRenderer.invoke(Channels.LogsRead),
+  logsDownload: (): Promise<FileExportResult> => ipcRenderer.invoke(Channels.LogsDownload),
 
   openExternal: (url: string): Promise<void> => ipcRenderer.invoke(Channels.AppOpenExternal, url),
 

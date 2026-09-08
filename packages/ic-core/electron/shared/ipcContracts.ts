@@ -74,6 +74,9 @@ export const Channels = {
 
   SettingsGetAdvanced: 'settings:getAdvanced',
   SettingsSaveAdvanced: 'settings:saveAdvanced',
+
+  LogsRead: 'logs:read',
+  LogsDownload: 'logs:download',
 } as const;
 
 export interface CreateRecordInput {
@@ -168,8 +171,16 @@ export type RunCollectResult = JobHandle | { error: string };
 
 /** `filePath` is only set when `exported` is true — the user can cancel the native Save dialog,
  * which isn't an error, just nothing written. Shared by every "hand back a generated file via a
- * native Save dialog" channel (SBOM export, report export). */
+ * native Save dialog" channel (SBOM export, report export, log download). */
 export type FileExportResult = { exported: true; filePath: string } | { exported: false };
+
+/** `content` is the log's own tail (see app-log.ts's `readLogTail`'s `TAIL_BYTES_FOR_VIEW`) —
+ * `truncated` tells the Settings viewer to say so; `LogsDownload` always copies the full file
+ * regardless of what's been read for on-screen viewing. */
+export interface LogReadResult {
+  content: string;
+  truncated: boolean;
+}
 
 export interface ExportReportInput {
   period: CollectPeriod;
