@@ -43,7 +43,7 @@ function destinationRecord(overrides: Partial<PluginDestinationRecord> = {}): Pl
 
 function fakeSourcePlugin(invoices: DiscoveredInvoice[], overrides: Partial<SourcePlugin> = {}): SourcePlugin {
   return {
-    manifest: { id: 'ic-email-to-downloads', name: 'Mail', version: '1.0.0', pluginApiVersion: '^1.0.0', kind: 'source', sbom: 's.json', main: 'i.js' },
+    manifest: { id: 'ic-email-to-downloads', name: 'Mail', kind: 'source', main: 'i.js' },
     sessionRequirements: [{ sessionTypeId: 'microsoft-entra-delegated-device-code', confirmsBuiltIn: true, requiredScopesOrRoles: [] }],
     wizard: [],
     discover: async function* () {
@@ -56,7 +56,7 @@ function fakeSourcePlugin(invoices: DiscoveredInvoice[], overrides: Partial<Sour
 
 function fakeDestinationPlugin(overrides: Partial<DestinationPlugin> = {}): DestinationPlugin {
   return {
-    manifest: { id: 'ic-local-downloads', name: 'Local Downloads', version: '1.0.0', pluginApiVersion: '^1.0.0', kind: 'destination', sbom: 's.json', main: 'i.js' },
+    manifest: { id: 'ic-local-downloads', name: 'Local Downloads', kind: 'destination', main: 'i.js' },
     sessionRequirements: [{ sessionTypeId: 'microsoft-entra-delegated-device-code', confirmsBuiltIn: true, requiredScopesOrRoles: [] }],
     wizard: [],
     upload: vi.fn(async (): Promise<UploadResult> => ({ status: 'uploaded' })),
@@ -242,7 +242,7 @@ describe('runCollectPipeline', () => {
   it('continues to the next source when one source\'s discover() throws entirely', async () => {
     const registry = createPluginRegistry();
     const failingSource = fakeSourcePlugin([], {
-      manifest: { id: 'failing-plugin', name: 'x', version: '1.0.0', pluginApiVersion: '^1.0.0', kind: 'source', sbom: 's', main: 'm' },
+      manifest: { id: 'failing-plugin', name: 'x', kind: 'source', main: 'm' },
       // eslint-disable-next-line require-yield -- intentionally throws before ever yielding
       discover: async function* (): AsyncGenerator<DiscoveredInvoice> {
         throw new Error('auth expired');
@@ -250,7 +250,7 @@ describe('runCollectPipeline', () => {
     });
     const workingInvoice: DiscoveredInvoice = { id: 'inv-2', issuedDate: '2026-01-10' };
     const workingSource = fakeSourcePlugin([workingInvoice], {
-      manifest: { id: 'working-plugin', name: 'x', version: '1.0.0', pluginApiVersion: '^1.0.0', kind: 'source', sbom: 's', main: 'm' },
+      manifest: { id: 'working-plugin', name: 'x', kind: 'source', main: 'm' },
     });
     registry.register(failingSource);
     registry.register(workingSource);

@@ -178,7 +178,7 @@ export function AddRecordDialog({ kind, destinations, onClose, onCreated }: AddR
       await window.api.configCreateRecord({
         kind,
         pluginId: plugin.manifest.id,
-        pluginVersion: plugin.manifest.version,
+        pluginVersion: plugin.packageVersion,
         name: name || plugin.manifest.name,
         config: values,
         destinationId: kind === 'source' ? destinationId : undefined,

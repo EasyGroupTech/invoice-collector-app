@@ -37,15 +37,12 @@ async function upload(
  * "where does this invoice go" is exactly that one folder, unconditionally.
  */
 const localFolderDestination: DestinationPlugin = {
+  // §9.4: version/pluginApiVersion/repository/sbom are package-level now (this implementation's
+  // package is app.easygroup.email-to-downloads — see package-manifest.ts).
   manifest: {
     id: 'app.easygroup.destination.local-folder',
     name: 'Local Folder',
-    version: '0.0.0',
-    pluginApiVersion: '0.0.0',
     kind: 'destination',
-    // Genuinely true — this bundled reference plugin lives in this same public repo (§2/§9).
-    repository: 'https://github.com/EasyGroupTech/invoice-collector-app',
-    sbom: 'sbom.cdx.json',
     main: 'local-folder-plugin.js',
   },
   sessionRequirements: [

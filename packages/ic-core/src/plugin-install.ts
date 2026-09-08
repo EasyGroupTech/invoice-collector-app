@@ -6,6 +6,7 @@ import {
   validateSessionRequirements,
   validateWizardDataSources,
   type DestinationPlugin,
+  type PluginImplementationManifest,
   type PluginManifest,
   type SourcePlugin,
 } from 'invoice-collector-plugin-sdk';
@@ -31,7 +32,7 @@ export interface PluginInstallResult {
 }
 
 /**
- * Returned instead of installing when the plugin lands in the Unverified tier (§9) and hasn't
+ * Returned instead of installing when the package lands in the Unverified tier (§9) and hasn't
  * been confirmed past the warning before (by id+version, via trust-ack-store). ic-core owns no
  * UI (§8) — the caller (eventually the renderer, via IPC) shows the warning dialog and re-invokes
  * installPlugin with `confirmUnverified: true` once the user agrees.
@@ -48,13 +49,13 @@ export interface PluginInstallOptions {
   trustAckFilePath: string;
   registry: PluginRegistry;
   /**
-   * Where a plugin's own `sessionPlugin` (§6 — a custom session type it brings itself, e.g. a
-   * local-filesystem destination's folder-access session) gets registered so `SessionsApi.create()`
-   * can actually route to it. Optional, matching this plugin field itself being optional: a plugin
-   * with no `sessionPlugin` needs nothing registered, and a caller not yet wired up to a real
-   * SessionsRegistry (nothing has been, before this) just skips this step rather than failing —
-   * install still succeeds, but that plugin's own session type won't be creatable until a caller
-   * starts supplying one.
+   * Where an implementation's own `sessionPlugin` (§6 — a custom session type it brings itself,
+   * e.g. a local-filesystem destination's folder-access session) gets registered so
+   * `SessionsApi.create()` can actually route to it. Optional, matching this field itself being
+   * optional: an implementation with no `sessionPlugin` needs nothing registered, and a caller not
+   * yet wired up to a real SessionsRegistry (nothing has been, before this) just skips this step
+   * rather than failing — install still succeeds, but that session type won't be creatable until a
+   * caller starts supplying one.
    */
   sessionsRegistry?: SessionsRegistry;
   confirmUnverified?: boolean;
@@ -68,9 +69,11 @@ export interface PluginInstallOptions {
 
 /**
  * §9.1's full install pipeline: resolve → download → extract → validate (manifest shape,
- * pluginApiVersion window, sbom present/parseable) → GitHub Artifact Attestation (OSS path only)
- * → trust-tier decision → dynamic import → sessionRequirements validation → register (plugin
- * itself, then its own `sessionPlugin`, if any).
+ * pluginApiVersion window, sbom present/parseable) → GitHub Artifact Attestation (OSS path only,
+ * covering the whole downloaded zip — one attestation per package, not per implementation) →
+ * trust-tier decision → dynamic import of every implementation the manifest declares →
+ * sessionRequirements validation → register (§9.4: the package itself, then each implementation it
+ * bundles, then each implementation's own `sessionPlugin`, if any).
  *
  * Every call re-runs resolve/download/extract/validate/attestation from scratch, even a second
  * call made purely to supply `confirmUnverified: true` — simpler and safer than trying to resume
@@ -108,14 +111,14 @@ export async function installPlugin(
 
     if (!isPluginApiVersionSupported(manifest.pluginApiVersion, options.coreSdkVersion)) {
       throw new Error(
-        `Plugin ${manifest.id}'s pluginApiVersion (${manifest.pluginApiVersion}) is outside the supported window for core ${options.coreSdkVersion}`,
+        `Package ${manifest.id}'s pluginApiVersion (${manifest.pluginApiVersion}) is outside the supported window for core ${options.coreSdkVersion}`,
       );
     }
 
     try {
       JSON.parse(await readFile(path.join(stagingDir, manifest.sbom), 'utf-8'));
     } catch {
-      throw new Error(`Plugin ${manifest.id}'s declared sbom (${manifest.sbom}) is missing or not valid JSON`);
+      throw new Error(`Package ${manifest.id}'s declared sbom (${manifest.sbom}) is missing or not valid JSON`);
     }
 
     const tier: TrustTier = manifest.repository ? 'open-source' : 'unverified';
@@ -124,7 +127,7 @@ export async function installPlugin(
       const repo = source.repo ?? parseGithubRepoUrl(manifest.repository as string);
       if (!repo) {
         throw new Error(
-          `Plugin ${manifest.id} declares repository "${manifest.repository}" but it isn't a GitHub URL — cannot verify its attestation`,
+          `Package ${manifest.id} declares repository "${manifest.repository}" but it isn't a GitHub URL — cannot verify its attestation`,
         );
       }
       const attestation = await verifyGithubArtifactAttestation(repo, zipBytes, {
@@ -150,7 +153,7 @@ export async function installPlugin(
       }
     }
 
-    // Every check passed — move from the anonymous staging directory to the plugin's real home.
+    // Every check passed — move from the anonymous staging directory to the package's real home.
     // A pre-existing directory at that path (a previous install of the same id) is replaced;
     // update/rollback staging (§5) is a separate mechanism, out of this phase's scope.
     const finalDir = path.join(options.pluginsDir, manifest.id);
@@ -158,11 +161,13 @@ export async function installPlugin(
     await rename(stagingDir, finalDir);
     installDir = finalDir;
 
-    const moduleUrl = pathToFileURL(path.join(finalDir, manifest.main)).href;
-    const loaded = await importModule(moduleUrl);
-    const plugin = loaded.default as SourcePlugin | DestinationPlugin;
-
-    validateAndRegisterPlugin(manifest, plugin, options.registry, options.sessionsRegistry);
+    for (const implementation of manifest.implementations) {
+      const moduleUrl = pathToFileURL(path.join(finalDir, implementation.main)).href;
+      const loaded = await importModule(moduleUrl);
+      const plugin = loaded.default as SourcePlugin | DestinationPlugin;
+      validateAndRegisterPlugin(implementation, plugin, options.registry, options.sessionsRegistry);
+    }
+    options.registry.registerPackage(manifest);
 
     return { status: 'installed', manifest, tier };
   } catch (err) {
@@ -172,23 +177,24 @@ export async function installPlugin(
 }
 
 /** Shared by `installPlugin()` and `reloadInstalledPlugins()` — the part of the pipeline that
- * runs once a plugin's code has actually been loaded (fresh from a download, or reloaded from an
- * earlier install already sitting on disk): validate its declared shape against what the loaded
- * module actually exports, then register it (and its own `sessionPlugin`, if any). */
+ * runs once one implementation's code has actually been loaded (fresh from a download, or
+ * reloaded from an earlier install already sitting on disk): validate its declared shape against
+ * what the loaded module actually exports, then register it (and its own `sessionPlugin`, if
+ * any). Called once per `manifest.implementations` entry, not once per package. */
 function validateAndRegisterPlugin(
-  manifest: PluginManifest,
+  implementation: PluginImplementationManifest,
   plugin: SourcePlugin | DestinationPlugin,
   registry: PluginRegistry,
   sessionsRegistry?: SessionsRegistry,
 ): void {
   const sessionRequirementsCheck = validateSessionRequirements(plugin.sessionRequirements);
   if (!sessionRequirementsCheck.valid) {
-    throw new Error(`Plugin ${manifest.id}'s sessionRequirements are invalid: ${sessionRequirementsCheck.errors.join('; ')}`);
+    throw new Error(`Implementation ${implementation.id}'s sessionRequirements are invalid: ${sessionRequirementsCheck.errors.join('; ')}`);
   }
 
   const wizardDataSourcesCheck = validateWizardDataSources(plugin);
   if (!wizardDataSourcesCheck.valid) {
-    throw new Error(`Plugin ${manifest.id}'s wizard/settingsPanel is invalid: ${wizardDataSourcesCheck.errors.join('; ')}`);
+    throw new Error(`Implementation ${implementation.id}'s wizard/settingsPanel is invalid: ${wizardDataSourcesCheck.errors.join('; ')}`);
   }
 
   registry.register(plugin);
@@ -203,24 +209,25 @@ export interface ReloadInstalledPluginsOptions {
   registry: PluginRegistry;
   sessionsRegistry?: SessionsRegistry;
   importModule?: (fileUrl: string) => Promise<{ default: unknown }>;
-  /** Called for a plugin directory that couldn't be reloaded (corrupt manifest, code that no
+  /** Called for a package directory that couldn't be reloaded (corrupt manifest, code that no
    * longer imports cleanly, a pluginApiVersion the current core no longer supports, …) — one bad
-   * plugin must never take the rest of them (or the app's own boot) down with it. */
-  onError?: (pluginId: string, error: unknown) => void;
+   * package must never take the rest of them (or the app's own boot) down with it. */
+  onError?: (packageId: string, error: unknown) => void;
 }
 
 /**
  * The other half of §5's "plugins aren't reloaded from disk at boot yet" gap (tracked since phase
- * 1.11/1.12) — a plugin installed in an earlier run leaves its files under `pluginsDir` (§9.1's
+ * 1.11/1.12) — a package installed in an earlier run leaves its files under `pluginsDir` (§9.1's
  * install pipeline never deletes them, "Uninstall: preserve, don't delete" applies just as much to
  * an unclean shutdown as a deliberate uninstall), but nothing re-registers them into a fresh
  * `PluginRegistry`/`SessionsRegistry` on the next launch — call this once at boot, after both
  * registries exist, to close that gap generically for whatever's actually on disk, not for one
- * specific plugin. Deliberately skips the parts of `installPlugin()` that only make sense for a
+ * specific package. Deliberately skips the parts of `installPlugin()` that only make sense for a
  * *fresh* install (download, GitHub Artifact Attestation, the unverified-tier trust-ack prompt) —
- * a plugin already sitting here was already vetted once; `pluginApiVersion` is the one check worth
- * re-running, since a core upgrade since the last launch could have moved it outside the supported
- * window (§9's own "surfaced as this plugin needs updating rather than silently dropped").
+ * a package already sitting here was already vetted once; `pluginApiVersion` is the one check
+ * worth re-running, since a core upgrade since the last launch could have moved it outside the
+ * supported window (§9's own "surfaced as this plugin needs updating rather than silently
+ * dropped").
  */
 export async function reloadInstalledPlugins(options: ReloadInstalledPluginsOptions): Promise<void> {
   const importModule = options.importModule ?? ((url: string) => import(url));
@@ -235,10 +242,10 @@ export async function reloadInstalledPlugins(options: ReloadInstalledPluginsOpti
 
   for (const entryName of entries) {
     if (entryName.startsWith('.staging-')) continue;
-    const pluginDir = path.join(options.pluginsDir, entryName);
+    const packageDir = path.join(options.pluginsDir, entryName);
 
     try {
-      const manifest = JSON.parse(await readFile(path.join(pluginDir, 'manifest.json'), 'utf-8')) as PluginManifest;
+      const manifest = JSON.parse(await readFile(path.join(packageDir, 'manifest.json'), 'utf-8')) as PluginManifest;
 
       const manifestCheck = validateManifest(manifest);
       if (!manifestCheck.valid) {
@@ -247,15 +254,17 @@ export async function reloadInstalledPlugins(options: ReloadInstalledPluginsOpti
 
       if (!isPluginApiVersionSupported(manifest.pluginApiVersion, options.coreSdkVersion)) {
         throw new Error(
-          `Plugin ${manifest.id}'s pluginApiVersion (${manifest.pluginApiVersion}) is outside the supported window for core ${options.coreSdkVersion}`,
+          `Package ${manifest.id}'s pluginApiVersion (${manifest.pluginApiVersion}) is outside the supported window for core ${options.coreSdkVersion}`,
         );
       }
 
-      const moduleUrl = pathToFileURL(path.join(pluginDir, manifest.main)).href;
-      const loaded = await importModule(moduleUrl);
-      const plugin = loaded.default as SourcePlugin | DestinationPlugin;
-
-      validateAndRegisterPlugin(manifest, plugin, options.registry, options.sessionsRegistry);
+      for (const implementation of manifest.implementations) {
+        const moduleUrl = pathToFileURL(path.join(packageDir, implementation.main)).href;
+        const loaded = await importModule(moduleUrl);
+        const plugin = loaded.default as SourcePlugin | DestinationPlugin;
+        validateAndRegisterPlugin(implementation, plugin, options.registry, options.sessionsRegistry);
+      }
+      options.registry.registerPackage(manifest);
     } catch (err) {
       options.onError?.(entryName, err);
     }
@@ -268,13 +277,18 @@ export interface UninstallPluginOptions {
 }
 
 /**
- * §5's "Uninstall: preserve, don't delete" — this only unregisters the plugin (so
- * discover()/fetchContent()/upload()/resolveListData() calls have nowhere to route to) and
- * removes its own installed package files. It never touches PluginBackedRecords, invoice history,
- * or Sessions — those stay put, inactive, and come back with no data loss if the same plugin (or
- * a different version of it, via migrate()) is installed again later.
+ * §5's "Uninstall: preserve, don't delete" — this only unregisters the package (every
+ * implementation it bundles at once, §9.4 — so discover()/fetchContent()/upload()/
+ * resolveListData() calls have nowhere to route to for any of them) and removes its own installed
+ * package files. It never touches PluginBackedRecords, invoice history, or Sessions — those stay
+ * put, inactive, and come back with no data loss if the same package (or a different version of
+ * it, via migrate()) is installed again later.
  */
-export async function uninstallPlugin(pluginId: string, options: UninstallPluginOptions): Promise<void> {
-  options.registry.unregister(pluginId);
-  await rm(path.join(options.pluginsDir, pluginId), { recursive: true, force: true });
+export async function uninstallPlugin(packageId: string, options: UninstallPluginOptions): Promise<void> {
+  const manifest = options.registry.getPackage(packageId);
+  for (const implementation of manifest?.implementations ?? []) {
+    options.registry.unregister(implementation.id);
+  }
+  options.registry.unregisterPackage(packageId);
+  await rm(path.join(options.pluginsDir, packageId), { recursive: true, force: true });
 }

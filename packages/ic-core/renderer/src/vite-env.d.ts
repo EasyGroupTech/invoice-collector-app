@@ -25,6 +25,7 @@ import type {
   PluginBackedRecord,
   PluginInstallNeedsConfirmation,
   PluginInstallResult,
+  PluginManifest,
   ProfileCreateInput,
   ProfileSummary,
   ReconnectSessionInput,
@@ -65,6 +66,7 @@ declare global {
       sessionsRename(input: RenameSessionInput): Promise<Session>;
 
       pluginsList(): Promise<InstalledPluginSummary[]>;
+      pluginsListPackages(): Promise<PluginManifest[]>;
       pluginsInstall(input: InstallPluginInput): Promise<PluginInstallResult | PluginInstallNeedsConfirmation>;
       pluginsUninstall(pluginId: string): Promise<void>;
 

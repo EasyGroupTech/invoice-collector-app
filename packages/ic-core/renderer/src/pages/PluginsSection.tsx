@@ -5,43 +5,50 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import type { InstalledPluginSummary, SbomEntry } from '../../../electron/shared/ipcContracts';
+import type { PluginManifest, SbomEntry } from '../../../electron/shared/ipcContracts';
 
 // Matches buildSbomSources()'s own two hardcoded, non-plugin entries (electron/main/index.ts) —
 // the app itself and the SDK it's built on aren't installed plugins, so there's nothing for
 // pluginsUninstall() to act on for either one.
 const NON_REMOVABLE_SBOM_IDS = new Set(['ic-core', 'invoice-collector-plugin-sdk']);
 
-/** §9.1's one Install Plugin entry point + §9's two-tier trust warning, plus uninstall (§5's
- * "preserve, don't delete" — ic-core's uninstallPlugin() already only touches the plugin's own
- * package files). Enable/disable isn't here — same known, deliberately-deferred gap
+/**
+ * §9.4's actual concept: a plugin is a *bundle* of the sessions/sources/destinations it
+ * implements — a module, with its own implementation and (declared via `sbom`) its own
+ * dependencies. It's installed and removed as that one whole bundle, not per individual
+ * source/destination it happens to contain (ic-email-to-downloads, say, bundles both a Graph Mail
+ * source and a Local Folder destination — one install, one row here, one Uninstall). This list
+ * reads `pluginsListPackages()` (package-level — see `InstalledPluginSummary`'s own doc comment
+ * for why the Add-Source/Destination wizard still needs the flat, per-implementation
+ * `pluginsList()` instead), and deliberately doesn't enumerate what a package implements — just
+ * its name and, in place of a kind/version breakdown, its own repository URL as the description
+ * (the same field §9's trust-tier decision already keys off of; "Unverified" when it's absent).
+ *
+ * §9.1's one Install Plugin entry point + §9's two-tier trust warning, plus uninstall (§5's
+ * "preserve, don't delete" — ic-core's uninstallPlugin() already only touches the package's own
+ * files). Enable/disable isn't here — same known, deliberately-deferred gap
  * docs/implementation-plan.md's phase 1.11/1.12 notes track (no installed-plugin persistence
  * across a restart yet, so "disable" has nothing durable to attach to today).
  *
  * Install comes first (plain URL input + button, not its own nested Card — this whole section is
  * already "Plugins," a second layer of Card chrome around one field added nothing), then the
- * installed-plugin list as a column of bordered rows rather than a table — same row style
- * `ProfileManagementSection`/`SessionStatusSection` already use, and one plugin can have a fair
- * amount to say (name, kind, version, trust tier) for a table row to stay readable at this width.
+ * installed-package list as a column of bordered rows rather than a table — same row style
+ * `ProfileManagementSection`/`SessionStatusSection` already use.
  *
  * §13's "Third-Party Licenses"/SBOM screen lives here too, as a second subsection below a divider
  * — the reference app's own SBOM card was really "the license/component detail behind whatever's
  * installed," which is exactly what this card is already about; splitting it into its own
  * always-open card (as it was before) just meant two separate places to look for one topic. Its
  * own per-package expand/collapse (`expandedSbomEntries`) is independent of this card's own
- * collapse state. Each SBOM row also gets a Remove button next to Export SBOM — one npm source
- * package can register more than one independently-installed plugin manifest (e.g.
- * ic-email-to-downloads ships both the Graph Mail source and the Local Folder destination as two
- * separate manifests, each its own row here and in the plugin list above — installPlugin() is
- * strictly one manifest.json per install, §9.1), so Remove is scoped to one manifest.id at a time,
- * same granularity as Uninstall in the list above; disabled for the two entries that aren't
+ * collapse state. Each SBOM row also gets a Remove button next to Export SBOM, scoped to the same
+ * package-id granularity as Uninstall in the list above — disabled for the two entries that aren't
  * removable plugins at all (`NON_REMOVABLE_SBOM_IDS`: the app itself and the SDK).
  *
  * A Settings section (§8, phase 1.16), collapsed by default the same way the reference app's own
  * `SourcesPage` collapses its list — this can grow long and isn't something most sessions need
  * open at a glance the way Collect is. */
 export function PluginsSection() {
-  const [plugins, setPlugins] = useState<InstalledPluginSummary[]>([]);
+  const [packages, setPackages] = useState<PluginManifest[]>([]);
   const [rawInput, setRawInput] = useState('');
   const [pendingConfirmation, setPendingConfirmation] = useState<{ manifestId: string; manifestName: string } | undefined>(undefined);
   const [busy, setBusy] = useState(false);
@@ -51,7 +58,7 @@ export function PluginsSection() {
   const [expandedSbomEntries, setExpandedSbomEntries] = useState<Record<string, boolean>>({});
 
   async function refreshPlugins() {
-    setPlugins(await window.api.pluginsList());
+    setPackages(await window.api.pluginsListPackages());
   }
 
   async function refreshSbom() {
@@ -109,9 +116,7 @@ export function PluginsSection() {
           {collapsed ? <ChevronRight className="size-4" /> : <ChevronDown className="size-4" />}
           Plugins
         </CardTitle>
-        <CardDescription>
-          {plugins.length} installed — install and manage source/destination plugins.
-        </CardDescription>
+        <CardDescription>{packages.length} installed — install and manage plugins.</CardDescription>
       </CardHeader>
       {!collapsed && (
         <CardContent className="flex flex-col gap-4 pb-4">
@@ -144,20 +149,18 @@ export function PluginsSection() {
             </div>
 
             <div className="flex flex-col gap-2">
-              {plugins.map((p) => (
-                <div key={p.manifest.id} className="flex items-center justify-between gap-2 rounded-md border px-3 py-2">
+              {packages.map((pkg) => (
+                <div key={pkg.id} className="flex items-center justify-between gap-2 rounded-md border px-3 py-2">
                   <div className="flex flex-col gap-0.5 truncate">
-                    <span className="text-sm font-medium">{p.manifest.name}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {p.manifest.kind} · v{p.manifest.version} · {p.manifest.repository ? `Open source — ${p.manifest.repository}` : 'Unverified'}
-                    </span>
+                    <span className="text-sm font-medium">{pkg.name}</span>
+                    <span className="text-xs text-muted-foreground">{pkg.repository ?? 'Unverified — no public repository'}</span>
                   </div>
-                  <Button type="button" variant="outline" size="sm" className="shrink-0" onClick={() => void uninstall(p.manifest.id)}>
+                  <Button type="button" variant="outline" size="sm" className="shrink-0" onClick={() => void uninstall(pkg.id)}>
                     Uninstall
                   </Button>
                 </div>
               ))}
-              {plugins.length === 0 && <p className="text-sm text-muted-foreground">No plugins installed yet.</p>}
+              {packages.length === 0 && <p className="text-sm text-muted-foreground">No plugins installed yet.</p>}
             </div>
           </fieldset>
 

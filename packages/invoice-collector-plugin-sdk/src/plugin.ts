@@ -1,4 +1,4 @@
-import type { PluginManifest } from './manifest.js';
+import type { PluginImplementationManifest } from './manifest.js';
 import type { Session, SessionPlugin, SessionRequirement } from './session.js';
 import type { PluginContext } from './context.js';
 import type { WizardStepDescriptor, SettingsPanelDescriptor } from './ui.js';
@@ -152,11 +152,13 @@ export interface SessionLabelSuggester {
 
 export interface PluginLifecycle {
   /**
-   * Called once, automatically, when core detects this plugin's version increased from
-   * fromVersion to manifest.version — before the new version's discover()/fetchContent()/
-   * upload() ever runs. Responsible for migrating anything this plugin owns: its own
-   * PluginContext.storage entries and the `config` field of every existing PluginBackedRecord
-   * referencing this plugin. Optional — not every version bump needs a data migration.
+   * Called once, automatically, when core detects the *package* this implementation belongs to
+   * has a version increased from fromVersion to the package's own current version (§9.4 — version
+   * is a package-level property, shared by every implementation the package bundles) — before the
+   * new version's discover()/fetchContent()/upload() ever runs. Responsible for migrating anything
+   * this implementation owns: its own PluginContext.storage entries and the `config` field of
+   * every existing PluginBackedRecord referencing it. Optional — not every version bump needs a
+   * data migration.
    */
   migrate?(
     ctx: PluginContext,
@@ -166,7 +168,7 @@ export interface PluginLifecycle {
 }
 
 export interface SourcePlugin extends PluginLifecycle, WizardDataSourceProvider, BuiltInSessionInputProvider, SessionLabelSuggester {
-  manifest: PluginManifest;
+  manifest: PluginImplementationManifest;
   /** Which session type(s) this plugin can use, and what it needs from each — required, must
    * list at least one entry. */
   sessionRequirements: SessionRequirement[];
@@ -195,7 +197,7 @@ export interface SourcePlugin extends PluginLifecycle, WizardDataSourceProvider,
 }
 
 export interface DestinationPlugin extends PluginLifecycle, WizardDataSourceProvider, BuiltInSessionInputProvider, SessionLabelSuggester {
-  manifest: PluginManifest;
+  manifest: PluginImplementationManifest;
   sessionRequirements: SessionRequirement[];
   /** See `SourcePlugin.sessionPlugin` — same mechanism, same reason. */
   sessionPlugin?: SessionPlugin;

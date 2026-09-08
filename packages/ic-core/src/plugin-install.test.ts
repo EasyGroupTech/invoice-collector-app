@@ -3,7 +3,7 @@ import { mkdir, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { zipSync } from 'fflate';
-import type { DestinationPlugin, SessionPlugin, SourcePlugin } from 'invoice-collector-plugin-sdk';
+import type { DestinationPlugin, PluginImplementationManifest, PluginManifest, SessionPlugin, SourcePlugin } from 'invoice-collector-plugin-sdk';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { installPlugin, reloadInstalledPlugins, uninstallPlugin } from './plugin-install.js';
 import { createPluginRegistry, type PluginRegistry } from './plugin-registry.js';
@@ -39,31 +39,40 @@ function buildZip(entries: Record<string, string>): Uint8Array {
   return zipSync(files);
 }
 
-const validManifest = {
-  id: 'app.easygroup.source.test-plugin',
-  name: 'Test Plugin',
+// §9.4: manifest.json describes a *package* — one or more session/source/destination
+// implementations, bundled, installed, and removed together. One implementation is the common
+// case exercised throughout this file; a dedicated describe block below covers a package that
+// bundles more than one.
+const validImplementation = { id: 'app.easygroup.source.test-plugin', name: 'Test Plugin', kind: 'source' as const, main: 'index.js' };
+
+const validManifest: PluginManifest = {
+  id: 'app.easygroup.test-package',
+  name: 'Test Package',
   version: '1.0.0',
   pluginApiVersion: '^1.0.0',
-  kind: 'source' as const,
   sbom: 'sbom.cdx.json',
-  main: 'index.js',
+  implementations: [validImplementation],
 };
 
 const validSbom = { bomFormat: 'CycloneDX', specVersion: '1.5', components: [] };
 
-const fakeSourceModuleSource = `
+function fakeModuleSourceFor(implementation: PluginImplementationManifest): string {
+  return `
 export default {
-  manifest: ${JSON.stringify({ ...validManifest, repository: undefined })},
+  manifest: ${JSON.stringify({ id: implementation.id, name: implementation.name, kind: implementation.kind, main: implementation.main })},
   sessionRequirements: [{ sessionTypeId: 'microsoft-entra-delegated-device-code', confirmsBuiltIn: true, requiredScopesOrRoles: [] }],
   wizard: [],
   discover: async function* () {},
   fetchContent: async () => ({ fileName: 'a.pdf', mimeType: 'application/pdf', bytes: new Uint8Array() }),
 };
 `;
+}
+
+const fakeSourceModuleSource = fakeModuleSourceFor(validImplementation);
 
 function fakeSourcePlugin(overrides: Partial<SourcePlugin['manifest']> = {}): SourcePlugin {
   return {
-    manifest: { ...validManifest, ...overrides },
+    manifest: { id: validImplementation.id, name: validImplementation.name, kind: validImplementation.kind, main: validImplementation.main, ...overrides },
     sessionRequirements: [{ sessionTypeId: 'microsoft-entra-delegated-device-code', confirmsBuiltIn: true, requiredScopesOrRoles: [] }],
     wizard: [],
     discover: async function* () {},
@@ -103,7 +112,7 @@ describe('installPlugin', () => {
     await rm(dir, { recursive: true, force: true });
   });
 
-  it('installs a real, unverified-tier plugin end-to-end: real zip, real dynamic import, registered for real', async () => {
+  it('installs a real, unverified-tier package end-to-end: real zip, real dynamic import, registered for real', async () => {
     const zip = buildZip({
       'manifest.json': JSON.stringify(validManifest),
       'sbom.cdx.json': JSON.stringify(validSbom),
@@ -122,14 +131,15 @@ describe('installPlugin', () => {
     });
 
     expect(result.status).toBe('installed');
-    expect(registry.get(validManifest.id)).toBeDefined();
-    expect(registry.get(validManifest.id)?.manifest.id).toBe(validManifest.id);
+    expect(registry.get(validImplementation.id)).toBeDefined();
+    expect(registry.get(validImplementation.id)?.manifest.id).toBe(validImplementation.id);
+    expect(registry.getPackage(validManifest.id)).toEqual(validManifest);
 
     const installedFiles = await readdir(path.join(pluginsDir, validManifest.id));
     expect(installedFiles).toEqual(expect.arrayContaining(['manifest.json', 'sbom.cdx.json', 'index.js']));
   });
 
-  it('returns needs-confirmation for an unverified-tier plugin not previously acknowledged, without registering or leaving files behind', async () => {
+  it('returns needs-confirmation for an unverified-tier package not previously acknowledged, without registering or leaving files behind', async () => {
     const zip = buildZip({ 'manifest.json': JSON.stringify(validManifest), 'sbom.cdx.json': JSON.stringify(validSbom) });
 
     const result = await installPlugin('https://example.com/plugin.zip', {
@@ -142,7 +152,8 @@ describe('installPlugin', () => {
     });
 
     expect(result).toEqual({ status: 'needs-confirmation', manifest: validManifest, tier: 'unverified' });
-    expect(registry.get(validManifest.id)).toBeUndefined();
+    expect(registry.get(validImplementation.id)).toBeUndefined();
+    expect(registry.getPackage(validManifest.id)).toBeUndefined();
     await expect(readdir(pluginsDir)).resolves.toEqual([]);
   });
 
@@ -182,10 +193,10 @@ describe('installPlugin', () => {
     });
 
     expect(second.status).toBe('installed'); // no confirmUnverified needed the second time
-    expect(registry.get(validManifest.id)).toBeDefined();
+    expect(registry.get(validImplementation.id)).toBeDefined();
   });
 
-  it('installs an open-source-tier plugin once its GitHub Artifact Attestation verifies', async () => {
+  it('installs an open-source-tier package once its GitHub Artifact Attestation verifies', async () => {
     const manifestWithRepo = { ...validManifest, repository: 'https://github.com/owner/repo' };
     const zip = buildZip({ 'manifest.json': JSON.stringify(manifestWithRepo), 'sbom.cdx.json': JSON.stringify(validSbom) });
     const verifyImpl = vi.fn(async () => ({}) as never);
@@ -196,7 +207,7 @@ describe('installPlugin', () => {
       trustAckFilePath,
       registry,
       fetchImpl: fetchZipAndAttestations(zip, fakeAttestationsBodyFor(zip)),
-      importModule: async () => ({ default: fakeSourcePlugin({ repository: manifestWithRepo.repository }) }),
+      importModule: async () => ({ default: fakeSourcePlugin() }),
       verifyAttestationOptions: { verifyImpl },
     });
 
@@ -204,7 +215,7 @@ describe('installPlugin', () => {
     expect(verifyImpl).toHaveBeenCalled();
   });
 
-  it('rejects an open-source-tier plugin whose attestation does not verify, without registering it', async () => {
+  it('rejects an open-source-tier package whose attestation does not verify, without registering it', async () => {
     const manifestWithRepo = { ...validManifest, repository: 'https://github.com/owner/repo' };
     const zip = buildZip({ 'manifest.json': JSON.stringify(manifestWithRepo), 'sbom.cdx.json': JSON.stringify(validSbom) });
     const verifyImpl = vi.fn(async () => {
@@ -218,12 +229,12 @@ describe('installPlugin', () => {
         trustAckFilePath,
         registry,
         fetchImpl: fetchZipAndAttestations(zip, fakeAttestationsBodyFor(zip)),
-        importModule: async () => ({ default: fakeSourcePlugin({ repository: manifestWithRepo.repository }) }),
+        importModule: async () => ({ default: fakeSourcePlugin() }),
         verifyAttestationOptions: { verifyImpl },
       }),
     ).rejects.toThrow(/attestation/i);
 
-    expect(registry.get(validManifest.id)).toBeUndefined();
+    expect(registry.get(validImplementation.id)).toBeUndefined();
     await expect(readdir(pluginsDir)).resolves.toEqual([]);
   });
 
@@ -275,7 +286,7 @@ describe('installPlugin', () => {
     ).rejects.toThrow(/sbom/i);
   });
 
-  it('rejects a plugin whose loaded module has invalid sessionRequirements', async () => {
+  it('rejects a package whose loaded implementation has invalid sessionRequirements', async () => {
     const zip = buildZip({ 'manifest.json': JSON.stringify(validManifest), 'sbom.cdx.json': JSON.stringify(validSbom) });
 
     await expect(
@@ -290,10 +301,11 @@ describe('installPlugin', () => {
       }),
     ).rejects.toThrow(/sessionRequirements/);
 
-    expect(registry.get(validManifest.id)).toBeUndefined();
+    expect(registry.get(validImplementation.id)).toBeUndefined();
+    expect(registry.getPackage(validManifest.id)).toBeUndefined();
   });
 
-  it('rejects a plugin whose wizard declares a list step but implements no resolveListData', async () => {
+  it('rejects a package whose loaded implementation declares a list step but implements no resolveListData', async () => {
     const zip = buildZip({ 'manifest.json': JSON.stringify(validManifest), 'sbom.cdx.json': JSON.stringify(validSbom) });
 
     await expect(
@@ -313,7 +325,7 @@ describe('installPlugin', () => {
       }),
     ).rejects.toThrow(/resolveListData/);
 
-    expect(registry.get(validManifest.id)).toBeUndefined();
+    expect(registry.get(validImplementation.id)).toBeUndefined();
   });
 
   it('propagates a download failure clearly', async () => {
@@ -331,15 +343,89 @@ describe('installPlugin', () => {
   });
 });
 
+describe('installPlugin (a package bundling more than one implementation, §9.4)', () => {
+  const sourceImpl = { id: 'app.easygroup.source.bundle-test', name: 'Bundle Source', kind: 'source' as const, main: 'source.js' };
+  const destinationImpl = { id: 'app.easygroup.destination.bundle-test', name: 'Bundle Destination', kind: 'destination' as const, main: 'destination.js' };
+  const bundleManifest: PluginManifest = {
+    id: 'app.easygroup.bundle-test',
+    name: 'Bundle Test Package',
+    version: '1.0.0',
+    pluginApiVersion: '^1.0.0',
+    sbom: 'sbom.cdx.json',
+    implementations: [sourceImpl, destinationImpl],
+  };
+
+  let dir: string;
+  let pluginsDir: string;
+  let registry: PluginRegistry;
+
+  beforeEach(async () => {
+    dir = await mkdtemp(path.join(tmpdir(), 'ic-core-plugin-install-bundle-'));
+    pluginsDir = path.join(dir, 'plugins');
+    registry = createPluginRegistry();
+  });
+
+  afterEach(async () => {
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  it('registers every implementation the manifest declares, and the package once, from a single install', async () => {
+    const zip = buildZip({
+      'manifest.json': JSON.stringify(bundleManifest),
+      'sbom.cdx.json': JSON.stringify(validSbom),
+      'source.js': fakeModuleSourceFor(sourceImpl),
+      'destination.js': fakeModuleSourceFor(destinationImpl),
+    });
+
+    const result = await installPlugin('https://example.com/plugin.zip', {
+      pluginsDir,
+      coreSdkVersion: CORE_SDK_VERSION,
+      trustAckFilePath: path.join(dir, 'trust-ack.json'),
+      registry,
+      confirmUnverified: true,
+      fetchImpl: fetchReturningZip(zip),
+    });
+
+    expect(result.status).toBe('installed');
+    expect(registry.get(sourceImpl.id)).toBeDefined();
+    expect(registry.get(destinationImpl.id)).toBeDefined();
+    expect(registry.listPackages()).toEqual([bundleManifest]);
+  });
+
+  it('uninstalling the package unregisters every implementation it bundled, together', async () => {
+    const zip = buildZip({
+      'manifest.json': JSON.stringify(bundleManifest),
+      'sbom.cdx.json': JSON.stringify(validSbom),
+      'source.js': fakeModuleSourceFor(sourceImpl),
+      'destination.js': fakeModuleSourceFor(destinationImpl),
+    });
+    await installPlugin('https://example.com/plugin.zip', {
+      pluginsDir,
+      coreSdkVersion: CORE_SDK_VERSION,
+      trustAckFilePath: path.join(dir, 'trust-ack.json'),
+      registry,
+      confirmUnverified: true,
+      fetchImpl: fetchReturningZip(zip),
+    });
+
+    await uninstallPlugin(bundleManifest.id, { pluginsDir, registry });
+
+    expect(registry.get(sourceImpl.id)).toBeUndefined();
+    expect(registry.get(destinationImpl.id)).toBeUndefined();
+    expect(registry.getPackage(bundleManifest.id)).toBeUndefined();
+  });
+});
+
 describe('installPlugin (destination plugin)', () => {
   it('installs a destination plugin the same way as a source plugin', async () => {
     const dir = await mkdtemp(path.join(tmpdir(), 'ic-core-plugin-install-dest-'));
     try {
-      const manifest = { ...validManifest, id: 'app.easygroup.destination.test', kind: 'destination' as const };
+      const implementation = { ...validImplementation, id: 'app.easygroup.destination.test', kind: 'destination' as const };
+      const manifest: PluginManifest = { ...validManifest, id: 'app.easygroup.destination-test-package', implementations: [implementation] };
       const zip = buildZip({ 'manifest.json': JSON.stringify(manifest), 'sbom.cdx.json': JSON.stringify(validSbom) });
       const registry = createPluginRegistry();
       const destinationPlugin: DestinationPlugin = {
-        manifest,
+        manifest: implementation,
         sessionRequirements: [{ sessionTypeId: 'microsoft-entra-delegated-device-code', confirmsBuiltIn: true, requiredScopesOrRoles: [] }],
         wizard: [],
         upload: async () => ({ status: 'uploaded' }),
@@ -362,10 +448,11 @@ describe('installPlugin (destination plugin)', () => {
     }
   });
 
-  it("registers a plugin's own sessionPlugin (a custom session type it brings itself) when a sessionsRegistry is supplied", async () => {
+  it("registers an implementation's own sessionPlugin (a custom session type it brings itself) when a sessionsRegistry is supplied", async () => {
     const dir = await mkdtemp(path.join(tmpdir(), 'ic-core-plugin-install-session-'));
     try {
-      const manifest = { ...validManifest, id: 'app.easygroup.destination.custom-session-test', kind: 'destination' as const };
+      const implementation = { ...validImplementation, id: 'app.easygroup.destination.custom-session-test', kind: 'destination' as const };
+      const manifest: PluginManifest = { ...validManifest, id: 'app.easygroup.custom-session-test-package', implementations: [implementation] };
       const zip = buildZip({ 'manifest.json': JSON.stringify(manifest), 'sbom.cdx.json': JSON.stringify(validSbom) });
       const registry = createPluginRegistry();
       const customSessionPlugin: SessionPlugin = {
@@ -375,7 +462,7 @@ describe('installPlugin (destination plugin)', () => {
         applyAuth: (_secret, request) => request,
       };
       const destinationPlugin: DestinationPlugin = {
-        manifest,
+        manifest: implementation,
         sessionRequirements: [{ sessionTypeId: customSessionPlugin.sessionTypeId, confirmsBuiltIn: false, requiredScopesOrRoles: [] }],
         sessionPlugin: customSessionPlugin,
         wizard: [],
@@ -401,7 +488,7 @@ describe('installPlugin (destination plugin)', () => {
     }
   });
 
-  it('installs successfully without registering anything session-related when the plugin declares no sessionPlugin', async () => {
+  it('installs successfully without registering anything session-related when the implementation declares no sessionPlugin', async () => {
     const dir = await mkdtemp(path.join(tmpdir(), 'ic-core-plugin-install-no-session-'));
     try {
       const zip = buildZip({ 'manifest.json': JSON.stringify(validManifest), 'sbom.cdx.json': JSON.stringify(validSbom) });
@@ -426,14 +513,15 @@ describe('installPlugin (destination plugin)', () => {
     }
   });
 
-  it('installs successfully even when the plugin declares a sessionPlugin but no sessionsRegistry was supplied', async () => {
+  it('installs successfully even when the implementation declares a sessionPlugin but no sessionsRegistry was supplied', async () => {
     const dir = await mkdtemp(path.join(tmpdir(), 'ic-core-plugin-install-session-no-registry-'));
     try {
-      const manifest = { ...validManifest, id: 'app.easygroup.destination.no-sessions-registry-test', kind: 'destination' as const };
+      const implementation = { ...validImplementation, id: 'app.easygroup.destination.no-sessions-registry-test', kind: 'destination' as const };
+      const manifest: PluginManifest = { ...validManifest, id: 'app.easygroup.no-sessions-registry-test-package', implementations: [implementation] };
       const zip = buildZip({ 'manifest.json': JSON.stringify(manifest), 'sbom.cdx.json': JSON.stringify(validSbom) });
       const registry = createPluginRegistry();
       const destinationPlugin: DestinationPlugin = {
-        manifest,
+        manifest: implementation,
         sessionRequirements: [{ sessionTypeId: 'custom-type', confirmsBuiltIn: false, requiredScopesOrRoles: [] }],
         sessionPlugin: {
           sessionTypeId: 'custom-type',
@@ -477,7 +565,7 @@ describe('uninstallPlugin', () => {
     await rm(dir, { recursive: true, force: true });
   });
 
-  it('unregisters the plugin and removes its installed package files — preserve, not delete, of everything else (§5)', async () => {
+  it('unregisters the package (and its implementation) and removes its installed package files — preserve, not delete, of everything else (§5)', async () => {
     const zip = buildZip({
       'manifest.json': JSON.stringify(validManifest),
       'sbom.cdx.json': JSON.stringify(validSbom),
@@ -491,15 +579,16 @@ describe('uninstallPlugin', () => {
       confirmUnverified: true,
       fetchImpl: fetchReturningZip(zip),
     });
-    expect(registry.get(validManifest.id)).toBeDefined();
+    expect(registry.get(validImplementation.id)).toBeDefined();
 
     await uninstallPlugin(validManifest.id, { pluginsDir, registry });
 
-    expect(registry.get(validManifest.id)).toBeUndefined();
+    expect(registry.get(validImplementation.id)).toBeUndefined();
+    expect(registry.getPackage(validManifest.id)).toBeUndefined();
     await expect(readdir(path.join(pluginsDir, validManifest.id))).rejects.toThrow();
   });
 
-  it('is a no-op, not a throw, when the plugin is not installed', async () => {
+  it('is a no-op, not a throw, when the package is not installed', async () => {
     await expect(uninstallPlugin('not-installed', { pluginsDir, registry })).resolves.toBeUndefined();
   });
 });
@@ -519,54 +608,42 @@ describe('reloadInstalledPlugins', () => {
     await rm(dir, { recursive: true, force: true });
   });
 
-  /** Writes a plugin directly onto disk, the shape §9.1's install pipeline would have already
+  /** Writes a package directly onto disk, the shape §9.1's install pipeline would have already
    * left behind from an earlier run — reloadInstalledPlugins() never downloads/extracts anything
    * itself, so tests exercise it against files already in place, not a zip. */
-  async function writePluginOnDisk(id: string, manifestOverrides: Partial<typeof validManifest> = {}): Promise<void> {
-    const manifest = { ...validManifest, id, ...manifestOverrides };
-    const pluginDir = path.join(pluginsDir, id);
-    await mkdir(pluginDir, { recursive: true });
-    await writeFile(path.join(pluginDir, 'manifest.json'), JSON.stringify(manifest), 'utf-8');
-    await writeFile(path.join(pluginDir, 'sbom.cdx.json'), JSON.stringify(validSbom), 'utf-8');
-    await writeFile(path.join(pluginDir, 'index.js'), fakeSourceModuleSourceFor(id), 'utf-8');
+  async function writePluginOnDisk(id: string, manifestOverrides: Partial<PluginManifest> = {}): Promise<void> {
+    const implementation = { ...validImplementation, id };
+    const manifest: PluginManifest = { ...validManifest, id, implementations: [implementation], ...manifestOverrides };
+    const packageDir = path.join(pluginsDir, id);
+    await mkdir(packageDir, { recursive: true });
+    await writeFile(path.join(packageDir, 'manifest.json'), JSON.stringify(manifest), 'utf-8');
+    await writeFile(path.join(packageDir, 'sbom.cdx.json'), JSON.stringify(validSbom), 'utf-8');
+    await writeFile(path.join(packageDir, 'index.js'), fakeModuleSourceFor(implementation), 'utf-8');
   }
 
-  function fakeSourceModuleSourceFor(id: string): string {
-    return `
-export default {
-  manifest: ${JSON.stringify({ ...validManifest, id, repository: undefined })},
-  sessionRequirements: [{ sessionTypeId: 'microsoft-entra-delegated-device-code', confirmsBuiltIn: true, requiredScopesOrRoles: [] }],
-  wizard: [],
-  discover: async function* () {},
-  fetchContent: async () => ({ fileName: 'a.pdf', mimeType: 'application/pdf', bytes: new Uint8Array() }),
-};
-`;
-  }
-
-  it('re-registers a plugin already sitting on disk from an earlier install, without downloading anything', async () => {
-    await writePluginOnDisk('app.easygroup.source.reload-test');
+  it('re-registers a package already sitting on disk from an earlier install, without downloading anything', async () => {
+    await writePluginOnDisk('app.easygroup.reload-test');
 
     await reloadInstalledPlugins({ pluginsDir, coreSdkVersion: CORE_SDK_VERSION, registry });
 
-    expect(registry.get('app.easygroup.source.reload-test')).toBeDefined();
+    expect(registry.get('app.easygroup.reload-test')).toBeDefined();
+    expect(registry.getPackage('app.easygroup.reload-test')).toBeDefined();
   });
 
-  it('registers a reloaded plugin\'s own sessionPlugin, same as installPlugin()', async () => {
-    const id = 'app.easygroup.destination.reload-session-test';
-    const pluginDir = path.join(pluginsDir, id);
-    await mkdir(pluginDir, { recursive: true });
+  it("registers a reloaded implementation's own sessionPlugin, same as installPlugin()", async () => {
+    const id = 'app.easygroup.reload-session-test';
+    const implementation = { ...validImplementation, id: 'app.easygroup.destination.reload-session-test', kind: 'destination' as const };
+    const packageDir = path.join(pluginsDir, id);
+    await mkdir(packageDir, { recursive: true });
     const customSessionTypeId = `${id}/custom`;
+    const manifest: PluginManifest = { ...validManifest, id, implementations: [implementation] };
+    await writeFile(path.join(packageDir, 'manifest.json'), JSON.stringify(manifest), 'utf-8');
+    await writeFile(path.join(packageDir, 'sbom.cdx.json'), JSON.stringify(validSbom), 'utf-8');
     await writeFile(
-      path.join(pluginDir, 'manifest.json'),
-      JSON.stringify({ ...validManifest, id, kind: 'destination' }),
-      'utf-8',
-    );
-    await writeFile(path.join(pluginDir, 'sbom.cdx.json'), JSON.stringify(validSbom), 'utf-8');
-    await writeFile(
-      path.join(pluginDir, 'index.js'),
+      path.join(packageDir, 'index.js'),
       `
 export default {
-  manifest: ${JSON.stringify({ ...validManifest, id, kind: 'destination', repository: undefined })},
+  manifest: ${JSON.stringify(implementation)},
   sessionRequirements: [{ sessionTypeId: ${JSON.stringify(customSessionTypeId)}, confirmsBuiltIn: false, requiredScopesOrRoles: [] }],
   sessionPlugin: {
     sessionTypeId: ${JSON.stringify(customSessionTypeId)},
@@ -592,27 +669,27 @@ export default {
     expect(registerSessionPlugin).toHaveBeenCalledWith(expect.objectContaining({ sessionTypeId: customSessionTypeId }));
   });
 
-  it('skips (via onError, not a throw) a plugin whose pluginApiVersion no longer supports the current core, while still loading the rest', async () => {
-    await writePluginOnDisk('app.easygroup.source.outdated', { pluginApiVersion: '^3.0.0' });
-    await writePluginOnDisk('app.easygroup.source.current');
+  it('skips (via onError, not a throw) a package whose pluginApiVersion no longer supports the current core, while still loading the rest', async () => {
+    await writePluginOnDisk('app.easygroup.outdated', { pluginApiVersion: '^99.0.0' });
+    await writePluginOnDisk('app.easygroup.current');
 
     const onError = vi.fn();
     await reloadInstalledPlugins({ pluginsDir, coreSdkVersion: CORE_SDK_VERSION, registry, onError });
 
-    expect(registry.get('app.easygroup.source.outdated')).toBeUndefined();
-    expect(registry.get('app.easygroup.source.current')).toBeDefined();
-    expect(onError).toHaveBeenCalledWith('app.easygroup.source.outdated', expect.any(Error));
+    expect(registry.get('app.easygroup.outdated')).toBeUndefined();
+    expect(registry.get('app.easygroup.current')).toBeDefined();
+    expect(onError).toHaveBeenCalledWith('app.easygroup.outdated', expect.any(Error));
   });
 
   it('skips (via onError, not a throw) a directory with a missing or corrupt manifest.json', async () => {
     await mkdir(path.join(pluginsDir, 'corrupt-plugin'), { recursive: true });
     await writeFile(path.join(pluginsDir, 'corrupt-plugin', 'manifest.json'), 'not valid json{', 'utf-8');
-    await writePluginOnDisk('app.easygroup.source.fine');
+    await writePluginOnDisk('app.easygroup.fine');
 
     const onError = vi.fn();
     await reloadInstalledPlugins({ pluginsDir, coreSdkVersion: CORE_SDK_VERSION, registry, onError });
 
-    expect(registry.get('app.easygroup.source.fine')).toBeDefined();
+    expect(registry.get('app.easygroup.fine')).toBeDefined();
     expect(onError).toHaveBeenCalledWith('corrupt-plugin', expect.anything());
   });
 

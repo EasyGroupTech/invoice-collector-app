@@ -20,6 +20,7 @@ import {
   type PluginBackedRecord,
   type PluginInstallNeedsConfirmation,
   type PluginInstallResult,
+  type PluginManifest,
   type ProfileCreateInput,
   type ProfileSummary,
   type ReconnectSessionInput,
@@ -72,6 +73,7 @@ contextBridge.exposeInMainWorld('api', {
   sessionsRename: (input: RenameSessionInput): Promise<Session> => ipcRenderer.invoke(Channels.SessionsRename, input),
 
   pluginsList: (): Promise<InstalledPluginSummary[]> => ipcRenderer.invoke(Channels.PluginsList),
+  pluginsListPackages: (): Promise<PluginManifest[]> => ipcRenderer.invoke(Channels.PluginsListPackages),
   pluginsInstall: (input: InstallPluginInput): Promise<PluginInstallResult | PluginInstallNeedsConfirmation> =>
     ipcRenderer.invoke(Channels.PluginsInstall, input),
   pluginsUninstall: (pluginId: string): Promise<void> => ipcRenderer.invoke(Channels.PluginsUninstall, pluginId),

@@ -390,7 +390,7 @@ export function AddCollectorWizard({ onClose, onCreated }: AddCollectorWizardPro
               await window.api.configCreateRecord({
                 kind: 'destination',
                 pluginId: destinationChoice.plugin.manifest.id,
-                pluginVersion: destinationChoice.plugin.manifest.version,
+                pluginVersion: destinationChoice.plugin.packageVersion,
                 name: destinationName || destinationChoice.plugin.manifest.name,
                 config: destinationValues,
                 sessionId: resolvedDestinationSessionId,
@@ -400,7 +400,7 @@ export function AddCollectorWizard({ onClose, onCreated }: AddCollectorWizardPro
       await window.api.configCreateRecord({
         kind: 'source',
         pluginId: sourcePlugin.manifest.id,
-        pluginVersion: sourcePlugin.manifest.version,
+        pluginVersion: sourcePlugin.packageVersion,
         name: sourceName || sourcePlugin.manifest.name,
         config: sourceValues,
         destinationId,

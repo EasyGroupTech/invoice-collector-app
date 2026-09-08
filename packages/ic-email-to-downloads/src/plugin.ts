@@ -277,18 +277,15 @@ async function suggestSessionLabel(ctx: PluginContext, session: Session, signal:
 }
 
 const graphMailSource: SourcePlugin = {
+  // §9.4: version/pluginApiVersion/repository/sbom are package-level now (this implementation's
+  // package is app.easygroup.email-to-downloads — see package-manifest.ts). Whether that package
+  // is ever actually checked against a GitHub Artifact Attestation, or this simply loads as a
+  // first-party bundled package without going through the generic install pipeline at all, is
+  // phase 1.17's own packaging decision, not this manifest's concern.
   manifest: {
     id: 'app.easygroup.source.email-mail',
     name: 'Graph Mail',
-    version: '0.0.0',
-    pluginApiVersion: '0.0.0',
     kind: 'source',
-    // Genuinely true — this bundled reference plugin lives in this same public repo (§2/§9).
-    // Whether that fact is ever actually checked against an attestation, or this simply loads
-    // as a first-party bundled plugin without going through the generic install pipeline at
-    // all, is phase 1.17's own packaging decision, not this manifest's concern.
-    repository: 'https://github.com/EasyGroupTech/invoice-collector-app',
-    sbom: 'sbom.cdx.json',
     main: 'index.js',
   },
   sessionRequirements: [

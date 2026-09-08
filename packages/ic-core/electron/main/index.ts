@@ -359,19 +359,30 @@ ipcMain.handle(Channels.SessionsRename, (_event, input: RenameSessionInput) =>
 );
 
 // --- Plugins ---
-// Installed-plugin persistence (reloading what's already in plugins/ across an app restart) is a
-// known gap, not silently skipped — see docs/implementation-plan.md's phase 1.11/1.12 notes.
-// pluginRegistry starts empty every launch; installing is the only way to populate it today.
-// Enable/disable is the same underlying gap and isn't built either — only uninstall is, below.
+// Enable/disable isn't built (docs/implementation-plan.md's phase 1.11/1.12 notes) — only
+// install/uninstall are, below. reloadInstalledPlugins() (app.whenReady(), above) repopulates
+// pluginRegistry from whatever's already on disk at every boot, not just after a fresh install.
 
+// One row per *implementation* (§9.4 — see InstalledPluginSummary's own doc comment), for the
+// Add-Source/Destination wizard. Settings' own Plugins management card reads PluginsListPackages
+// instead, below.
 ipcMain.handle(Channels.PluginsList, () =>
-  pluginRegistry.list().map((plugin) => ({
-    manifest: plugin.manifest,
-    sessionRequirements: plugin.sessionRequirements,
-    wizard: plugin.wizard,
-    settingsPanel: plugin.settingsPanel,
-  })),
+  pluginRegistry.listPackages().flatMap((packageManifest) =>
+    packageManifest.implementations.map((implementationManifest) => {
+      const loaded = pluginRegistry.get(implementationManifest.id)!;
+      return {
+        manifest: loaded.manifest,
+        packageId: packageManifest.id,
+        packageVersion: packageManifest.version,
+        sessionRequirements: loaded.sessionRequirements,
+        wizard: loaded.wizard,
+        settingsPanel: loaded.settingsPanel,
+      };
+    }),
+  ),
 );
+
+ipcMain.handle(Channels.PluginsListPackages, () => pluginRegistry.listPackages());
 
 ipcMain.handle(Channels.PluginsInstall, (_event, input: InstallPluginInput) =>
   installPlugin(input.rawInput, {
@@ -384,6 +395,8 @@ ipcMain.handle(Channels.PluginsInstall, (_event, input: InstallPluginInput) =>
   }),
 );
 
+// pluginId here is a *package* id (§9.4) — uninstallPlugin() unregisters every implementation the
+// package bundles, together.
 ipcMain.handle(Channels.PluginsUninstall, (_event, pluginId: string) =>
   uninstallPlugin(pluginId, { pluginsDir: pluginsDir(app.getPath('userData')), registry: pluginRegistry }),
 );
@@ -446,10 +459,12 @@ function buildSbomSources(): SbomSource[] {
   return [
     { id: 'ic-core', label: 'Invoice Collector (core app)', filePath: IC_CORE_SBOM_PATH },
     { id: 'invoice-collector-plugin-sdk', label: 'invoice-collector-plugin-sdk', filePath: SDK_SBOM_PATH },
-    ...pluginRegistry.list().map((plugin) => ({
-      id: plugin.manifest.id,
-      label: plugin.manifest.name,
-      filePath: path.join(pluginsDir(app.getPath('userData')), plugin.manifest.id, plugin.manifest.sbom),
+    // §9.4: one shared SBOM per installed *package*, not per implementation — a package that
+    // bundles a source and a destination together still has just one dependency tree.
+    ...pluginRegistry.listPackages().map((packageManifest) => ({
+      id: packageManifest.id,
+      label: packageManifest.name,
+      filePath: path.join(pluginsDir(app.getPath('userData')), packageManifest.id, packageManifest.sbom),
     })),
   ];
 }

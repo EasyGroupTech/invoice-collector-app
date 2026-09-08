@@ -4,7 +4,7 @@ import { resolveSessionCreateInput } from './session-create-input.js';
 
 function fakePlugin(overrides: Partial<SourcePlugin> = {}): SourcePlugin {
   return {
-    manifest: { id: 'ic-email-to-downloads', name: 'Mail', version: '1.0.0', pluginApiVersion: '^1.0.0', kind: 'source', sbom: 's.json', main: 'i.js' },
+    manifest: { id: 'ic-email-to-downloads', name: 'Mail', kind: 'source', main: 'i.js' },
     sessionRequirements: [
       {
         sessionTypeId: 'microsoft-entra-delegated-device-code',

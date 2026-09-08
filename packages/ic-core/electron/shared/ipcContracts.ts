@@ -1,6 +1,7 @@
 import type {
   PluginBackedRecord,
   PluginDestinationRecord,
+  PluginImplementationManifest,
   PluginManifest,
   PluginSourceRecord,
   SessionRequirement,
@@ -53,6 +54,7 @@ export const Channels = {
   AppOpenExternal: 'app:openExternal',
 
   PluginsList: 'plugins:list',
+  PluginsListPackages: 'plugins:listPackages',
   PluginsInstall: 'plugins:install',
   PluginsUninstall: 'plugins:uninstall',
 
@@ -164,9 +166,21 @@ export interface RunCollectInput {
  * loaded SourcePlugin/DestinationPlugin object, not the manifest. This is that object's UI-facing
  * subset, serializable across the IPC boundary (no functions — resolveListData etc. stay
  * main-process-only, reached instead via WizardResolveListData).
+ *
+ * Deliberately still one row per *implementation*, not per package (§9.4) — the Add-Source/
+ * Destination wizard needs to offer a choice between individual source/destination
+ * implementations (a package can bundle more than one, e.g. ic-email-to-downloads' Graph Mail
+ * source and Local Folder destination), each with its own sessionRequirements/wizard/
+ * settingsPanel; collapsing to package level here would break that choice. `packageId`/
+ * `packageVersion` are denormalized from the owning package for the few things that still need
+ * them (`PluginBackedRecord.pluginVersion`, e.g.) without a second round-trip. Settings' own
+ * Plugins management card reads `PluginsListPackages` instead, for the actual install/uninstall/
+ * trust/SBOM unit.
  */
 export interface InstalledPluginSummary {
-  manifest: PluginManifest;
+  manifest: PluginImplementationManifest;
+  packageId: string;
+  packageVersion: string;
   sessionRequirements: SessionRequirement[];
   wizard: WizardStepDescriptor[];
   settingsPanel?: SettingsPanelDescriptor;

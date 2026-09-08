@@ -1,4 +1,4 @@
-export type { PluginManifest } from './manifest.js';
+export type { PluginImplementationManifest, PluginManifest } from './manifest.js';
 
 export type {
   HttpRequestInput,

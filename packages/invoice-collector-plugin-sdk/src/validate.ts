@@ -6,12 +6,16 @@ export interface ValidationResult {
   errors: string[];
 }
 
-const REQUIRED_MANIFEST_STRING_FIELDS = ['id', 'name', 'version', 'pluginApiVersion', 'sbom', 'main'] as const;
+const REQUIRED_MANIFEST_STRING_FIELDS = ['id', 'name', 'version', 'pluginApiVersion', 'sbom'] as const;
+const REQUIRED_IMPLEMENTATION_STRING_FIELDS = ['id', 'name', 'main'] as const;
 
 /**
- * The load-time manifest shape check core applies to every plugin, OSS or commercial, before
- * installing it — the same hard-gate rigor §13 already applies to a missing `sbom` specifically,
- * generalized here to the whole manifest shape.
+ * The load-time manifest shape check core applies to every plugin package, OSS or commercial,
+ * before installing it — the same hard-gate rigor §13 already applies to a missing `sbom`
+ * specifically, generalized here to the whole manifest shape. §9.4: manifest.json now describes a
+ * *package* (a bundle of one or more session/source/destination implementations, installed and
+ * removed together) rather than a single implementation — `implementations` must be a non-empty
+ * array, each entry checked the same way the old flat manifest's own id/name/kind/main fields were.
  */
 export function validateManifest(manifest: unknown): ValidationResult {
   const errors: string[] = [];
@@ -28,12 +32,28 @@ export function validateManifest(manifest: unknown): ValidationResult {
     }
   }
 
-  if (m.kind !== 'source' && m.kind !== 'destination') {
-    errors.push('manifest.kind must be "source" or "destination"');
-  }
-
   if (m.repository !== undefined && typeof m.repository !== 'string') {
     errors.push('manifest.repository must be a string when present');
+  }
+
+  if (!Array.isArray(m.implementations) || m.implementations.length === 0) {
+    errors.push('manifest.implementations must be a non-empty array');
+  } else {
+    m.implementations.forEach((implementation, index) => {
+      if (typeof implementation !== 'object' || implementation === null) {
+        errors.push(`manifest.implementations[${index}] must be an object`);
+        return;
+      }
+      const impl = implementation as Record<string, unknown>;
+      for (const field of REQUIRED_IMPLEMENTATION_STRING_FIELDS) {
+        if (typeof impl[field] !== 'string' || impl[field] === '') {
+          errors.push(`manifest.implementations[${index}].${field} must be a non-empty string`);
+        }
+      }
+      if (impl.kind !== 'source' && impl.kind !== 'destination') {
+        errors.push(`manifest.implementations[${index}].kind must be "source" or "destination"`);
+      }
+    });
   }
 
   return { valid: errors.length === 0, errors };
