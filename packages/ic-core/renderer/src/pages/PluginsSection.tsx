@@ -7,18 +7,35 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { InstalledPluginSummary, SbomEntry } from '../../../electron/shared/ipcContracts';
 
+// Matches buildSbomSources()'s own two hardcoded, non-plugin entries (electron/main/index.ts) —
+// the app itself and the SDK it's built on aren't installed plugins, so there's nothing for
+// pluginsUninstall() to act on for either one.
+const NON_REMOVABLE_SBOM_IDS = new Set(['ic-core', 'invoice-collector-plugin-sdk']);
+
 /** §9.1's one Install Plugin entry point + §9's two-tier trust warning, plus uninstall (§5's
  * "preserve, don't delete" — ic-core's uninstallPlugin() already only touches the plugin's own
  * package files). Enable/disable isn't here — same known, deliberately-deferred gap
  * docs/implementation-plan.md's phase 1.11/1.12 notes track (no installed-plugin persistence
  * across a restart yet, so "disable" has nothing durable to attach to today).
  *
+ * Install comes first (plain URL input + button, not its own nested Card — this whole section is
+ * already "Plugins," a second layer of Card chrome around one field added nothing), then the
+ * installed-plugin list as a column of bordered rows rather than a table — same row style
+ * `ProfileManagementSection`/`SessionStatusSection` already use, and one plugin can have a fair
+ * amount to say (name, kind, version, trust tier) for a table row to stay readable at this width.
+ *
  * §13's "Third-Party Licenses"/SBOM screen lives here too, as a second subsection below a divider
  * — the reference app's own SBOM card was really "the license/component detail behind whatever's
  * installed," which is exactly what this card is already about; splitting it into its own
  * always-open card (as it was before) just meant two separate places to look for one topic. Its
  * own per-package expand/collapse (`expandedSbomEntries`) is independent of this card's own
- * collapse state.
+ * collapse state. Each SBOM row also gets a Remove button next to Export SBOM — one npm source
+ * package can register more than one independently-installed plugin manifest (e.g.
+ * ic-email-to-downloads ships both the Graph Mail source and the Local Folder destination as two
+ * separate manifests, each its own row here and in the plugin list above — installPlugin() is
+ * strictly one manifest.json per install, §9.1), so Remove is scoped to one manifest.id at a time,
+ * same granularity as Uninstall in the list above; disabled for the two entries that aren't
+ * removable plugins at all (`NON_REMOVABLE_SBOM_IDS`: the app itself and the SDK).
  *
  * A Settings section (§8, phase 1.16), collapsed by default the same way the reference app's own
  * `SourcesPage` collapses its list — this can grow long and isn't something most sessions need
@@ -33,13 +50,17 @@ export function PluginsSection() {
   const [sbomEntries, setSbomEntries] = useState<SbomEntry[]>([]);
   const [expandedSbomEntries, setExpandedSbomEntries] = useState<Record<string, boolean>>({});
 
-  async function refresh() {
+  async function refreshPlugins() {
     setPlugins(await window.api.pluginsList());
   }
 
+  async function refreshSbom() {
+    setSbomEntries(await window.api.sbomList());
+  }
+
   useEffect(() => {
-    void refresh();
-    void window.api.sbomList().then(setSbomEntries);
+    void refreshPlugins();
+    void refreshSbom();
   }, []);
 
   async function install(confirmUnverified: boolean) {
@@ -53,7 +74,8 @@ export function PluginsSection() {
       setPendingConfirmation(undefined);
       setRawInput('');
       toast.success(`${result.manifest.name} installed`);
-      await refresh();
+      await refreshPlugins();
+      await refreshSbom();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : String(err));
     } finally {
@@ -61,12 +83,18 @@ export function PluginsSection() {
     }
   }
 
+  // Shared by the plugin list's own "Uninstall" and the SBOM subsection's "Remove" below — same
+  // action (§5's "preserve, don't delete" uninstallPlugin()), just two entry points onto the same
+  // set of installed plugins: the SBOM list already shows one row per installed plugin (plus core
+  // and the SDK, neither of which is a removable plugin — see `NON_REMOVABLE_SBOM_IDS`), so
+  // offering Remove there too avoids forcing a trip back up to the plugin list for the same id.
   async function uninstall(pluginId: string) {
     setBusy(true);
     try {
       await window.api.pluginsUninstall(pluginId);
       toast.success('Plugin uninstalled');
-      await refresh();
+      await refreshPlugins();
+      await refreshSbom();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : String(err));
     } finally {
@@ -87,74 +115,50 @@ export function PluginsSection() {
       </CardHeader>
       {!collapsed && (
         <CardContent className="flex flex-col gap-4 pb-4">
-          <fieldset disabled={busy} className="contents">
-            <div className="rounded-lg border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Version</TableHead>
-                    <TableHead>Kind</TableHead>
-                    <TableHead>Trust</TableHead>
-                    <TableHead />
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {plugins.map((p) => (
-                    <TableRow key={p.manifest.id}>
-                      <TableCell>{p.manifest.name}</TableCell>
-                      <TableCell>{p.manifest.version}</TableCell>
-                      <TableCell>{p.manifest.kind}</TableCell>
-                      <TableCell>{p.manifest.repository ? `Open source — ${p.manifest.repository}` : 'Unverified'}</TableCell>
-                      <TableCell>
-                        <Button type="button" variant="outline" size="sm" onClick={() => void uninstall(p.manifest.id)}>
-                          Uninstall
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  {plugins.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={5} className="text-muted-foreground">
-                        No plugins installed yet.
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
+          <fieldset disabled={busy} className="flex flex-col gap-4">
+            <div className="flex flex-col gap-3">
+              <h3 className="text-sm font-medium">Install a plugin</h3>
+              <div className="flex items-center gap-2">
+                <Input placeholder="Plugin URL" value={rawInput} onChange={(e) => setRawInput(e.target.value)} className="flex-1" />
+                <Button type="button" disabled={!rawInput} onClick={() => void install(false)}>
+                  Install
+                </Button>
+              </div>
+
+              {pendingConfirmation && (
+                <div className="flex flex-col gap-3 rounded-lg border border-amber-500/50 bg-amber-500/10 px-4 py-3">
+                  <p className="text-sm">
+                    <strong>{pendingConfirmation.manifestName}</strong> is from an unverified developer and hasn't been reviewed. Installing it means
+                    running its code with full access to this app and your data. Only continue if you trust the source.
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Button type="button" size="sm" onClick={() => void install(true)}>
+                      Install anyway
+                    </Button>
+                    <Button type="button" variant="ghost" size="sm" onClick={() => setPendingConfirmation(undefined)}>
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Install a plugin</CardTitle>
-              </CardHeader>
-              <CardContent className="flex flex-col gap-4">
-                <div className="flex items-center gap-2">
-                  <Input placeholder="Plugin URL" value={rawInput} onChange={(e) => setRawInput(e.target.value)} className="flex-1" />
-                  <Button type="button" disabled={!rawInput} onClick={() => void install(false)}>
-                    Install
+            <div className="flex flex-col gap-2">
+              {plugins.map((p) => (
+                <div key={p.manifest.id} className="flex items-center justify-between gap-2 rounded-md border px-3 py-2">
+                  <div className="flex flex-col gap-0.5 truncate">
+                    <span className="text-sm font-medium">{p.manifest.name}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {p.manifest.kind} · v{p.manifest.version} · {p.manifest.repository ? `Open source — ${p.manifest.repository}` : 'Unverified'}
+                    </span>
+                  </div>
+                  <Button type="button" variant="outline" size="sm" className="shrink-0" onClick={() => void uninstall(p.manifest.id)}>
+                    Uninstall
                   </Button>
                 </div>
-
-                {pendingConfirmation && (
-                  <div className="flex flex-col gap-3 rounded-lg border border-amber-500/50 bg-amber-500/10 px-4 py-3">
-                    <p className="text-sm">
-                      <strong>{pendingConfirmation.manifestName}</strong> is from an unverified developer and hasn't been
-                      reviewed. Installing it means running its code with full access to this app and your data. Only
-                      continue if you trust the source.
-                    </p>
-                    <div className="flex items-center gap-2">
-                      <Button type="button" size="sm" onClick={() => void install(true)}>
-                        Install anyway
-                      </Button>
-                      <Button type="button" variant="ghost" size="sm" onClick={() => setPendingConfirmation(undefined)}>
-                        Cancel
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+              ))}
+              {plugins.length === 0 && <p className="text-sm text-muted-foreground">No plugins installed yet.</p>}
+            </div>
           </fieldset>
 
           <div className="flex flex-col gap-3 border-t pt-6">
@@ -172,19 +176,33 @@ export function PluginsSection() {
                       <span className="text-sm font-medium">{entry.label}</span>
                       {entry.sbom && <span className="text-sm text-muted-foreground">({entry.sbom.components?.length ?? 0} components)</span>}
                     </div>
-                    {entry.sbom && (
+                    <div className="flex shrink-0 items-center gap-2">
+                      {entry.sbom && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            void window.api.sbomExport(entry.id);
+                          }}
+                        >
+                          Export SBOM
+                        </Button>
+                      )}
                       <Button
                         type="button"
                         variant="outline"
                         size="sm"
+                        disabled={busy || NON_REMOVABLE_SBOM_IDS.has(entry.id)}
                         onClick={(e) => {
                           e.stopPropagation();
-                          void window.api.sbomExport(entry.id);
+                          void uninstall(entry.id);
                         }}
                       >
-                        Export SBOM
+                        Remove
                       </Button>
-                    )}
+                    </div>
                   </div>
                   {entry.error && <p className="px-4 pb-3 text-sm text-destructive">Could not load: {entry.error}</p>}
                   {isOpen && entry.sbom && (
