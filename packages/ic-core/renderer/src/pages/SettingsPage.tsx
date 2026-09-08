@@ -36,7 +36,10 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
   return (
     <div className="flex flex-col gap-8">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-semibold tracking-tight">Settings</h2>
+        <div>
+          <h2 className="text-2xl font-semibold tracking-tight">Settings</h2>
+          <p className="text-sm text-muted-foreground">Manage collection flow, application configuration, and access logs.</p>
+        </div>
         <Button variant="ghost" size="icon" className="size-12" onClick={onBack}>
           <ArrowLeft className="size-6" />
         </Button>
