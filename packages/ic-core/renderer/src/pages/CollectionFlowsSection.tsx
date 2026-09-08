@@ -1,15 +1,22 @@
 import { useEffect, useState } from 'react';
 import type { PluginBackedRecord, Session } from 'invoice-collector-plugin-sdk';
-import { ChevronDown, ChevronRight, Trash2 } from 'lucide-react';
+import { ChevronDown, ChevronRight, Pencil, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import type { InstalledPluginSummary } from '../../../electron/shared/ipcContracts';
+import { validateWizardValues, type WizardFieldValues } from '../../../src/wizard-form-state.js';
+import { WizardSteps } from '../descriptors/WizardSteps';
 import { AddCollectorWizard } from './AddCollectorWizard';
 import { sessionFor } from './SourcesDestinationsSection';
 
 const NEEDS_ATTENTION_STATUSES: Session['status'][] = ['expired', 'needs-reconnect'];
+const NO_DESTINATION_VALUE = '__none__';
 
 /** True for a record (source or destination) whose own session is either stale (expired/needs-
  * reconnect) or gone entirely (a sessionId that no longer resolves at all — e.g. a Logout that
@@ -21,6 +28,118 @@ function recordNeedsAttention(record: PluginBackedRecord, sessions: Session[]): 
   return session === undefined || NEEDS_ATTENTION_STATUSES.includes(session.status);
 }
 
+interface EditFlowDialogProps {
+  source: PluginBackedRecord;
+  destinations: PluginBackedRecord[];
+  onClose: () => void;
+  onSaved: () => void;
+}
+
+/**
+ * §14.1's flow editing — the flow's own plugin can't change (that's what makes it the same flow),
+ * so this only ever re-renders the same `WizardSteps` `AddCollectorWizard`'s own configure step
+ * uses, pre-filled from the existing record, plus name/scope/destination. Session reassignment
+ * isn't here — see `UpdateFlowInput`'s own doc comment (ipcContracts.ts) for why.
+ */
+function EditFlowDialog({ source, destinations, onClose, onSaved }: EditFlowDialogProps) {
+  const [plugin, setPlugin] = useState<InstalledPluginSummary | undefined>(undefined);
+  const [name, setName] = useState(source.name);
+  const [scope, setScope] = useState(source.scope ?? '');
+  const [destinationId, setDestinationId] = useState<string | undefined>(source.destinationId ?? undefined);
+  const [values, setValues] = useState<WizardFieldValues>((source.config as WizardFieldValues) ?? {});
+  const [error, setError] = useState<string | undefined>(undefined);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    void window.api.pluginsList().then((all) => setPlugin(all.find((p) => p.manifest.id === source.pluginId)));
+  }, [source.pluginId]);
+
+  async function submit() {
+    if (!plugin) return;
+    const validation = validateWizardValues(plugin.wizard, values);
+    if (!validation.valid) {
+      setError(`Missing required field(s): ${validation.missingFields.join(', ')}`);
+      return;
+    }
+    setSaving(true);
+    setError(undefined);
+    try {
+      await window.api.flowsUpdate({
+        sourceId: source.id,
+        name: name || plugin.manifest.name,
+        scope: scope || undefined,
+        config: values,
+        destinationId: destinationId ?? null,
+      });
+      toast.success(`"${name || plugin.manifest.name}" saved`);
+      onSaved();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="flex max-h-[80vh] flex-col gap-4 overflow-y-auto sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Edit flow</DialogTitle>
+        </DialogHeader>
+
+        {plugin && (
+          <fieldset disabled={saving} className="flex flex-col gap-4">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="edit-flow-name">Source name</Label>
+              <Input id="edit-flow-name" value={name} onChange={(e) => setName(e.target.value)} placeholder={plugin.manifest.name} />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="edit-flow-scope">Scope (optional)</Label>
+              <Input id="edit-flow-scope" value={scope} onChange={(e) => setScope(e.target.value)} placeholder="e.g. Finance department" />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="edit-flow-destination">Destination</Label>
+              <Select
+                value={destinationId ?? NO_DESTINATION_VALUE}
+                onValueChange={(v) => setDestinationId(v === NO_DESTINATION_VALUE ? undefined : v)}
+              >
+                <SelectTrigger id="edit-flow-destination" className="w-full">
+                  <SelectValue placeholder="None" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NO_DESTINATION_VALUE}>None</SelectItem>
+                  {destinations.map((d) => (
+                    <SelectItem key={d.id} value={d.id}>
+                      {d.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <WizardSteps
+              pluginId={plugin.manifest.id}
+              steps={plugin.wizard}
+              values={values}
+              sessionId={source.sessionId}
+              onChange={(n, v) => setValues((prev) => ({ ...prev, [n]: v }))}
+            />
+            {error && <p className="text-sm text-destructive">{error}</p>}
+          </fieldset>
+        )}
+
+        <DialogFooter>
+          <Button type="button" variant="ghost" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="button" disabled={!plugin || saving} onClick={() => void submit()}>
+            {saving ? 'Saving…' : 'Save'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 /**
  * §14.1's "collection flow" concept, replacing the old separate Sources/Destinations cards: a
  * user doesn't work with a source or a destination directly, they set up *where a collector
@@ -30,7 +149,10 @@ function recordNeedsAttention(record: PluginBackedRecord, sessions: Session[]): 
  *
  * Adding a flow reuses `AddCollectorWizard` verbatim — it already builds a source paired with its
  * destination in one guided dialog, exactly the flow concept, previously only reachable from the
- * Collect page's own Add button; this is the same wizard, a second entry point.
+ * Collect page's own Add button; this is the same wizard, a second entry point. Editing a flow
+ * (`EditFlowDialog`, above) is a narrower, single-step counterpart — a flow's plugin is fixed once
+ * created, so there's no multi-step "choose connections"/"establish connections" to re-walk, just
+ * its own name/scope/config/destination.
  *
  * Deleting a flow always removes its source; whether its destination and either one's session also
  * go with it depends on whether anything else still uses them — `FlowsDelete`'s own cascade
@@ -46,6 +168,7 @@ export function CollectionFlowsSection() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [collapsed, setCollapsed] = useState(true);
   const [adding, setAdding] = useState(false);
+  const [editTarget, setEditTarget] = useState<PluginBackedRecord | undefined>(undefined);
   const [deleteTarget, setDeleteTarget] = useState<PluginBackedRecord | undefined>(undefined);
   const [deleting, setDeleting] = useState(false);
 
@@ -120,10 +243,16 @@ export function CollectionFlowsSection() {
                         {destinationStale && <Badge variant="destructive">destination session</Badge>}
                       </span>
                     </div>
-                    <Button type="button" variant="outline" size="sm" className="shrink-0" onClick={() => setDeleteTarget(source)}>
-                      <Trash2 />
-                      Delete
-                    </Button>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <Button type="button" variant="outline" size="sm" onClick={() => setEditTarget(source)}>
+                        <Pencil />
+                        Edit
+                      </Button>
+                      <Button type="button" variant="outline" size="sm" onClick={() => setDeleteTarget(source)}>
+                        <Trash2 />
+                        Delete
+                      </Button>
+                    </div>
                   </div>
                 );
               })}
@@ -143,6 +272,18 @@ export function CollectionFlowsSection() {
           onClose={() => setAdding(false)}
           onCreated={() => {
             setAdding(false);
+            void refresh();
+          }}
+        />
+      )}
+
+      {editTarget && (
+        <EditFlowDialog
+          source={editTarget}
+          destinations={destinations}
+          onClose={() => setEditTarget(undefined)}
+          onSaved={() => {
+            setEditTarget(undefined);
             void refresh();
           }}
         />

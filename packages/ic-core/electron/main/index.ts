@@ -50,6 +50,7 @@ import {
   type ResolveWizardListDataInput,
   type RunCollectInput,
   type SuggestSessionLabelInput,
+  type UpdateFlowInput,
 } from '../shared/ipcContracts.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -263,6 +264,23 @@ ipcMain.handle(Channels.FlowsDelete, async (_event, sourceId: string) => {
   for (const sessionId of result.orphanedSessionIds) {
     await sessionsRegistry.removeSession(sessionId);
   }
+});
+
+ipcMain.handle(Channels.FlowsUpdate, async (_event, input: UpdateFlowInput) => {
+  const filePath = await currentConfigFilePath();
+  const store = await loadConfigFile(filePath);
+  const existing = store.sources.find((s) => s.id === input.sourceId);
+  if (!existing) throw new Error(`Flow ${input.sourceId} not found`);
+  const updated = {
+    ...existing,
+    name: input.name,
+    scope: input.scope,
+    config: input.config,
+    destinationId: input.destinationId,
+    updatedAt: new Date().toISOString(),
+  };
+  await saveConfigFile(filePath, { ...store, sources: upsertRecord(store.sources, updated) });
+  return updated;
 });
 
 ipcMain.handle(Channels.ConfigAssignSession, async (_event, input: AssignSessionInput) => {

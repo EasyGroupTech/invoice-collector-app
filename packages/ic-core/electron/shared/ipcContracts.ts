@@ -39,6 +39,7 @@ export const Channels = {
   ConfigImportAll: 'config:importAll',
 
   FlowsDelete: 'flows:delete',
+  FlowsUpdate: 'flows:update',
 
   ProfilesList: 'profiles:list',
   ProfilesSwitch: 'profiles:switch',
@@ -110,6 +111,21 @@ export interface AssignSessionInput {
   kind: 'source' | 'destination';
   id: string;
   sessionId: string;
+}
+
+/** §14.1's flow-editing entry point — updates a flow's own source: its name, scope, plugin config
+ * (the same `WizardFieldValues` shape it was created with), and which destination it points at.
+ * Session reassignment isn't here — that's already covered by Session Status's own Login/Refresh,
+ * and re-plumbing session selection into edit mode adds real complexity for a rare case (a flow's
+ * plugin, and therefore its `sessionRequirements`, can't change here anyway). Not exposed for
+ * destinations — a destination is often shared across flows, so "editing a flow" only ever means
+ * its own source-side fields plus which (already-existing) destination it's paired with. */
+export interface UpdateFlowInput {
+  sourceId: string;
+  name: string;
+  scope?: string;
+  config: unknown;
+  destinationId?: string | null;
 }
 
 export interface CreateSessionInput {

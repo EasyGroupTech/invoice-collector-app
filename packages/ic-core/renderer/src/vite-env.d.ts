@@ -37,6 +37,7 @@ import type {
   SbomEntry,
   Session,
   SuggestSessionLabelInput,
+  UpdateFlowInput,
   WizardListDataResult,
 } from '../../electron/shared/ipcContracts';
 
@@ -48,6 +49,7 @@ declare global {
       configCreateRecord(input: CreateRecordInput): Promise<PluginBackedRecord>;
       configRemoveRecord(input: RemoveRecordInput): Promise<void>;
       flowsDelete(sourceId: string): Promise<void>;
+      flowsUpdate(input: UpdateFlowInput): Promise<PluginBackedRecord>;
       configAssignSession(input: AssignSessionInput): Promise<PluginBackedRecord>;
       configExportAll(password: string): Promise<FileExportResult>;
       configPickImportFile(): Promise<EncryptedConfigExportFile | undefined>;

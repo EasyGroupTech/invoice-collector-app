@@ -32,6 +32,7 @@ import {
   type SbomEntry,
   type Session,
   type SuggestSessionLabelInput,
+  type UpdateFlowInput,
   type WizardListDataResult,
 } from '../shared/ipcContracts.js';
 
@@ -53,6 +54,7 @@ contextBridge.exposeInMainWorld('api', {
   configCreateRecord: (input: CreateRecordInput): Promise<PluginBackedRecord> => ipcRenderer.invoke(Channels.ConfigCreateRecord, input),
   configRemoveRecord: (input: RemoveRecordInput): Promise<void> => ipcRenderer.invoke(Channels.ConfigRemoveRecord, input),
   flowsDelete: (sourceId: string): Promise<void> => ipcRenderer.invoke(Channels.FlowsDelete, sourceId),
+  flowsUpdate: (input: UpdateFlowInput): Promise<PluginBackedRecord> => ipcRenderer.invoke(Channels.FlowsUpdate, input),
   configAssignSession: (input: AssignSessionInput): Promise<PluginBackedRecord> => ipcRenderer.invoke(Channels.ConfigAssignSession, input),
   configExportAll: (password: string): Promise<FileExportResult> => ipcRenderer.invoke(Channels.ConfigExportAll, password),
   configPickImportFile: (): Promise<EncryptedConfigExportFile | undefined> => ipcRenderer.invoke(Channels.ConfigPickImportFile),
