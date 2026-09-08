@@ -23,9 +23,18 @@ export function sessionFor(record: PluginBackedRecord, sessions: Session[]): Ses
   return record.sessionId ? sessions.find((s) => s.id === record.sessionId) : undefined;
 }
 
+/** True both for a session whose *status* is stale (expired/needs-reconnect) and for one that's
+ * been removed entirely (e.g. via the Sessions card's Logout) — `record.sessionId` still pointing
+ * at an id `sessionFor` can no longer resolve at all. A record with no `sessionId` assigned yet
+ * isn't "stale," just not connected — not this function's concern. */
 function needsAttention(record: PluginBackedRecord, sessions: Session[]): boolean {
+  if (!record.sessionId) return false;
   const session = sessionFor(record, sessions);
-  return session !== undefined && NEEDS_ATTENTION_STATUSES.includes(session.status);
+  return session === undefined || NEEDS_ATTENTION_STATUSES.includes(session.status);
+}
+
+function attentionLabel(record: PluginBackedRecord, sessions: Session[]): string | undefined {
+  return sessionFor(record, sessions)?.status ?? 'session removed';
 }
 
 function RecordTable({ records, sessions, onRemove }: { records: PluginBackedRecord[]; sessions: Session[]; onRemove: (id: string) => void }) {
@@ -45,7 +54,7 @@ function RecordTable({ records, sessions, onRemove }: { records: PluginBackedRec
             <TableRow key={r.id}>
               <TableCell>{r.name}</TableCell>
               <TableCell>{r.pluginId}</TableCell>
-              <TableCell>{needsAttention(r, sessions) && <Badge variant="destructive">{sessionFor(r, sessions)?.status}</Badge>}</TableCell>
+              <TableCell>{needsAttention(r, sessions) && <Badge variant="destructive">{attentionLabel(r, sessions)}</Badge>}</TableCell>
               <TableCell>
                 <Button type="button" variant="outline" size="sm" onClick={() => onRemove(r.id)}>
                   Remove
