@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -8,15 +8,25 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { AdvancedSettings } from '../../../electron/shared/ipcContracts';
 
+// Same debounce window WizardSteps.tsx's own auto-apply-on-change fields use — long enough that a
+// still-typing user doesn't fire a save per keystroke, short enough that autosave still feels
+// immediate once they pause.
+const AUTOSAVE_DEBOUNCE_MS = 400;
+
 /**
  * §7's HTTP retry policy, plus §14.1's Invoice history retention/clear as a second subsection
  * below a divider — both are "set once, rarely revisited" app-behavior preferences, the same
  * reasoning `SettingsPage`'s own doc comment already gives for putting Advanced Settings last, so
  * folding history retention in here (rather than its own always-open card) keeps that grouping
- * consistent instead of treating one "set and forget" setting differently from another. Ported
- * from the reference app's own Invoice history card verbatim (JSX, copy, layout, including
- * `setRetentionMonths` deliberately not pruning immediately — the new window only takes effect on
- * the next `prune()` call, already wired to run once per completed Collect).
+ * consistent instead of treating one "set and forget" setting differently from another.
+ *
+ * Every field here is one row — label then input, inline (`flex items-center gap-2`), no Save
+ * button — autosaved instead, debounced, the same shape for both subsections: a field's own
+ * `useEffect` skips its *first* run (the initial load landing, not a user edit — tracked per field
+ * via its own `justLoaded` ref, since the effect can't tell "value changed because it was fetched"
+ * from "value changed because the user typed" any other way) and otherwise debounce-saves on every
+ * change after that. "Clear history" stays a real button — it's a destructive one-shot action, not
+ * a value to autosave.
  *
  * The reference app's separate "Invoice collection" card (a buffer-days setting for the ARM
  * billing-invoice query window) still has no equivalent here — ic-core's plugins each own their
@@ -25,44 +35,48 @@ import type { AdvancedSettings } from '../../../electron/shared/ipcContracts';
  */
 export function AdvancedSettingsSection() {
   const [settings, setSettings] = useState<AdvancedSettings | undefined>(undefined);
-  const [saving, setSaving] = useState(false);
-
   const [retentionMonths, setRetentionMonths] = useState<number | undefined>(undefined);
-  const [savingRetention, setSavingRetention] = useState(false);
   const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
   const [clearingHistory, setClearingHistory] = useState(false);
+
+  const settingsJustLoaded = useRef(true);
+  const retentionJustLoaded = useRef(true);
 
   useEffect(() => {
     void window.api.settingsGetAdvanced().then(setSettings);
     void window.api.historyGetRetentionMonths().then(setRetentionMonths);
   }, []);
 
-  async function save() {
-    if (!settings) return;
-    setSaving(true);
-    try {
-      const result = await window.api.settingsSaveAdvanced(settings);
-      setSettings(result);
-      toast.success('Advanced Settings saved');
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : String(err));
-    } finally {
-      setSaving(false);
+  useEffect(() => {
+    if (!settings) return; // still loading — nothing to autosave yet
+    if (settingsJustLoaded.current) {
+      settingsJustLoaded.current = false; // this run is the initial fetch landing, not an edit
+      return;
     }
-  }
+    const timer = setTimeout(() => {
+      window.api
+        .settingsSaveAdvanced(settings)
+        .then(() => toast.success('Advanced Settings saved'))
+        .catch((err) => toast.error(err instanceof Error ? err.message : String(err)));
+    }, AUTOSAVE_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settings?.retryPolicy.baseDelayMs, settings?.retryPolicy.maxRetries]);
 
-  async function handleSaveRetention() {
-    if (retentionMonths === undefined || retentionMonths < 1) return;
-    setSavingRetention(true);
-    try {
-      await window.api.historySetRetentionMonths(retentionMonths);
-      toast.success('History retention updated');
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : String(err));
-    } finally {
-      setSavingRetention(false);
+  useEffect(() => {
+    if (retentionMonths === undefined || retentionMonths < 1) return; // still loading, or mid-edit to an invalid value
+    if (retentionJustLoaded.current) {
+      retentionJustLoaded.current = false;
+      return;
     }
-  }
+    const timer = setTimeout(() => {
+      window.api
+        .historySetRetentionMonths(retentionMonths)
+        .then(() => toast.success('History retention updated'))
+        .catch((err) => toast.error(err instanceof Error ? err.message : String(err)));
+    }, AUTOSAVE_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [retentionMonths]);
 
   async function handleClearHistory() {
     setClearingHistory(true);
@@ -87,8 +101,8 @@ export function AdvancedSettingsSection() {
           <p className="text-sm text-muted-foreground">HTTP retry policy (§7) — how a plugin's outbound requests retry on a 429/throttling response.</p>
         </CardHeader>
         <CardContent className="flex flex-col gap-6">
-          <fieldset disabled={saving} className="flex flex-col gap-4">
-            <div className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center gap-2">
               <Label htmlFor="retry-base-delay">Base delay (ms)</Label>
               <Input
                 id="retry-base-delay"
@@ -96,10 +110,10 @@ export function AdvancedSettingsSection() {
                 min={0}
                 value={settings.retryPolicy.baseDelayMs}
                 onChange={(e) => setSettings({ ...settings, retryPolicy: { ...settings.retryPolicy, baseDelayMs: e.target.valueAsNumber } })}
-                className="max-w-40"
+                className="w-24"
               />
             </div>
-            <div className="flex flex-col gap-1.5">
+            <div className="flex items-center gap-2">
               <Label htmlFor="retry-max-retries">Max retries</Label>
               <Input
                 id="retry-max-retries"
@@ -107,15 +121,10 @@ export function AdvancedSettingsSection() {
                 min={0}
                 value={settings.retryPolicy.maxRetries}
                 onChange={(e) => setSettings({ ...settings, retryPolicy: { ...settings.retryPolicy, maxRetries: e.target.valueAsNumber } })}
-                className="max-w-40"
+                className="w-24"
               />
             </div>
-            <div>
-              <Button type="button" onClick={() => void save()}>
-                {saving ? 'Saving…' : 'Save'}
-              </Button>
-            </div>
-          </fieldset>
+          </div>
 
           <div className="flex flex-col gap-4 border-t pt-6">
             <div>
@@ -133,14 +142,6 @@ export function AdvancedSettingsSection() {
                 className="w-20"
               />
               <span className="text-sm text-muted-foreground">months</span>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => void handleSaveRetention()}
-                disabled={savingRetention || retentionMonths === undefined || retentionMonths < 1}
-              >
-                Save
-              </Button>
             </div>
             <div className="flex items-center gap-2">
               <Button size="sm" variant="outline" onClick={() => setClearConfirmOpen(true)}>
