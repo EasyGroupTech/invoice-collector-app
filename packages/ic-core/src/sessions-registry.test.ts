@@ -312,6 +312,42 @@ describe('SessionsRegistry', () => {
     });
   });
 
+  describe('removeSession (internal, for core\'s own Sessions UI "Logout")', () => {
+    it('removes the session — no longer in listAll()', async () => {
+      registry.registerSessionPlugin(fakeSessionPlugin(BUILT_IN_TYPE));
+      const created = await registry.forPlugin('ic-email-to-downloads').create(BUILT_IN_TYPE, { label: 'Mailbox sign-in' });
+
+      await registry.removeSession(created.id);
+
+      expect(await registry.listAll()).toEqual([]);
+    });
+
+    it('persists the removal — a fresh registry instance over the same file no longer sees it', async () => {
+      registry.registerSessionPlugin(fakeSessionPlugin(BUILT_IN_TYPE));
+      const created = await registry.forPlugin('ic-email-to-downloads').create(BUILT_IN_TYPE, { label: 'Mailbox sign-in' });
+
+      await registry.removeSession(created.id);
+
+      const reopened = createSessionsRegistry({ filePath, encryptor: fakeEncryptor, createPluginServices: stubPluginServices });
+      expect(await reopened.listAll()).toEqual([]);
+    });
+
+    it('leaves other sessions untouched', async () => {
+      registry.registerSessionPlugin(fakeSessionPlugin(BUILT_IN_TYPE));
+      const api = registry.forPlugin('ic-email-to-downloads');
+      const a = await api.create(BUILT_IN_TYPE, { label: 'A' });
+      const b = await api.create(BUILT_IN_TYPE, { label: 'B' });
+
+      await registry.removeSession(a.id);
+
+      expect((await registry.listAll()).map((s) => s.id)).toEqual([b.id]);
+    });
+
+    it('is a silent no-op for a session id that does not exist', async () => {
+      await expect(registry.removeSession('does-not-exist')).resolves.toBeUndefined();
+    });
+  });
+
   describe('attachAuth (internal, used by HttpApi)', () => {
     it('resolves the session, decrypts its secret, and delegates to the SessionPlugin.applyAuth()', async () => {
       const plugin = fakeSessionPlugin(BUILT_IN_TYPE);

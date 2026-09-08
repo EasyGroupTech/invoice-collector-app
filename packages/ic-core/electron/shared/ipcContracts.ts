@@ -45,6 +45,8 @@ export const Channels = {
   SessionsList: 'sessions:list',
   SessionsCreate: 'sessions:create',
   SessionsReconnect: 'sessions:reconnect',
+  SessionsRefresh: 'sessions:refresh',
+  SessionsLogout: 'sessions:logout',
   SessionsSuggestLabel: 'sessions:suggestLabel',
   SessionsRename: 'sessions:rename',
 
@@ -120,6 +122,9 @@ export interface ResolveWizardListDataInput {
   request: WizardListDataRequest;
 }
 
+/** Also reused as-is for SessionsRefresh (§6's "Refresh" action, `SessionsRegistry.recoverSession`)
+ * — same (pluginId, sessionId) shape, just a silent-only attempt rather than
+ * SessionsReconnect/`SessionsApi.reconnect`'s silent-refresh-then-interactive-fallback. */
 export interface ReconnectSessionInput {
   pluginId: string;
   sessionId: string;

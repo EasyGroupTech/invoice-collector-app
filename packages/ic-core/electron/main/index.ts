@@ -335,6 +335,14 @@ ipcMain.handle(Channels.SessionsReconnect, (_event, input: ReconnectSessionInput
   );
 });
 
+// Silent-only — no job/progress wrapping, unlike SessionsReconnect: recoverSession() never falls
+// back to an interactive sign-in, so there's nothing for a progress dialog to ever show.
+ipcMain.handle(Channels.SessionsRefresh, (_event, input: ReconnectSessionInput) =>
+  sessionsRegistry.recoverSession(input.pluginId, input.sessionId),
+);
+
+ipcMain.handle(Channels.SessionsLogout, (_event, sessionId: string) => sessionsRegistry.removeSession(sessionId));
+
 ipcMain.handle(Channels.SessionsSuggestLabel, async (_event, input: SuggestSessionLabelInput) => {
   const stored = await sessionsRegistry.forPlugin(input.pluginId).get(input.sessionId);
   if (!stored) return undefined;

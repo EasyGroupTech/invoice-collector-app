@@ -59,6 +59,8 @@ declare global {
       sessionsList(): Promise<Session[]>;
       sessionsCreate(input: CreateSessionInput): Promise<JobHandle>;
       sessionsReconnect(input: ReconnectSessionInput): Promise<JobHandle>;
+      sessionsRefresh(input: ReconnectSessionInput): Promise<Session>;
+      sessionsLogout(sessionId: string): Promise<void>;
       sessionsSuggestLabel(input: SuggestSessionLabelInput): Promise<string | undefined>;
       sessionsRename(input: RenameSessionInput): Promise<Session>;
 

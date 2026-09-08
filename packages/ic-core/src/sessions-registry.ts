@@ -58,6 +58,14 @@ export interface SessionsRegistry {
    * plugin's own view of it. A plugin never gets this; only core's own IPC layer does.
    */
   listAll(): Promise<Session[]>;
+  /**
+   * Forgets a session entirely (a user-facing "Logout") — unscoped, same reasoning as `listAll`:
+   * this is core's own Sessions UI acting on the full picture, not a plugin-facing capability.
+   * A source/destination record still pointing at this sessionId isn't touched here — it just
+   * goes back to needing a session assigned, the same state as before one ever existed. Silently a
+   * no-op if the session doesn't exist (already gone is the same end state as removed).
+   */
+  removeSession(sessionId: string): Promise<void>;
 }
 
 function isBuiltInSessionType(sessionTypeId: string): boolean {
@@ -363,6 +371,12 @@ export function createSessionsRegistry(options: SessionsRegistryOptions): Sessio
     async listAll() {
       const current = await state();
       return current.sessions.map(toPublicSession);
+    },
+
+    async removeSession(sessionId) {
+      clearTimerFor(sessionId);
+      const current = await state();
+      await persist({ ...current, sessions: current.sessions.filter((s) => s.id !== sessionId) });
     },
   };
 }

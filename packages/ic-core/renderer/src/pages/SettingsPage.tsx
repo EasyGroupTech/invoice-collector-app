@@ -11,7 +11,7 @@ import { InvoiceHistorySection } from './InvoiceHistorySection';
 import { LogsSection } from './LogsSection';
 import { PluginsSection } from './PluginsSection';
 import { ProfileManagementSection } from './ProfileManagementSection';
-import { SessionsSection } from './SessionsSection';
+import { SessionStatusSection } from './SessionStatusSection';
 import { DestinationsSection, SourcesSection } from './SourcesDestinationsSection';
 
 interface SettingsPageProps {
@@ -21,17 +21,19 @@ interface SettingsPageProps {
 }
 
 /** §6's Profile management (profiles + config Import/Export combined into one card — see
- * `ProfileManagementSection`'s own doc comment), §14.1's Invoice history retention/clear, the
- * operational Logs viewer, Sources/Destinations management, §6's Sessions UI, §9's Plugins
+ * `ProfileManagementSection`'s own doc comment), §6's Sessions UI (`SessionStatusSection`, scoped
+ * to the currently active profile — see its own doc comment), §14.1's Invoice history
+ * retention/clear, the operational Logs viewer, Sources/Destinations management, §9's Plugins
  * management, §13's "Third-Party Licenses"/SBOM screen, and §7's Advanced Settings — sections of
  * one page rather than separate top-level tabs (phase 1.16: the reference app's own Settings page
  * set real precedent for tolerating even more sections than this in one scroll, without ever
- * reaching for sub-tabs). Profile management, Invoice history, then Logs first, matching the
- * reference app's own section order (its separate "Invoice collection" buffer-days card sits
- * between Invoice history and Logs there, but has no equivalent here yet — see
- * InvoiceHistorySection's own doc comment); Sources/Destinations next, then Sessions/Plugins — all
- * things a user is more likely to actually need to act on — Advanced Settings/SBOM last, since
- * both are closer to "set once" than "check regularly." */
+ * reaching for sub-tabs). Profile management and session status lead (a profile switch changes
+ * both at once, so they belong next to each other), then Invoice history and Logs, matching the
+ * reference app's own section order for those (its separate "Invoice collection" buffer-days card
+ * sits between Invoice history and Logs there, but has no equivalent here yet — see
+ * InvoiceHistorySection's own doc comment); Sources/Destinations next, then Plugins — things a user
+ * is more likely to actually need to act on — Advanced Settings/SBOM last, since both are closer to
+ * "set once" than "check regularly." */
 export function SettingsPage({ onBack }: SettingsPageProps) {
   return (
     <div className="flex flex-col gap-8">
@@ -45,11 +47,11 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
         </Button>
       </div>
       <ProfileManagementSection />
+      <SessionStatusSection />
       <InvoiceHistorySection />
       <LogsSection />
       <SourcesSection />
       <DestinationsSection />
-      <SessionsSection />
       <PluginsSection />
       <AdvancedSettingsSection />
       <SbomSection />
