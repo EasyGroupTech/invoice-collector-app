@@ -7,11 +7,6 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { PluginManifest, SbomEntry } from '../../../electron/shared/ipcContracts';
 
-// Matches buildSbomSources()'s own two hardcoded, non-plugin entries (electron/main/index.ts) —
-// the app itself and the SDK it's built on aren't installed plugins, so there's nothing for
-// pluginsUninstall() to act on for either one.
-const NON_REMOVABLE_SBOM_IDS = new Set(['ic-core', 'invoice-collector-plugin-sdk']);
-
 /**
  * §9.4's actual concept: a plugin is a *bundle* of the sessions/sources/destinations it
  * implements — a module, with its own implementation and (declared via `sbom`) its own
@@ -40,9 +35,8 @@ const NON_REMOVABLE_SBOM_IDS = new Set(['ic-core', 'invoice-collector-plugin-sdk
  * installed," which is exactly what this card is already about; splitting it into its own
  * always-open card (as it was before) just meant two separate places to look for one topic. Its
  * own per-package expand/collapse (`expandedSbomEntries`) is independent of this card's own
- * collapse state. Each SBOM row also gets a Remove button next to Export SBOM, scoped to the same
- * package-id granularity as Uninstall in the list above — disabled for the two entries that aren't
- * removable plugins at all (`NON_REMOVABLE_SBOM_IDS`: the app itself and the SDK).
+ * collapse state. Uninstalling is only ever done from the plugin list above — the SBOM subsection
+ * is read-only, matching the reference app's own SBOM screen.
  *
  * A Settings section (§8, phase 1.16), collapsed by default the same way the reference app's own
  * `SourcesPage` collapses its list — this can grow long and isn't something most sessions need
@@ -90,11 +84,8 @@ export function PluginsSection() {
     }
   }
 
-  // Shared by the plugin list's own "Uninstall" and the SBOM subsection's "Remove" below — same
-  // action (§5's "preserve, don't delete" uninstallPlugin()), just two entry points onto the same
-  // set of installed plugins: the SBOM list already shows one row per installed plugin (plus core
-  // and the SDK, neither of which is a removable plugin — see `NON_REMOVABLE_SBOM_IDS`), so
-  // offering Remove there too avoids forcing a trip back up to the plugin list for the same id.
+  // §5's "preserve, don't delete" uninstallPlugin() — also refreshes the SBOM list, since
+  // uninstalling a package removes its SBOM entry too.
   async function uninstall(pluginId: string) {
     setBusy(true);
     try {
@@ -179,33 +170,19 @@ export function PluginsSection() {
                       <span className="text-sm font-medium">{entry.label}</span>
                       {entry.sbom && <span className="text-sm text-muted-foreground">({entry.sbom.components?.length ?? 0} components)</span>}
                     </div>
-                    <div className="flex shrink-0 items-center gap-2">
-                      {entry.sbom && (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            void window.api.sbomExport(entry.id);
-                          }}
-                        >
-                          Export SBOM
-                        </Button>
-                      )}
+                    {entry.sbom && (
                       <Button
                         type="button"
                         variant="outline"
                         size="sm"
-                        disabled={busy || NON_REMOVABLE_SBOM_IDS.has(entry.id)}
                         onClick={(e) => {
                           e.stopPropagation();
-                          void uninstall(entry.id);
+                          void window.api.sbomExport(entry.id);
                         }}
                       >
-                        Remove
+                        Export SBOM
                       </Button>
-                    </div>
+                    )}
                   </div>
                   {entry.error && <p className="px-4 pb-3 text-sm text-destructive">Could not load: {entry.error}</p>}
                   {isOpen && entry.sbom && (
