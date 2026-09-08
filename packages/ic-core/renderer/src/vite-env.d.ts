@@ -47,6 +47,7 @@ declare global {
       configListDestinations(): Promise<PluginBackedRecord[]>;
       configCreateRecord(input: CreateRecordInput): Promise<PluginBackedRecord>;
       configRemoveRecord(input: RemoveRecordInput): Promise<void>;
+      flowsDelete(sourceId: string): Promise<void>;
       configAssignSession(input: AssignSessionInput): Promise<PluginBackedRecord>;
       configExportAll(password: string): Promise<FileExportResult>;
       configPickImportFile(): Promise<EncryptedConfigExportFile | undefined>;

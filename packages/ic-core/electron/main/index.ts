@@ -11,6 +11,7 @@ import { decryptConfigExport, encryptConfigExport, type EncryptedConfigExportFil
 import { applyConfigImport, buildConfigExport, type ConfigExportFile } from '../../src/config-export.js';
 import {
   createRecord,
+  deleteFlow,
   loadConfigFile,
   removeRecord,
   saveConfigFile,
@@ -251,6 +252,19 @@ ipcMain.handle(Channels.ConfigRemoveRecord, async (_event, input: RemoveRecordIn
   await saveConfigFile(filePath, { ...store, [key]: removeRecord(store[key], input.id) });
 });
 
+// §14.1's "collection flow" concept: deletes the flow's own source, cascading to its destination
+// (if nothing else still uses it) and to each one's own session (if nothing — source or
+// destination — still references it), same reasoning deleteFlow() itself already documents.
+ipcMain.handle(Channels.FlowsDelete, async (_event, sourceId: string) => {
+  const filePath = await currentConfigFilePath();
+  const store = await loadConfigFile(filePath);
+  const result = deleteFlow(store, sourceId);
+  await saveConfigFile(filePath, { ...store, sources: result.sources, destinations: result.destinations });
+  for (const sessionId of result.orphanedSessionIds) {
+    await sessionsRegistry.removeSession(sessionId);
+  }
+});
+
 ipcMain.handle(Channels.ConfigAssignSession, async (_event, input: AssignSessionInput) => {
   const filePath = await currentConfigFilePath();
   const store = await loadConfigFile(filePath);
@@ -341,7 +355,9 @@ ipcMain.handle(Channels.SessionsRefresh, (_event, input: ReconnectSessionInput) 
   sessionsRegistry.recoverSession(input.pluginId, input.sessionId),
 );
 
-ipcMain.handle(Channels.SessionsLogout, (_event, sessionId: string) => sessionsRegistry.removeSession(sessionId));
+// A user-facing Logout only clears stored credentials — it doesn't delete the session record
+// (FlowsDelete's own cascade is the only thing that does that, once nothing references it).
+ipcMain.handle(Channels.SessionsLogout, (_event, sessionId: string) => sessionsRegistry.logoutSession(sessionId));
 
 ipcMain.handle(Channels.SessionsSuggestLabel, async (_event, input: SuggestSessionLabelInput) => {
   const stored = await sessionsRegistry.forPlugin(input.pluginId).get(input.sessionId);

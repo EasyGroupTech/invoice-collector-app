@@ -38,6 +38,8 @@ export const Channels = {
   ConfigPickImportFile: 'config:pickImportFile',
   ConfigImportAll: 'config:importAll',
 
+  FlowsDelete: 'flows:delete',
+
   ProfilesList: 'profiles:list',
   ProfilesSwitch: 'profiles:switch',
   ProfilesCreate: 'profiles:create',

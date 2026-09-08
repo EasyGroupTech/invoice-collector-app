@@ -6,10 +6,10 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { DeviceCodeSignInPrompt, extractDeviceCodeInfo } from '@/components/DeviceCodeSignInPrompt';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useJob } from '../hooks/useJob';
 
-type BusyAction = 'login' | 'refresh';
+type BusyAction = 'login' | 'refresh' | 'logout';
 
 /**
  * Replaces the old `SessionsSection`'s single "Reconnect" button (silent-refresh-first,
@@ -25,9 +25,11 @@ type BusyAction = 'login' | 'refresh';
  *   HttpApi's 401-triggered recovery) exposed as its own silent-only IPC action — no interactive
  *   fallback, so unlike Login it simply fails with an error toast if there's no refresh mechanism
  *   or the attempt itself doesn't succeed.
- * - **Logout** is new: `SessionsRegistry.removeSession` forgets the session entirely. A confirm
- *   dialog gates it — a source/destination still pointing at the removed sessionId doesn't get
- *   cleaned up here, it just goes back to needing one assigned, same as before any session existed.
+ * - **Logout** is new: `SessionsRegistry.logoutSession` only clears the stored credentials and
+ *   moves the session to `needs-reconnect` — it does *not* delete the session record (§14.1: only
+ *   a flow deletion's own cascade, once nothing references a session any more, actually removes
+ *   one). Fully reversible with a Login click, so — unlike a real delete — no confirm dialog: same
+ *   directness as Refresh.
  *
  * Collapsed by default like `PluginsSection`; the card description is always a plain status
  * summary (active vs. needing attention), both collapsed and expanded — no per-row Type/Expires
@@ -38,8 +40,6 @@ export function SessionStatusSection() {
   const [collapsed, setCollapsed] = useState(true);
   const [busySessionId, setBusySessionId] = useState<string | undefined>(undefined);
   const [busyAction, setBusyAction] = useState<BusyAction | undefined>(undefined);
-  const [logoutTarget, setLogoutTarget] = useState<Session | undefined>(undefined);
-  const [loggingOut, setLoggingOut] = useState(false);
   const loginJob = useJob<Session>();
 
   async function refresh() {
@@ -99,18 +99,18 @@ export function SessionStatusSection() {
     }
   }
 
-  async function confirmLogout() {
-    if (!logoutTarget) return;
-    setLoggingOut(true);
+  async function logout(session: Session) {
+    setBusySessionId(session.id);
+    setBusyAction('logout');
     try {
-      await window.api.sessionsLogout(logoutTarget.id);
-      toast(`Logged out ${logoutTarget.label}`);
-      setLogoutTarget(undefined);
+      await window.api.sessionsLogout(session.id);
+      toast(`Logged out ${session.label}`);
       await refresh();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : String(err));
     } finally {
-      setLoggingOut(false);
+      setBusySessionId(undefined);
+      setBusyAction(undefined);
     }
   }
 
@@ -150,8 +150,8 @@ export function SessionStatusSection() {
                     <Button size="sm" variant="outline" disabled={busySessionId !== undefined} onClick={() => void doRefresh(s)}>
                       {rowBusy && busyAction === 'refresh' ? 'Refreshing…' : 'Refresh'}
                     </Button>
-                    <Button size="sm" variant="ghost" disabled={busySessionId !== undefined} onClick={() => setLogoutTarget(s)}>
-                      Logout
+                    <Button size="sm" variant="ghost" disabled={busySessionId !== undefined} onClick={() => void logout(s)}>
+                      {rowBusy && busyAction === 'logout' ? 'Logging out…' : 'Logout'}
                     </Button>
                   </div>
                 </div>
@@ -179,26 +179,6 @@ export function SessionStatusSection() {
           </DialogContent>
         </Dialog>
       ) : null}
-
-      <Dialog open={logoutTarget !== undefined} onOpenChange={(open) => !open && setLogoutTarget(undefined)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Log out {logoutTarget?.label}?</DialogTitle>
-            <DialogDescription>
-              Removes this session entirely. Any source or destination using it will need to be reconnected before it can collect or upload again. This
-              can't be undone.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setLogoutTarget(undefined)}>
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={() => void confirmLogout()} disabled={loggingOut}>
-              {loggingOut ? 'Logging out…' : 'Logout'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </>
   );
 }

@@ -312,7 +312,7 @@ describe('SessionsRegistry', () => {
     });
   });
 
-  describe('removeSession (internal, for core\'s own Sessions UI "Logout")', () => {
+  describe('removeSession (internal, cascade-delete once nothing references a session any more)', () => {
     it('removes the session — no longer in listAll()', async () => {
       registry.registerSessionPlugin(fakeSessionPlugin(BUILT_IN_TYPE));
       const created = await registry.forPlugin('ic-email-to-downloads').create(BUILT_IN_TYPE, { label: 'Mailbox sign-in' });
@@ -345,6 +345,59 @@ describe('SessionsRegistry', () => {
 
     it('is a silent no-op for a session id that does not exist', async () => {
       await expect(registry.removeSession('does-not-exist')).resolves.toBeUndefined();
+    });
+  });
+
+  describe('logoutSession (user-facing "Logout" — clears credentials, keeps the record)', () => {
+    it('clears the secret and expiry info and moves status to needs-reconnect, but keeps the session in listAll()', async () => {
+      registry.registerSessionPlugin(fakeSessionPlugin(BUILT_IN_TYPE));
+      const created = await registry.forPlugin('ic-email-to-downloads').create(BUILT_IN_TYPE, { label: 'Mailbox sign-in' });
+
+      await registry.logoutSession(created.id);
+
+      const [session] = await registry.listAll();
+      expect(session).toBeDefined();
+      expect(session.id).toBe(created.id);
+      expect(session.label).toBe('Mailbox sign-in');
+      expect(session.status).toBe('needs-reconnect');
+      expect(session.expiresAt).toBeUndefined();
+      expect(session.keepAliveIntervalMs).toBeUndefined();
+    });
+
+    it('leaves get() unable to resolve a secret, but still resolving the session itself', async () => {
+      registry.registerSessionPlugin(fakeSessionPlugin(BUILT_IN_TYPE));
+      const api = registry.forPlugin('ic-email-to-downloads');
+      const created = await api.create(BUILT_IN_TYPE, { label: 'Mailbox sign-in' });
+
+      await registry.logoutSession(created.id);
+
+      const resolved = await api.get(created.id);
+      expect(resolved?.session.id).toBe(created.id);
+      expect(resolved?.secret).toBeUndefined();
+    });
+
+    it('attachAuth() throws a clear "needs reconnect" error rather than crashing on a missing secret', async () => {
+      registry.registerSessionPlugin(fakeSessionPlugin(BUILT_IN_TYPE));
+      const created = await registry.forPlugin('ic-email-to-downloads').create(BUILT_IN_TYPE, { label: 'Mailbox sign-in' });
+
+      await registry.logoutSession(created.id);
+
+      await expect(registry.attachAuth('ic-email-to-downloads', created.id, { url: 'https://example.com' })).rejects.toThrow(/needs to be reconnected/i);
+    });
+
+    it('persists across instances (real file-backed store, not in-memory only)', async () => {
+      registry.registerSessionPlugin(fakeSessionPlugin(BUILT_IN_TYPE));
+      const created = await registry.forPlugin('ic-email-to-downloads').create(BUILT_IN_TYPE, { label: 'Mailbox sign-in' });
+
+      await registry.logoutSession(created.id);
+
+      const reopened = createSessionsRegistry({ filePath, encryptor: fakeEncryptor, createPluginServices: stubPluginServices });
+      const [session] = await reopened.listAll();
+      expect(session.status).toBe('needs-reconnect');
+    });
+
+    it('is a silent no-op for a session id that does not exist', async () => {
+      await expect(registry.logoutSession('does-not-exist')).resolves.toBeUndefined();
     });
   });
 

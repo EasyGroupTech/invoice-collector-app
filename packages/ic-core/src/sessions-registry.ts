@@ -59,13 +59,25 @@ export interface SessionsRegistry {
    */
   listAll(): Promise<Session[]>;
   /**
-   * Forgets a session entirely (a user-facing "Logout") — unscoped, same reasoning as `listAll`:
-   * this is core's own Sessions UI acting on the full picture, not a plugin-facing capability.
-   * A source/destination record still pointing at this sessionId isn't touched here — it just
-   * goes back to needing a session assigned, the same state as before one ever existed. Silently a
+   * Forgets a session entirely — unscoped, same reasoning as `listAll`: this is core's own
+   * housekeeping acting on the full picture, not a plugin-facing capability. Not a user-facing
+   * "Logout" (see `logoutSession` for that) — this is the cascade-delete primitive a source/
+   * destination removal uses once a session is no longer referenced by anything (§14.1's flow
+   * concept: a flow's own session gets deleted for real once nothing uses it any more, the same
+   * way its destination does). A source/destination record still pointing at this sessionId isn't
+   * touched here — the caller is responsible for having already confirmed nothing does. Silently a
    * no-op if the session doesn't exist (already gone is the same end state as removed).
    */
   removeSession(sessionId: string): Promise<void>;
+  /**
+   * A user-facing "Logout" — clears the stored secret (and its own expiry info) and moves the
+   * session to `needs-reconnect`, but keeps the session record itself: its id, label, type, and
+   * `createInputCiphertext` (still needed for a later Login to re-establish it) all survive. This
+   * is deliberately *not* the same as `removeSession` — logging out doesn't delete anything, it
+   * just invalidates the credentials, exactly the way logging out of a website doesn't delete your
+   * account. Unscoped, same reasoning as `listAll`. Silently a no-op if the session doesn't exist.
+   */
+  logoutSession(sessionId: string): Promise<void>;
 }
 
 function isBuiltInSessionType(sessionTypeId: string): boolean {
@@ -212,6 +224,9 @@ export function createSessionsRegistry(options: SessionsRegistryOptions): Sessio
     if (!plugin) {
       throw new Error(`No SessionPlugin registered for session type "${stored.sessionTypeId}"`);
     }
+    if (!stored.secretCiphertext) {
+      throw new Error(`Session ${sessionId} needs to be reconnected — logged out`);
+    }
     const secret = JSON.parse(decryptField(options.encryptor, stored.secretCiphertext)) as unknown;
     return plugin.applyAuth(secret, request);
   }
@@ -266,7 +281,13 @@ export function createSessionsRegistry(options: SessionsRegistryOptions): Sessio
         if (!stored || !visibleTo(stored, pluginId)) return undefined;
         return {
           session: toPublicSession(stored),
-          secret: JSON.parse(decryptField(options.encryptor, stored.secretCiphertext)) as unknown,
+          // Logged out (§6) — no secret to decrypt. A plugin's own refresh()/upload()/discover()
+          // reading this back gets `undefined` and fails on its own terms (e.g.
+          // local-folder-session.ts's refresh() already throws "No stored folder path found" for
+          // exactly this shape), which attemptRefresh()'s existing try/catch already turns into a
+          // clean needs-reconnect outcome — no special-casing needed here beyond not crashing on
+          // decrypting a value that isn't there.
+          secret: stored.secretCiphertext ? (JSON.parse(decryptField(options.encryptor, stored.secretCiphertext)) as unknown) : undefined,
         };
       },
 
@@ -377,6 +398,22 @@ export function createSessionsRegistry(options: SessionsRegistryOptions): Sessio
       clearTimerFor(sessionId);
       const current = await state();
       await persist({ ...current, sessions: current.sessions.filter((s) => s.id !== sessionId) });
+    },
+
+    async logoutSession(sessionId) {
+      const current = await state();
+      const stored = current.sessions.find((s) => s.id === sessionId);
+      if (!stored) return;
+      clearTimerFor(sessionId); // nothing left to proactively refresh — there's no secret anymore
+      const updated: StoredSession = {
+        ...stored,
+        status: 'needs-reconnect',
+        secretCiphertext: undefined,
+        expiresAt: undefined,
+        keepAliveIntervalMs: undefined,
+        updatedAt: now().toISOString(),
+      };
+      await persist({ ...current, sessions: upsert(current.sessions, updated) });
     },
   };
 }

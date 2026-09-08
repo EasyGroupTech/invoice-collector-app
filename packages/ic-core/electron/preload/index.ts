@@ -52,6 +52,7 @@ contextBridge.exposeInMainWorld('api', {
   configListDestinations: (): Promise<PluginBackedRecord[]> => ipcRenderer.invoke(Channels.ConfigListDestinations),
   configCreateRecord: (input: CreateRecordInput): Promise<PluginBackedRecord> => ipcRenderer.invoke(Channels.ConfigCreateRecord, input),
   configRemoveRecord: (input: RemoveRecordInput): Promise<void> => ipcRenderer.invoke(Channels.ConfigRemoveRecord, input),
+  flowsDelete: (sourceId: string): Promise<void> => ipcRenderer.invoke(Channels.FlowsDelete, sourceId),
   configAssignSession: (input: AssignSessionInput): Promise<PluginBackedRecord> => ipcRenderer.invoke(Channels.ConfigAssignSession, input),
   configExportAll: (password: string): Promise<FileExportResult> => ipcRenderer.invoke(Channels.ConfigExportAll, password),
   configPickImportFile: (): Promise<EncryptedConfigExportFile | undefined> => ipcRenderer.invoke(Channels.ConfigPickImportFile),
