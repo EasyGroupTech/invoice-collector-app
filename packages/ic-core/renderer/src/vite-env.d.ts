@@ -71,6 +71,9 @@ declare global {
       jobsCancel(jobId: string): Promise<void>;
 
       historyListForMonth(issuedMonth: string): Promise<InvoiceHistoryRecord[]>;
+      historyGetRetentionMonths(): Promise<number>;
+      historySetRetentionMonths(months: number): Promise<void>;
+      historyClearAll(): Promise<void>;
 
       sbomList(): Promise<SbomEntry[]>;
       sbomExport(id: string): Promise<FileExportResult>;

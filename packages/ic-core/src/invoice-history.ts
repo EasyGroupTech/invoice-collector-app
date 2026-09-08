@@ -100,6 +100,13 @@ export interface InvoiceHistory extends DedupChecker {
   prune(now?: Date): Promise<void>;
   listForMonth(issuedMonth: string): Promise<InvoiceHistoryRecord[]>;
   listForPeriod(period: CollectPeriod): Promise<InvoiceHistoryRecord[]>;
+  getRetentionMonths(): Promise<number>;
+  /** Persists the new retention window only — matches the reference app's own handler exactly:
+   * doesn't prune immediately, the new window just takes effect on the next `prune()` call. */
+  setRetentionMonths(months: number): Promise<void>;
+  /** Wipes every collected-invoice record (e.g. to clear out test data) — keeps the
+   * retention-months setting intact, only clears the invoices list. */
+  clear(): Promise<void>;
 }
 
 export function createInvoiceHistory(filePath: string): InvoiceHistory {
@@ -151,6 +158,21 @@ export function createInvoiceHistory(filePath: string): InvoiceHistory {
     async listForPeriod(period) {
       const store = await state();
       return invoicesForPeriod(store, period);
+    },
+
+    async getRetentionMonths() {
+      const store = await state();
+      return store.retentionMonths;
+    },
+
+    async setRetentionMonths(months) {
+      const store = await state();
+      await persist({ ...store, retentionMonths: months });
+    },
+
+    async clear() {
+      const store = await state();
+      await persist({ ...store, invoices: [] });
     },
   };
 }

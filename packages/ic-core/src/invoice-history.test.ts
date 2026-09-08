@@ -235,4 +235,36 @@ describe('createInvoiceHistory (DedupChecker)', () => {
 
     expect(result.map((r) => r.invoiceId)).toEqual(['b']);
   });
+
+  it('getRetentionMonths() reports the default when nothing has been set yet', async () => {
+    const history = createInvoiceHistory(filePath);
+    expect(await history.getRetentionMonths()).toBe(DEFAULT_RETENTION_MONTHS);
+  });
+
+  it('setRetentionMonths() persists the new window without pruning immediately', async () => {
+    const history = createInvoiceHistory(filePath);
+    await history.record('source-1', 'dest-1', { id: 'old', issuedDate: '2020-01-01' }, { status: 'uploaded' });
+
+    await history.setRetentionMonths(3);
+
+    expect(await history.getRetentionMonths()).toBe(3);
+    expect(await history.has('source-1', 'old')).toBe(true);
+
+    const reopened = createInvoiceHistory(filePath);
+    expect(await reopened.getRetentionMonths()).toBe(3);
+  });
+
+  it('clear() wipes every recorded invoice but keeps the retention setting', async () => {
+    const history = createInvoiceHistory(filePath);
+    await history.record('source-1', 'dest-1', { id: 'a', issuedDate: '2026-01-15' }, { status: 'uploaded' });
+    await history.setRetentionMonths(6);
+
+    await history.clear();
+
+    expect(await history.has('source-1', 'a')).toBe(false);
+    expect(await history.getRetentionMonths()).toBe(6);
+
+    const reopened = createInvoiceHistory(filePath);
+    expect(await reopened.has('source-1', 'a')).toBe(false);
+  });
 });

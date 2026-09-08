@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { AdvancedSettings, SbomEntry } from '../../../electron/shared/ipcContracts';
 import { ImportExportSection } from './ImportExportSection';
+import { InvoiceHistorySection } from './InvoiceHistorySection';
 import { PluginsSection } from './PluginsSection';
 import { ProfilesSection } from './ProfilesSection';
 import { SessionsSection } from './SessionsSection';
@@ -19,14 +20,15 @@ interface SettingsPageProps {
   onBack: () => void;
 }
 
-/** §6's Profile management, §6's config Import/Export, Sources/Destinations management, §6's
- * Sessions UI, §9's Plugins management, §13's "Third-Party Licenses"/SBOM screen, and §7's
- * Advanced Settings — sections of one page rather than separate top-level tabs (phase 1.16: the
- * reference app's own Settings page set real precedent for tolerating even more sections than
- * this in one scroll, without ever reaching for sub-tabs). Profiles then Import/Export first,
- * matching the reference app's own section order exactly; Sources/Destinations next, then
- * Sessions/Plugins — all things a user is more likely to actually need to act on — Advanced
- * Settings/SBOM last, since both are closer to "set once" than "check regularly." */
+/** §6's Profile management, §6's config Import/Export, §14.1's Invoice history retention/clear,
+ * Sources/Destinations management, §6's Sessions UI, §9's Plugins management, §13's "Third-Party
+ * Licenses"/SBOM screen, and §7's Advanced Settings — sections of one page rather than separate
+ * top-level tabs (phase 1.16: the reference app's own Settings page set real precedent for
+ * tolerating even more sections than this in one scroll, without ever reaching for sub-tabs).
+ * Profiles, Import/Export, then Invoice history first, matching the reference app's own section
+ * order exactly; Sources/Destinations next, then Sessions/Plugins — all things a user is more
+ * likely to actually need to act on — Advanced Settings/SBOM last, since both are closer to "set
+ * once" than "check regularly." */
 export function SettingsPage({ onBack }: SettingsPageProps) {
   return (
     <div className="flex flex-col gap-8">
@@ -38,6 +40,7 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
       </div>
       <ProfilesSection />
       <ImportExportSection />
+      <InvoiceHistorySection />
       <SourcesSection />
       <DestinationsSection />
       <SessionsSection />

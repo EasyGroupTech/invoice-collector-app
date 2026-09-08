@@ -402,6 +402,9 @@ ipcMain.handle(Channels.JobsCancel, (_event, jobId: string) => jobRunner.cancelJ
 // --- History ---
 
 ipcMain.handle(Channels.HistoryListForMonth, (_event, issuedMonth: string) => invoiceHistory.listForMonth(issuedMonth));
+ipcMain.handle(Channels.HistoryGetRetentionMonths, () => invoiceHistory.getRetentionMonths());
+ipcMain.handle(Channels.HistorySetRetentionMonths, (_event, months: number) => invoiceHistory.setRetentionMonths(months));
+ipcMain.handle(Channels.HistoryClearAll, () => invoiceHistory.clear());
 
 // --- SBOM / licenses (§13) ---
 

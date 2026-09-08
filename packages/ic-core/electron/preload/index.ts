@@ -81,6 +81,9 @@ contextBridge.exposeInMainWorld('api', {
 
   historyListForMonth: (issuedMonth: string): Promise<InvoiceHistoryRecord[]> =>
     ipcRenderer.invoke(Channels.HistoryListForMonth, issuedMonth),
+  historyGetRetentionMonths: (): Promise<number> => ipcRenderer.invoke(Channels.HistoryGetRetentionMonths),
+  historySetRetentionMonths: (months: number): Promise<void> => ipcRenderer.invoke(Channels.HistorySetRetentionMonths, months),
+  historyClearAll: (): Promise<void> => ipcRenderer.invoke(Channels.HistoryClearAll),
 
   sbomList: (): Promise<SbomEntry[]> => ipcRenderer.invoke(Channels.SbomList),
   sbomExport: (id: string): Promise<FileExportResult> => ipcRenderer.invoke(Channels.SbomExport, id),

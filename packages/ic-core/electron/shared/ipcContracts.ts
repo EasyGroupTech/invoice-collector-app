@@ -62,6 +62,9 @@ export const Channels = {
   JobDone: 'job:done',
 
   HistoryListForMonth: 'history:listForMonth',
+  HistoryGetRetentionMonths: 'history:getRetentionMonths',
+  HistorySetRetentionMonths: 'history:setRetentionMonths',
+  HistoryClearAll: 'history:clearAll',
 
   SbomList: 'sbom:list',
   SbomExport: 'sbom:export',
