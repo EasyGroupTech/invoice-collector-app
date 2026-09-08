@@ -1,12 +1,11 @@
 import { useEffect, useState } from 'react';
-import { ArrowLeft, ChevronDown, ChevronRight } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import type { AdvancedSettings, SbomEntry } from '../../../electron/shared/ipcContracts';
+import type { AdvancedSettings } from '../../../electron/shared/ipcContracts';
 import { InvoiceHistorySection } from './InvoiceHistorySection';
 import { LogsSection } from './LogsSection';
 import { PluginsSection } from './PluginsSection';
@@ -24,16 +23,16 @@ interface SettingsPageProps {
  * `ProfileManagementSection`'s own doc comment), §6's Sessions UI (`SessionStatusSection`, scoped
  * to the currently active profile — see its own doc comment), §14.1's Invoice history
  * retention/clear, the operational Logs viewer, Sources/Destinations management, §9's Plugins
- * management, §13's "Third-Party Licenses"/SBOM screen, and §7's Advanced Settings — sections of
- * one page rather than separate top-level tabs (phase 1.16: the reference app's own Settings page
- * set real precedent for tolerating even more sections than this in one scroll, without ever
- * reaching for sub-tabs). Profile management and session status lead (a profile switch changes
- * both at once, so they belong next to each other), then Invoice history and Logs, matching the
- * reference app's own section order for those (its separate "Invoice collection" buffer-days card
- * sits between Invoice history and Logs there, but has no equivalent here yet — see
- * InvoiceHistorySection's own doc comment); Sources/Destinations next, then Plugins — things a user
- * is more likely to actually need to act on — Advanced Settings/SBOM last, since both are closer to
- * "set once" than "check regularly." */
+ * management (§13's "Third-Party Licenses"/SBOM screen combined into that same card — see
+ * `PluginsSection`'s own doc comment), and §7's Advanced Settings — sections of one page rather
+ * than separate top-level tabs (phase 1.16: the reference app's own Settings page set real
+ * precedent for tolerating even more sections than this in one scroll, without ever reaching for
+ * sub-tabs). Profile management and session status lead (a profile switch changes both at once, so
+ * they belong next to each other), then Invoice history and Logs, matching the reference app's own
+ * section order for those (its separate "Invoice collection" buffer-days card sits between Invoice
+ * history and Logs there, but has no equivalent here yet — see InvoiceHistorySection's own doc
+ * comment); Sources/Destinations next, then Plugins — things a user is more likely to actually need
+ * to act on — Advanced Settings last, since it's closer to "set once" than "check regularly." */
 export function SettingsPage({ onBack }: SettingsPageProps) {
   return (
     <div className="flex flex-col gap-8">
@@ -54,7 +53,6 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
       <DestinationsSection />
       <PluginsSection />
       <AdvancedSettingsSection />
-      <SbomSection />
     </div>
   );
 }
@@ -119,87 +117,6 @@ function AdvancedSettingsSection() {
             </Button>
           </div>
         </fieldset>
-      </CardContent>
-    </Card>
-  );
-}
-
-function SbomSection() {
-  const [entries, setEntries] = useState<SbomEntry[]>([]);
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
-
-  useEffect(() => {
-    void window.api.sbomList().then(setEntries);
-  }, []);
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Third-Party Licenses / Software Bill of Materials</CardTitle>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-3">
-        {entries.map((entry) => {
-          const isOpen = Boolean(expanded[entry.id]);
-          return (
-            <div key={entry.id} className="rounded-lg border">
-              <div
-                className="flex cursor-pointer items-center justify-between gap-4 px-4 py-3 select-none"
-                onClick={() => setExpanded((prev) => ({ ...prev, [entry.id]: !isOpen }))}
-              >
-                <div className="flex items-center gap-2">
-                  {isOpen ? <ChevronDown className="size-4 text-muted-foreground" /> : <ChevronRight className="size-4 text-muted-foreground" />}
-                  <span className="text-sm font-medium">{entry.label}</span>
-                  {entry.sbom && <span className="text-sm text-muted-foreground">({entry.sbom.components?.length ?? 0} components)</span>}
-                </div>
-                {entry.sbom && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      void window.api.sbomExport(entry.id);
-                    }}
-                  >
-                    Export SBOM
-                  </Button>
-                )}
-              </div>
-              {entry.error && <p className="px-4 pb-3 text-sm text-destructive">Could not load: {entry.error}</p>}
-              {isOpen && entry.sbom && (
-                <div className="border-t">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Package</TableHead>
-                        <TableHead>Version</TableHead>
-                        <TableHead>License</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {(entry.sbom.components ?? []).map((component, index) => (
-                        // No stable id on a CycloneDX component beyond name+version, which isn't
-                        // guaranteed unique across a large dependency tree (e.g. differing bom-refs
-                        // for the same name@version resolved at different paths) — index is simpler
-                        // and safe here since this list is never reordered or filtered client-side.
-                        <TableRow key={index}>
-                          <TableCell>{component.name}</TableCell>
-                          <TableCell>{component.version ?? '—'}</TableCell>
-                          <TableCell>
-                            {(component.licenses ?? [])
-                              .map((license) => license.license?.id ?? license.license?.name ?? license.expression ?? 'unknown')
-                              .join(', ') || 'unknown'}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
-            </div>
-          );
-        })}
-        {entries.length === 0 && <p className="text-sm text-muted-foreground">No packages to show.</p>}
       </CardContent>
     </Card>
   );
