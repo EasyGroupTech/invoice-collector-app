@@ -1,11 +1,26 @@
 import { useEffect, useRef, useState } from 'react';
 import type { PluginBackedRecord, Session } from 'invoice-collector-plugin-sdk';
-import { ChevronDown, Copy, FileSpreadsheet, FileText, Loader2, PlayCircle, Plus, Settings as SettingsIcon, StopCircle, Wrench, X } from 'lucide-react';
+import {
+  ChevronDown,
+  Columns3,
+  Copy,
+  FileSpreadsheet,
+  FileText,
+  Loader2,
+  PlayCircle,
+  Plus,
+  Settings as SettingsIcon,
+  StopCircle,
+  Wrench,
+  X,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { InstalledPluginSummary, InvoiceHistoryRecord } from '../../../electron/shared/ipcContracts';
@@ -55,6 +70,59 @@ async function copyToClipboard(value: string) {
   toast.success('Copied');
 }
 
+/** Column customization is display-only — it never touches `exportInvoices()`/`reportExportRows`,
+ * which always exports every column regardless of what's currently shown on screen (a filtered
+ * report and a filtered *view* are different concerns; the report's own "Same columns... as the
+ * Collect page's own table" doc comment (reporting.ts) predates this feature and refers to
+ * content, not visibility). */
+const INVOICE_TABLE_COLUMNS = [
+  { key: 'name', label: 'Name' },
+  { key: 'source', label: 'Source' },
+  { key: 'scope', label: 'Scope' },
+  { key: 'issuedDate', label: 'Date issued' },
+  { key: 'amount', label: 'Total amount' },
+  { key: 'status', label: 'Status' },
+  { key: 'collectedAt', label: 'Collected' },
+  { key: 'destination', label: 'Uploaded destination path' },
+] as const;
+
+type InvoiceTableColumnKey = (typeof INVOICE_TABLE_COLUMNS)[number]['key'];
+
+const DEFAULT_HIDDEN_COLUMNS: readonly InvoiceTableColumnKey[] = ['status', 'collectedAt'];
+
+// Per-viewer preference, not app config — a plain localStorage key is enough, matching how a
+// column-visibility choice like this is usually scoped in similar apps, and avoids a config-file/
+// IPC round trip for something this lightweight. Wrapped defensively since a private-window-style
+// storage block would otherwise crash column customization outright.
+const COLUMN_VISIBILITY_STORAGE_KEY = 'collect-page:invoice-table-columns';
+
+function defaultColumnVisibility(): Record<InvoiceTableColumnKey, boolean> {
+  return Object.fromEntries(INVOICE_TABLE_COLUMNS.map((c) => [c.key, !DEFAULT_HIDDEN_COLUMNS.includes(c.key)])) as Record<
+    InvoiceTableColumnKey,
+    boolean
+  >;
+}
+
+function loadColumnVisibility(): Record<InvoiceTableColumnKey, boolean> {
+  const defaults = defaultColumnVisibility();
+  try {
+    const raw = localStorage.getItem(COLUMN_VISIBILITY_STORAGE_KEY);
+    if (!raw) return defaults;
+    const parsed = JSON.parse(raw) as Partial<Record<InvoiceTableColumnKey, boolean>>;
+    return { ...defaults, ...parsed };
+  } catch {
+    return defaults;
+  }
+}
+
+function saveColumnVisibility(visibility: Record<InvoiceTableColumnKey, boolean>): void {
+  try {
+    localStorage.setItem(COLUMN_VISIBILITY_STORAGE_KEY, JSON.stringify(visibility));
+  } catch {
+    // Best-effort only — a blocked/full storage just means the choice doesn't persist.
+  }
+}
+
 interface CollectPageProps {
   /** Jumps to Settings' Sessions section (phase 1.16) — used by the stale-session summary below,
    * since reconnecting is a session-level action that lives there, not a per-row action here. */
@@ -80,6 +148,8 @@ export function CollectPage({ onOpenSettings }: CollectPageProps) {
   const [invoiceHistory, setInvoiceHistory] = useState<InvoiceHistoryRecord[]>([]);
   const [nameFilter, setNameFilter] = useState('');
   const [exportingInvoices, setExportingInvoices] = useState(false);
+  const [columnVisibility, setColumnVisibility] = useState<Record<InvoiceTableColumnKey, boolean>>(loadColumnVisibility);
+  const [columnsDialogOpen, setColumnsDialogOpen] = useState(false);
   const [currentJobId, setCurrentJobId] = useState<string | undefined>(undefined);
   // The upload pipeline catches an in-flight cancellation between invoices and keeps whatever it
   // already finished (job:done still arrives with ok:false, error:'...cancelled') — tracked in a
@@ -224,6 +294,14 @@ export function CollectPage({ onOpenSettings }: CollectPageProps) {
     }
   }
 
+  function toggleColumn(key: InvoiceTableColumnKey, visible: boolean) {
+    setColumnVisibility((prev) => {
+      const next = { ...prev, [key]: visible };
+      saveColumnVisibility(next);
+      return next;
+    });
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
@@ -354,6 +432,10 @@ export function CollectPage({ onOpenSettings }: CollectPageProps) {
             <FileText />
             Save PDF
           </Button>
+          <Button variant="outline" size="sm" onClick={() => setColumnsDialogOpen(true)}>
+            <Columns3 />
+            Columns
+          </Button>
         </div>
       </div>
 
@@ -366,14 +448,14 @@ export function CollectPage({ onOpenSettings }: CollectPageProps) {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Source</TableHead>
-                <TableHead>Scope</TableHead>
-                <TableHead>Date issued</TableHead>
-                <TableHead>Total amount</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Collected</TableHead>
-                <TableHead>Uploaded destination path</TableHead>
+                {columnVisibility.name && <TableHead>Name</TableHead>}
+                {columnVisibility.source && <TableHead>Source</TableHead>}
+                {columnVisibility.scope && <TableHead>Scope</TableHead>}
+                {columnVisibility.issuedDate && <TableHead>Date issued</TableHead>}
+                {columnVisibility.amount && <TableHead>Total amount</TableHead>}
+                {columnVisibility.status && <TableHead>Status</TableHead>}
+                {columnVisibility.collectedAt && <TableHead>Collected</TableHead>}
+                {columnVisibility.destination && <TableHead>Uploaded destination path</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -386,30 +468,36 @@ export function CollectPage({ onOpenSettings }: CollectPageProps) {
                 const displayName = displayNameFor(r);
                 return (
                   <TableRow key={`${r.sourceId}-${r.invoiceId}`}>
-                    <TableCell className="font-medium" title={displayName}>
-                      {truncateText(displayName, 30)}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">{sourceName(r.sourceId)}</TableCell>
-                    <TableCell className="text-muted-foreground" title={scope}>
-                      {truncateText(scope, 20)}
-                    </TableCell>
-                    <TableCell>{r.issuedDate}</TableCell>
-                    <TableCell>{formatAmount(r.amount)}</TableCell>
-                    <TableCell>{r.status}</TableCell>
-                    <TableCell className="text-muted-foreground">{r.collectedAt}</TableCell>
-                    <TableCell className="text-xs text-muted-foreground" title={destination}>
-                      <div className="flex items-center gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="size-6 shrink-0"
-                          onClick={() => void copyToClipboard(destination)}
-                        >
-                          <Copy className="size-3.5" />
-                        </Button>
-                        <span>{truncateText(destination, 26)}</span>
-                      </div>
-                    </TableCell>
+                    {columnVisibility.name && (
+                      <TableCell className="font-medium" title={displayName}>
+                        {truncateText(displayName, 30)}
+                      </TableCell>
+                    )}
+                    {columnVisibility.source && <TableCell className="text-muted-foreground">{sourceName(r.sourceId)}</TableCell>}
+                    {columnVisibility.scope && (
+                      <TableCell className="text-muted-foreground" title={scope}>
+                        {truncateText(scope, 20)}
+                      </TableCell>
+                    )}
+                    {columnVisibility.issuedDate && <TableCell>{r.issuedDate}</TableCell>}
+                    {columnVisibility.amount && <TableCell>{formatAmount(r.amount)}</TableCell>}
+                    {columnVisibility.status && <TableCell>{r.status}</TableCell>}
+                    {columnVisibility.collectedAt && <TableCell className="text-muted-foreground">{r.collectedAt}</TableCell>}
+                    {columnVisibility.destination && (
+                      <TableCell className="text-xs text-muted-foreground" title={destination}>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="size-6 shrink-0"
+                            onClick={() => void copyToClipboard(destination)}
+                          >
+                            <Copy className="size-3.5" />
+                          </Button>
+                          <span>{truncateText(destination, 26)}</span>
+                        </div>
+                      </TableCell>
+                    )}
                   </TableRow>
                 );
               })}
@@ -436,6 +524,37 @@ export function CollectPage({ onOpenSettings }: CollectPageProps) {
           onFixed={() => void refresh()}
         />
       )}
+
+      <Dialog open={columnsDialogOpen} onOpenChange={setColumnsDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Table columns</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-3">
+            {INVOICE_TABLE_COLUMNS.map((column) => {
+              const isLastVisible = columnVisibility[column.key] && Object.values(columnVisibility).filter(Boolean).length === 1;
+              return (
+                <div key={column.key} className="flex items-center gap-2">
+                  <Checkbox
+                    id={`column-${column.key}`}
+                    checked={columnVisibility[column.key]}
+                    disabled={isLastVisible}
+                    onCheckedChange={(checked) => toggleColumn(column.key, checked === true)}
+                  />
+                  <Label htmlFor={`column-${column.key}`} className="font-normal">
+                    {column.label}
+                  </Label>
+                </div>
+              );
+            })}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setColumnsDialogOpen(false)}>
+              Done
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
