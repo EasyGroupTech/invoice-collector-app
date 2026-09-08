@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { AdvancedSettings, SbomEntry } from '../../../electron/shared/ipcContracts';
 import { PluginsSection } from './PluginsSection';
+import { ProfilesSection } from './ProfilesSection';
 import { SessionsSection } from './SessionsSection';
 import { DestinationsSection, SourcesSection } from './SourcesDestinationsSection';
 
@@ -17,14 +18,14 @@ interface SettingsPageProps {
   onBack: () => void;
 }
 
-/** Sources/Destinations management, §6's Sessions UI, §9's Plugins management, §13's
- * "Third-Party Licenses"/SBOM screen, and §7's Advanced Settings — six sections of one page
- * rather than separate top-level tabs (phase 1.16: the reference app's own Settings page set
- * real precedent for tolerating even more sections than this, at 7, in one scroll, without ever
- * reaching for sub-tabs — Sources/Destinations were two of those sections there too, never on the
- * primary Collect view). Sources/Destinations first, then Sessions/Plugins — all four things a
- * user is more likely to actually need to act on — Advanced Settings/SBOM last, since both are
- * closer to "set once" than "check regularly." */
+/** §6's Profile management, Sources/Destinations management, §6's Sessions UI, §9's Plugins
+ * management, §13's "Third-Party Licenses"/SBOM screen, and §7's Advanced Settings — sections of
+ * one page rather than separate top-level tabs (phase 1.16: the reference app's own Settings page
+ * set real precedent for tolerating even more sections than this in one scroll, without ever
+ * reaching for sub-tabs). Profiles first, matching the reference app's own section order exactly;
+ * Sources/Destinations next, then Sessions/Plugins — all things a user is more likely to actually
+ * need to act on — Advanced Settings/SBOM last, since both are closer to "set once" than "check
+ * regularly." */
 export function SettingsPage({ onBack }: SettingsPageProps) {
   return (
     <div className="flex flex-col gap-8">
@@ -34,6 +35,7 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
           <ArrowLeft className="size-6" />
         </Button>
       </div>
+      <ProfilesSection />
       <SourcesSection />
       <DestinationsSection />
       <SessionsSection />
