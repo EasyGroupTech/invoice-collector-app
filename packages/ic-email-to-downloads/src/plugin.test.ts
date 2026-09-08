@@ -229,6 +229,7 @@ describe('discover', () => {
     expect(outcomes).toEqual([
       {
         id: 'm1:a1',
+        name: 'INV-1',
         issuedDate: '2026-01-10',
         amount: { value: 50, currency: 'USD' },
         pluginRef: { messageId: 'm1', attachmentId: 'a1', attachmentName: 'invoice.pdf', attachmentContentType: 'application/pdf', invoiceNumber: 'INV-1' },
@@ -255,6 +256,7 @@ describe('discover', () => {
     expect(outcomes).toEqual([
       {
         id: 'm1:a1',
+        name: 'INV-2',
         issuedDate: '2026-02-05', // no date found anywhere — falls back to the message's own received date
         amount: { value: 75, currency: 'EUR' },
         pluginRef: { messageId: 'm1', attachmentId: 'a1', attachmentName: 'bill.pdf', attachmentContentType: 'application/pdf', invoiceNumber: 'INV-2' },
@@ -310,11 +312,36 @@ describe('discover', () => {
     expect(outcomes).toEqual([
       {
         id: 'm1:a1',
+        name: 'ZX-500',
         issuedDate: '2026-05-05',
         amount: { value: 20, currency: 'USD' },
         pluginRef: { messageId: 'm1', attachmentId: 'a1', attachmentName: 'receipt.pdf', attachmentContentType: 'application/pdf', invoiceNumber: 'ZX-500' },
       },
     ]);
+  });
+
+  it("falls back to the attachment's own filename for `name` when no invoice number was found", async () => {
+    const http = dispatchingHttp([
+      { match: '/me/messages?', response: fakeResponse(200, { value: [{ id: 'm1', subject: 'Your receipt', receivedDateTime: '2026-03-01T00:00:00Z', hasAttachments: true }] }) },
+      {
+        match: '/me/messages/m1?',
+        response: fakeResponse(200, {
+          subject: 'Your receipt',
+          receivedDateTime: '2026-03-01T00:00:00Z',
+          body: { contentType: 'text', content: 'Amount: $40.00 USD' }, // no invoice number anywhere in the body
+        }),
+      },
+      { match: '/attachments?', response: fakeResponse(200, { value: [{ '@odata.type': '#microsoft.graph.fileAttachment', id: 'a1', name: 'receipt-march.pdf', contentType: 'application/pdf', isInline: false }] }) },
+      { match: '/attachments/a1', response: fakeBinaryResponse(200, '%PDF-1.4\nnothing recognizable here either\n%%EOF') },
+    ]);
+
+    const outcomes = [];
+    for await (const invoice of plugin.discover(fakeContext(http), record(), { start: '2026-03-01', end: '2026-03-31' }, new AbortController().signal)) {
+      outcomes.push(invoice);
+    }
+
+    expect(outcomes).toHaveLength(1);
+    expect(outcomes[0].name).toBe('receipt-march.pdf');
   });
 
   it('skips a message where the built-in rules found nothing at all, neither in the body nor the PDF', async () => {

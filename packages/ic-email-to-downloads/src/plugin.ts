@@ -232,6 +232,11 @@ async function* discover(
 
     yield {
       id: `${message.id}:${fileAttachment.id}`,
+      // Same preference order buildInvoiceFileName() already uses for the downloaded file's own
+      // name — a parsed invoice number when there is one, else the attachment's own filename,
+      // either way readable, unlike `id` (a Graph message+attachment id pair, never meant for
+      // display).
+      name: fields.invoiceNumber ?? fileAttachment.name,
       issuedDate: fields.issuedDate ?? message.receivedDateTime.slice(0, 10),
       amount: fields.amount,
       pluginRef,

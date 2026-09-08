@@ -202,7 +202,7 @@ export function CollectPage({ onOpenSettings }: CollectPageProps) {
   const filteredInvoiceHistory = invoiceHistory.filter((r) => {
     const needle = nameFilter.trim().toLowerCase();
     if (!needle) return true;
-    return [sourceName(r.sourceId), sourceScope(r.sourceId), destinationName(r.destinationId), r.invoiceId].some((value) =>
+    return [sourceName(r.sourceId), sourceScope(r.sourceId), destinationName(r.destinationId), r.invoiceName ?? r.invoiceId].some((value) =>
       value.toLowerCase().includes(needle),
     );
   });
@@ -382,10 +382,11 @@ export function CollectPage({ onOpenSettings }: CollectPageProps) {
                 // by a destination type that reported no location.
                 const destination = r.location ?? destinationName(r.destinationId);
                 const scope = sourceScope(r.sourceId);
+                const displayName = r.invoiceName ?? r.invoiceId;
                 return (
                   <TableRow key={`${r.sourceId}-${r.invoiceId}`}>
-                    <TableCell className="font-medium" title={r.invoiceId}>
-                      {truncateText(r.invoiceId, 30)}
+                    <TableCell className="font-medium" title={displayName}>
+                      {truncateText(displayName, 30)}
                     </TableCell>
                     <TableCell className="text-muted-foreground">{sourceName(r.sourceId)}</TableCell>
                     <TableCell className="text-muted-foreground" title={scope}>

@@ -14,6 +14,11 @@ export interface InvoiceHistoryRecord {
   sourceId: string;
   destinationId: string;
   invoiceId: string;
+  /** Human-readable label (`DiscoveredInvoice.name`) — an invoice number when the plugin found
+   * one, a filename otherwise. Unset for a record written before this field existed, or by a
+   * plugin that hasn't started supplying one; every display of this record falls back to
+   * `invoiceId` in that case, but `invoiceId` is often an opaque API id, never meant to be read. */
+  invoiceName?: string;
   issuedDate: string;
   amount?: { value: number; currency: string };
   status: UploadResult['status'];
@@ -136,6 +141,7 @@ export function createInvoiceHistory(filePath: string): InvoiceHistory {
         sourceId,
         destinationId,
         invoiceId: invoice.id,
+        invoiceName: invoice.name,
         issuedDate: invoice.issuedDate,
         amount: invoice.amount,
         status: result.status,

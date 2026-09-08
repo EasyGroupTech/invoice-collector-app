@@ -44,8 +44,14 @@ export type PluginSourceRecord = PluginBackedRecord;
 export type PluginDestinationRecord = PluginBackedRecord;
 
 export interface DiscoveredInvoice {
-  /** Core's dedup key, scoped per-source — never guessed at, always plugin-supplied. */
+  /** Core's dedup key, scoped per-source — never guessed at, always plugin-supplied. Usually
+   * opaque (an API-internal id) — never shown to a user; see `name` for that. */
   id: string;
+  /** Human-readable label — an invoice number if the plugin can determine one, a filename,
+   * whatever's most recognizable. Wherever core shows an invoice to a user (the Collect page's
+   * own table, the report export), it falls back to `id` if this is omitted, but a plugin that can
+   * do better than an opaque id should. */
+  name?: string;
   issuedDate: string;
   amount?: { value: number; currency: string };
   /** Opaque to core — whatever this plugin's own fetchContent() needs to resolve the actual

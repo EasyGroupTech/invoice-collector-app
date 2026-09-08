@@ -54,6 +54,16 @@ describe('buildReportRows', () => {
     const rows = buildReportRows([historyRecord({ amount: { value: 42.5, currency: 'USD' } })], [], []);
     expect(rows[0].amount).toEqual({ value: 42.5, currency: 'USD' });
   });
+
+  it('carries invoiceName through unchanged when present', () => {
+    const rows = buildReportRows([historyRecord({ invoiceName: 'G181587741' })], [], []);
+    expect(rows[0].invoiceName).toBe('G181587741');
+  });
+
+  it('leaves invoiceName undefined for a record that never had one', () => {
+    const rows = buildReportRows([historyRecord()], [], []);
+    expect(rows[0].invoiceName).toBeUndefined();
+  });
 });
 
 const sampleRows: ReportRow[] = [
@@ -98,6 +108,17 @@ describe('buildHtmlReport', () => {
   it('pluralizes "invoices" correctly for zero and multiple rows', () => {
     expect(buildHtmlReport([], { start: '2026-01-01', end: '2026-01-31' })).toContain('0 invoices');
     expect(buildHtmlReport([sampleRows[0], sampleRows[0]], { start: '2026-01-01', end: '2026-01-31' })).toContain('2 invoices');
+  });
+
+  it('shows invoiceName in the Name column when present, not the bare invoiceId', () => {
+    const html = buildHtmlReport([{ ...sampleRows[0], invoiceName: 'G181587741' }], { start: '2026-01-01', end: '2026-01-31' });
+    expect(html).toContain('G181587741');
+    expect(html).not.toContain('>inv-1<');
+  });
+
+  it('falls back to invoiceId in the Name column when invoiceName is unset', () => {
+    const html = buildHtmlReport(sampleRows, { start: '2026-01-01', end: '2026-01-31' });
+    expect(html).toContain('>inv-1<');
   });
 });
 

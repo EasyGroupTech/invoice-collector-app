@@ -193,6 +193,22 @@ describe('createInvoiceHistory (DedupChecker)', () => {
     expect(stored.location).toBeUndefined();
   });
 
+  it("record() persists the discovered invoice's own name, if supplied", async () => {
+    const history = createInvoiceHistory(filePath);
+    await history.record('source-1', 'dest-1', { ...invoice, name: 'G181587741' }, { status: 'uploaded' });
+
+    const [stored] = await history.listForMonth('2026-01');
+    expect(stored.invoiceName).toBe('G181587741');
+  });
+
+  it('record() leaves invoiceName undefined when the discovered invoice did not supply one', async () => {
+    const history = createInvoiceHistory(filePath);
+    await history.record('source-1', 'dest-1', invoice, { status: 'uploaded' });
+
+    const [stored] = await history.listForMonth('2026-01');
+    expect(stored.invoiceName).toBeUndefined();
+  });
+
   it('persists across instances (real file-backed store, not in-memory only)', async () => {
     const first = createInvoiceHistory(filePath);
     await first.record('source-1', 'dest-1', invoice, { status: 'uploaded' });

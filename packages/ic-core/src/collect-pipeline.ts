@@ -189,7 +189,7 @@ export async function runCollectPipeline(
               issuedDate: discovered.issuedDate,
               status: uploadResult.status,
             });
-            report({ message: `${source.name}: ${uploadResult.status} ${discovered.id}`, sourceId: source.id });
+            report({ message: `${source.name}: ${uploadResult.status} ${discovered.name ?? discovered.id}`, sourceId: source.id });
           } catch (err) {
             if (signal.aborted) throw err;
             const message = errorMessage(err);
@@ -201,7 +201,7 @@ export async function runCollectPipeline(
               status: 'error',
               error: message,
             });
-            report({ message: `${source.name}: FAILED ${discovered.id}: ${message}`, sourceId: source.id });
+            report({ message: `${source.name}: FAILED ${discovered.name ?? discovered.id}: ${message}`, sourceId: source.id });
           }
         }
       } catch (err) {

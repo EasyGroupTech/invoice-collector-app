@@ -9,6 +9,9 @@ export interface ReportRow {
    * by a destination type that reported no location. */
   destinationPath: string;
   invoiceId: string;
+  /** Displayed in place of `invoiceId` wherever this row is shown — see
+   * `InvoiceHistoryRecord.invoiceName`'s own doc comment for when this is unset. */
+  invoiceName?: string;
   issuedDate: string;
   amount?: { value: number; currency: string };
   status: InvoiceHistoryRecord['status'];
@@ -35,6 +38,7 @@ export function buildReportRows(records: InvoiceHistoryRecord[], sources: NameLo
     sourceName: sourceNames.get(r.sourceId) ?? r.sourceId,
     destinationPath: r.location ?? destinationNames.get(r.destinationId) ?? r.destinationId,
     invoiceId: r.invoiceId,
+    invoiceName: r.invoiceName,
     issuedDate: r.issuedDate,
     amount: r.amount,
     status: r.status,
@@ -56,7 +60,7 @@ function escapeHtml(value: string): string {
 const REPORT_COLUMNS = ['Name', 'Source', 'Date issued', 'Total amount', 'Status', 'Collected', 'Uploaded destination path'] as const;
 
 function rowCells(row: ReportRow): string[] {
-  return [row.invoiceId, row.sourceName, row.issuedDate, formatAmount(row.amount), row.status, row.collectedAt, row.destinationPath];
+  return [row.invoiceName ?? row.invoiceId, row.sourceName, row.issuedDate, formatAmount(row.amount), row.status, row.collectedAt, row.destinationPath];
 }
 
 /** A self-contained HTML document (inline `<style>`, no external assets) — meant to be handed
