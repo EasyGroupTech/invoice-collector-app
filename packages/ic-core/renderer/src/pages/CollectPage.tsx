@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { InstalledPluginSummary, InvoiceHistoryRecord } from '../../../electron/shared/ipcContracts';
+import { displayNameFor } from '../../../src/invoice-display.js';
 import { AddCollectorWizard } from './AddCollectorWizard';
 import { SessionEstablishPanel, sessionFor, type RecordKind } from './SourcesDestinationsSection';
 
@@ -202,7 +203,7 @@ export function CollectPage({ onOpenSettings }: CollectPageProps) {
   const filteredInvoiceHistory = invoiceHistory.filter((r) => {
     const needle = nameFilter.trim().toLowerCase();
     if (!needle) return true;
-    return [sourceName(r.sourceId), sourceScope(r.sourceId), destinationName(r.destinationId), r.invoiceName ?? r.invoiceId].some((value) =>
+    return [sourceName(r.sourceId), sourceScope(r.sourceId), destinationName(r.destinationId), displayNameFor(r)].some((value) =>
       value.toLowerCase().includes(needle),
     );
   });
@@ -382,7 +383,7 @@ export function CollectPage({ onOpenSettings }: CollectPageProps) {
                 // by a destination type that reported no location.
                 const destination = r.location ?? destinationName(r.destinationId);
                 const scope = sourceScope(r.sourceId);
-                const displayName = r.invoiceName ?? r.invoiceId;
+                const displayName = displayNameFor(r);
                 return (
                   <TableRow key={`${r.sourceId}-${r.invoiceId}`}>
                     <TableCell className="font-medium" title={displayName}>

@@ -1,5 +1,6 @@
 import writeXlsxFile from 'write-excel-file/node';
 import type { CollectPeriod } from './collect-pipeline.js';
+import { displayNameFor } from './invoice-display.js';
 import type { InvoiceHistoryRecord } from './invoice-history.js';
 
 export interface ReportRow {
@@ -38,7 +39,7 @@ export function buildReportRows(records: InvoiceHistoryRecord[], sources: NameLo
     sourceName: sourceNames.get(r.sourceId) ?? r.sourceId,
     destinationPath: r.location ?? destinationNames.get(r.destinationId) ?? r.destinationId,
     invoiceId: r.invoiceId,
-    invoiceName: r.invoiceName,
+    invoiceName: displayNameFor(r),
     issuedDate: r.issuedDate,
     amount: r.amount,
     status: r.status,

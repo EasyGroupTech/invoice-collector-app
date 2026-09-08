@@ -27,6 +27,7 @@ describe('buildReportRows', () => {
         sourceName: 'Contoso Mailbox',
         destinationPath: 'Downloads',
         invoiceId: 'inv-1',
+        invoiceName: 'inv-1', // displayNameFor()'s own last-resort fallback — no invoiceName or location here
         issuedDate: '2026-01-15',
         amount: undefined,
         status: 'uploaded',
@@ -60,9 +61,14 @@ describe('buildReportRows', () => {
     expect(rows[0].invoiceName).toBe('G181587741');
   });
 
-  it('leaves invoiceName undefined for a record that never had one', () => {
+  it("derives invoiceName from the uploaded file's own basename when the record predates invoiceName, but has a location", () => {
+    const rows = buildReportRows([historyRecord({ location: '/Users/me/Downloads/G181587741_G181587741.pdf' })], [], []);
+    expect(rows[0].invoiceName).toBe('G181587741_G181587741');
+  });
+
+  it('falls back to the bare invoiceId for invoiceName when neither invoiceName nor location is available', () => {
     const rows = buildReportRows([historyRecord()], [], []);
-    expect(rows[0].invoiceName).toBeUndefined();
+    expect(rows[0].invoiceName).toBe('inv-1');
   });
 });
 
