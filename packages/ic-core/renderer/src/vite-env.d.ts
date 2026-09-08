@@ -46,7 +46,8 @@ declare global {
       configCreateRecord(input: CreateRecordInput): Promise<PluginBackedRecord>;
       configRemoveRecord(input: RemoveRecordInput): Promise<void>;
       configAssignSession(input: AssignSessionInput): Promise<PluginBackedRecord>;
-      configExportAll(password: string): Promise<EncryptedConfigExportFile>;
+      configExportAll(password: string): Promise<FileExportResult>;
+      configPickImportFile(): Promise<EncryptedConfigExportFile | undefined>;
       configImportAll(file: EncryptedConfigExportFile, password: string): Promise<ConfigImportResult>;
 
       profilesList(): Promise<ProfileSummary[]>;

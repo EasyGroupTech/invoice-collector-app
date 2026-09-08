@@ -34,6 +34,7 @@ export const Channels = {
   ConfigRemoveRecord: 'config:removeRecord',
   ConfigAssignSession: 'config:assignSession',
   ConfigExportAll: 'config:exportAll',
+  ConfigPickImportFile: 'config:pickImportFile',
   ConfigImportAll: 'config:importAll',
 
   ProfilesList: 'profiles:list',

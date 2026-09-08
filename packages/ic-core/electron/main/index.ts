@@ -236,9 +236,35 @@ ipcMain.handle(Channels.ConfigAssignSession, async (_event, input: AssignSession
   return updated;
 });
 
+// Save-dialog + write, same pattern as SbomExport/ReportExport below — the encrypted payload
+// itself is produced first regardless of whether the user actually picks a destination, since
+// there's no point prompting for a password only to then also cancel a save dialog.
 ipcMain.handle(Channels.ConfigExportAll, async (_event, password: string) => {
   const store = await loadConfigFile(await currentConfigFilePath());
-  return encryptConfigExport(buildConfigExport(store), password);
+  const encrypted = encryptConfigExport(buildConfigExport(store), password);
+
+  const result = await dialog.showSaveDialog(mainWindow!, {
+    defaultPath: `invoice-collector-config-${new Date().toISOString().slice(0, 10)}.json`,
+    filters: [{ name: 'Invoice Collector configuration', extensions: ['json'] }],
+  });
+  if (result.canceled || !result.filePath) return { exported: false };
+
+  await writeFile(result.filePath, JSON.stringify(encrypted), 'utf-8');
+  return { exported: true, filePath: result.filePath };
+});
+
+// Split from ConfigImportAll so the renderer can let the user pick the file first, then ask for
+// its passphrase — matching the reference app's own two-step flow, rather than prompting for a
+// password before the user has even chosen a file.
+ipcMain.handle(Channels.ConfigPickImportFile, async () => {
+  const result = await dialog.showOpenDialog(mainWindow!, {
+    properties: ['openFile'],
+    filters: [{ name: 'Invoice Collector configuration', extensions: ['json'] }],
+  });
+  if (result.canceled || result.filePaths.length === 0) return undefined;
+
+  const raw = await readFile(result.filePaths[0], 'utf-8');
+  return JSON.parse(raw) as EncryptedConfigExportFile;
 });
 
 ipcMain.handle(Channels.ConfigImportAll, async (_event, file: EncryptedConfigExportFile, password: string) => {
