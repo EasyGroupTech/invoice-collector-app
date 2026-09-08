@@ -59,6 +59,16 @@ export interface InvoiceContent {
   bytes: Uint8Array;
 }
 
+/**
+ * What a destination's own `upload()` actually receives — `DiscoveredInvoice` and `InvoiceContent`
+ * merged, plus `sourceName`: core supplies this (from the `PluginSourceRecord` that discovered the
+ * invoice), not the destination plugin itself, since a destination has no other way to know which
+ * source an upload came from. Useful for e.g. organizing uploads into a per-source subfolder.
+ */
+export interface UploadableInvoice extends DiscoveredInvoice, InvoiceContent {
+  sourceName: string;
+}
+
 export interface UploadResult {
   status: 'uploaded' | 'already-existed' | 'overwritten';
   /**
@@ -200,7 +210,7 @@ export interface DestinationPlugin extends PluginLifecycle, WizardDataSourceProv
   upload(
     ctx: PluginContext,
     record: PluginDestinationRecord,
-    invoice: DiscoveredInvoice & InvoiceContent,
+    invoice: UploadableInvoice,
     signal: AbortSignal,
   ): Promise<UploadResult>;
 }

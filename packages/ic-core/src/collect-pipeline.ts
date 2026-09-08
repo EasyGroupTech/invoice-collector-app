@@ -175,7 +175,12 @@ export async function runCollectPipeline(
             // discover this particular invoice (§6's cross-plugin scoping cares about exactly
             // this: createdByPluginId has to be the plugin that actually created a session).
             const destinationCtx = buildContext(deps, destination.pluginId, report, source.id);
-            const uploadResult = await destinationPlugin.upload(destinationCtx, destination, { ...discovered, ...content }, signal);
+            const uploadResult = await destinationPlugin.upload(
+              destinationCtx,
+              destination,
+              { ...discovered, ...content, sourceName: source.name },
+              signal,
+            );
             await deps.dedup.record(source.id, destinationId, discovered, uploadResult);
             outcomes.push({
               sourceId: source.id,

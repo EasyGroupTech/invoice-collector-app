@@ -46,6 +46,7 @@ export type {
   PluginDestinationRecord,
   DiscoveredInvoice,
   InvoiceContent,
+  UploadableInvoice,
   UploadResult,
   PluginLifecycle,
   WizardListDataRequest,

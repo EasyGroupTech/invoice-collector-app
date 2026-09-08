@@ -1,4 +1,4 @@
-import type { DestinationPlugin, DiscoveredInvoice, InvoiceContent, PluginContext, PluginDestinationRecord, SessionRequirement, UploadResult } from 'invoice-collector-plugin-sdk';
+import type { DestinationPlugin, PluginContext, PluginDestinationRecord, SessionRequirement, UploadableInvoice, UploadResult } from 'invoice-collector-plugin-sdk';
 import { LOCAL_FOLDER_SESSION_TYPE_ID, localFolderAccessSessionPlugin } from './local-folder-session.js';
 import { writeInvoiceToFolder } from './local-folder-write.js';
 
@@ -16,7 +16,7 @@ function builtInSessionCreateInput(_requirement: SessionRequirement): unknown {
 async function upload(
   ctx: PluginContext,
   record: PluginDestinationRecord,
-  invoice: DiscoveredInvoice & InvoiceContent,
+  invoice: UploadableInvoice,
   _signal: AbortSignal,
 ): Promise<UploadResult> {
   if (!record.sessionId) {
@@ -28,7 +28,7 @@ async function upload(
     throw new Error('No destination folder found for this session');
   }
 
-  return writeInvoiceToFolder((stored.secret as { folderPath: string }).folderPath, invoice);
+  return writeInvoiceToFolder((stored.secret as { folderPath: string }).folderPath, invoice.sourceName, invoice);
 }
 
 /**
