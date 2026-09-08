@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { validateManifest, validateSessionRequirements, validateWizardDataSources } from './validate.js';
-import type { FieldDescriptor, ListDescriptor } from './ui.js';
+import type { FieldDescriptor, ListDescriptor, TextSelectDescriptor } from './ui.js';
 
 const validManifest = {
   id: 'app.easygroup.source.email-mail',
@@ -148,6 +148,13 @@ const listStep: ListDescriptor = {
   columns: [{ key: 'subject', label: 'Subject' }],
   dataSource: 'mailPreview',
 };
+const textSelectStep: TextSelectDescriptor = {
+  kind: 'textSelect',
+  name: 'fieldRules',
+  label: 'Teach a rule',
+  fields: [{ name: 'invoiceNumber', label: 'Invoice Number' }],
+  dataSource: 'fieldRuleSample',
+};
 
 describe('validateWizardDataSources', () => {
   it('accepts a plugin with no list steps and no resolveListData', () => {
@@ -173,7 +180,7 @@ describe('validateWizardDataSources', () => {
     const result = validateWizardDataSources({ wizard: [listStep] });
     expect(result.valid).toBe(false);
     expect(result.errors).toContain(
-      'plugin declares a ListDescriptor wizard/settings-panel step but does not implement resolveListData',
+      'plugin declares a ListDescriptor/TextSelectDescriptor wizard/settings-panel step but does not implement resolveListData',
     );
   });
 
@@ -183,5 +190,18 @@ describe('validateWizardDataSources', () => {
       settingsPanel: { title: 'Settings', steps: [listStep] },
     });
     expect(result.valid).toBe(false);
+  });
+
+  it('rejects a wizard textSelect step with no resolveListData implemented', () => {
+    const result = validateWizardDataSources({ wizard: [textSelectStep] });
+    expect(result.valid).toBe(false);
+    expect(result.errors).toContain(
+      'plugin declares a ListDescriptor/TextSelectDescriptor wizard/settings-panel step but does not implement resolveListData',
+    );
+  });
+
+  it('accepts a wizard textSelect step that implements resolveListData', () => {
+    const result = validateWizardDataSources({ wizard: [textSelectStep], resolveListData: async () => ({ rows: [] }) });
+    expect(result).toEqual({ valid: true, errors: [] });
   });
 });

@@ -90,11 +90,11 @@ export function validateSessionRequirements(requirements: unknown): ValidationRe
 }
 
 /**
- * A ListDescriptor's `dataSource` (§8) is resolved by calling the plugin's own
- * `resolveListData()` — if a plugin's `wizard`/`settingsPanel` declares one but doesn't implement
- * that optional method, its wizard would render a list with no way to ever populate it. Checked
- * at install time, after the plugin module is loaded (unlike `validateManifest`, which only ever
- * sees the manifest JSON, before any code runs).
+ * A ListDescriptor's or TextSelectDescriptor's `dataSource` (§8) is resolved by calling the
+ * plugin's own `resolveListData()` — if a plugin's `wizard`/`settingsPanel` declares one but
+ * doesn't implement that optional method, its wizard would render a list/capture step with no way
+ * to ever populate it. Checked at install time, after the plugin module is loaded (unlike
+ * `validateManifest`, which only ever sees the manifest JSON, before any code runs).
  */
 export function validateWizardDataSources(plugin: {
   wizard: WizardStepDescriptor[];
@@ -102,12 +102,12 @@ export function validateWizardDataSources(plugin: {
   resolveListData?: unknown;
 }): ValidationResult {
   const steps = [...plugin.wizard, ...(plugin.settingsPanel?.steps ?? [])];
-  const hasListStep = steps.some((step) => step.kind === 'list');
+  const hasDataSourceStep = steps.some((step) => step.kind === 'list' || step.kind === 'textSelect');
 
-  if (hasListStep && typeof plugin.resolveListData !== 'function') {
+  if (hasDataSourceStep && typeof plugin.resolveListData !== 'function') {
     return {
       valid: false,
-      errors: ['plugin declares a ListDescriptor wizard/settings-panel step but does not implement resolveListData'],
+      errors: ['plugin declares a ListDescriptor/TextSelectDescriptor wizard/settings-panel step but does not implement resolveListData'],
     };
   }
 

@@ -36,6 +36,10 @@ export type {
   ListColumn,
   ListDescriptor,
   DetailDescriptor,
+  TextSelectField,
+  TextSelectDescriptor,
+  TextSelectSample,
+  CapturedTextSelection,
   WizardStepDescriptor,
   SettingsPanelDescriptor,
 } from './ui.js';

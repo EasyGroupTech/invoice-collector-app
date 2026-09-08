@@ -141,6 +141,76 @@ describe('resolveListData', () => {
       plugin.resolveListData!(fakeContext(dispatchingHttp([])), { dataSource: 'nope', fieldValues: {}, sessionId: 's' }, new AbortController().signal),
     ).rejects.toThrow(/Unknown dataSource/);
   });
+
+  describe('fieldRuleSample (§14.3 manual field-rule capture)', () => {
+    it('returns an empty-body, non-alreadyParsed row when no session is selected yet', async () => {
+      const http = dispatchingHttp([]);
+      const result = await plugin.resolveListData!(fakeContext(http), { dataSource: 'fieldRuleSample', fieldValues: {} }, new AbortController().signal);
+      expect(result).toEqual({ rows: [] });
+      expect(http.request).not.toHaveBeenCalled();
+    });
+
+    it("finds the first matching message the built-in rules can't fully parse and returns its body/PDF text", async () => {
+      const http = dispatchingHttp([
+        {
+          match: '/me/messages?',
+          response: fakeResponse(200, {
+            value: [
+              { id: 'm1', subject: 'Invoice', receivedDateTime: '2026-01-10T00:00:00Z', hasAttachments: true },
+              { id: 'm2', subject: 'Invoice', receivedDateTime: '2026-01-11T00:00:00Z', hasAttachments: true },
+            ],
+          }),
+        },
+        {
+          match: '/me/messages/m1?',
+          response: fakeResponse(200, { body: { contentType: 'text', content: 'Invoice Number: INV-1\nInvoice Date: January 10, 2026\nAmount: $50.00 USD' } }),
+        },
+        { match: '/messages/m1/attachments?', response: fakeResponse(200, { value: [] }) },
+        { match: '/me/messages/m2?', response: fakeResponse(200, { body: { contentType: 'text', content: 'Ref# ZX-9 for your purchase.' } }) },
+        { match: '/messages/m2/attachments?', response: fakeResponse(200, { value: [] }) },
+      ]);
+
+      const result = await plugin.resolveListData!(
+        fakeContext(http),
+        { dataSource: 'fieldRuleSample', fieldValues: {}, sessionId: 'session-1' },
+        new AbortController().signal,
+      );
+
+      // m1 already parses fully via the built-in rules, so it's skipped in favor of m2.
+      expect(result.rows).toEqual([{ bodyText: 'Ref# ZX-9 for your purchase.', alreadyParsed: false }]);
+    });
+
+    it('reports alreadyParsed when every matching message already parses fully', async () => {
+      const http = dispatchingHttp([
+        { match: '/me/messages?', response: fakeResponse(200, { value: [{ id: 'm1', subject: 'Invoice', receivedDateTime: '2026-01-10T00:00:00Z', hasAttachments: true }] }) },
+        {
+          match: '/me/messages/m1?',
+          response: fakeResponse(200, { body: { contentType: 'text', content: 'Invoice Number: INV-1\nInvoice Date: January 10, 2026\nAmount: $50.00 USD' } }),
+        },
+        { match: '/messages/m1/attachments?', response: fakeResponse(200, { value: [] }) },
+      ]);
+
+      const result = await plugin.resolveListData!(
+        fakeContext(http),
+        { dataSource: 'fieldRuleSample', fieldValues: {}, sessionId: 'session-1' },
+        new AbortController().signal,
+      );
+
+      expect(result.rows).toEqual([{ bodyText: '', alreadyParsed: true }]);
+    });
+
+    it('reports not-alreadyParsed (nothing to show) when there are no matching messages at all', async () => {
+      const http = dispatchingHttp([{ match: '/me/messages?', response: fakeResponse(200, { value: [] }) }]);
+
+      const result = await plugin.resolveListData!(
+        fakeContext(http),
+        { dataSource: 'fieldRuleSample', fieldValues: {}, sessionId: 'session-1' },
+        new AbortController().signal,
+      );
+
+      expect(result.rows).toEqual([{ bodyText: '', alreadyParsed: false }]);
+    });
+  });
 });
 
 describe('discover', () => {
@@ -204,6 +274,47 @@ describe('discover', () => {
       outcomes.push(invoice);
     }
     expect(outcomes).toEqual([]);
+  });
+
+  it("resolves fields via the source's own configured field rules when the built-in rules can't parse this template", async () => {
+    const http = dispatchingHttp([
+      { match: '/me/messages?', response: fakeResponse(200, { value: [{ id: 'm1', subject: 'Your receipt', receivedDateTime: '2026-05-01T00:00:00Z', hasAttachments: true }] }) },
+      {
+        match: '/me/messages/m1?',
+        response: fakeResponse(200, {
+          subject: 'Your receipt',
+          receivedDateTime: '2026-05-01T00:00:00Z',
+          body: { contentType: 'text', content: 'Ref# ZX-500 Charged on May 5, 2026. You owe: 20.00 USD' },
+        }),
+      },
+      { match: '/attachments?', response: fakeResponse(200, { value: [{ '@odata.type': '#microsoft.graph.fileAttachment', id: 'a1', name: 'receipt.pdf', contentType: 'application/pdf', isInline: false }] }) },
+      { match: '/attachments/a1', response: fakeBinaryResponse(200, '%PDF-1.4\nnothing recognizable here either\n%%EOF') },
+    ]);
+
+    const fieldRules = [
+      { fieldName: 'invoiceNumber' as const, source: 'body' as const, label: 'Ref#' },
+      { fieldName: 'issuedDate' as const, source: 'body' as const, label: 'Charged on' },
+      { fieldName: 'amount' as const, source: 'body' as const, label: 'You owe:' },
+    ];
+
+    const outcomes = [];
+    for await (const invoice of plugin.discover(
+      fakeContext(http),
+      record({ config: { fieldRules } }),
+      { start: '2026-05-01', end: '2026-05-31' },
+      new AbortController().signal,
+    )) {
+      outcomes.push(invoice);
+    }
+
+    expect(outcomes).toEqual([
+      {
+        id: 'm1:a1',
+        issuedDate: '2026-05-05',
+        amount: { value: 20, currency: 'USD' },
+        pluginRef: { messageId: 'm1', attachmentId: 'a1', attachmentName: 'receipt.pdf', attachmentContentType: 'application/pdf', invoiceNumber: 'ZX-500' },
+      },
+    ]);
   });
 
   it('skips a message where the built-in rules found nothing at all, neither in the body nor the PDF', async () => {

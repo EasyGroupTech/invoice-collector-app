@@ -1,11 +1,16 @@
+import type { MailFieldRule } from './mail-field-rules.js';
+
 /** The plugin's own persisted config (§5's "plugin-owned JSON, non-secret, non-session config
- * only") — deliberately just these three fields, not a date range: the actual collect period
- * always comes from core's own job runner (§14, `discover()`'s own `period` argument), never
- * from anything captured once at onboarding. */
+ * only") — deliberately no date range: the actual collect period always comes from core's own job
+ * runner (§14, `discover()`'s own `period` argument), never from anything captured once at
+ * onboarding. `fieldRules` is §14.3's manual field-rule capture (see mail-field-rules.ts) —
+ * additive; a source created before this field existed simply has it undefined, same as any other
+ * unset optional field. */
 export interface MailSourceConfig {
   subjectContains?: string;
   senderContains?: string;
   hasAttachmentsOnly?: boolean;
+  fieldRules?: MailFieldRule[];
 }
 
 export interface MailFilterCandidate {
