@@ -151,6 +151,11 @@ interface SessionCreatePanelProps {
 function SessionCreatePanel({ plugin, requirement, value, onChange }: SessionCreatePanelProps) {
   const job = useJob<Session>();
   const [suggesting, setSuggesting] = useState(false);
+  // Only meaningful when requirement.createInputFields is set (a custom session type that needs
+  // real, structured, user-typed input before create() can run — e.g. a pasted secure line) —
+  // self-contained per panel, since a source's and a destination's SessionCreatePanel can both be
+  // open at once and must not share one field-values state.
+  const [inputValues, setInputValues] = useState<WizardFieldValues>({});
 
   useEffect(() => {
     if (!job.result?.ok || value) return;
@@ -163,11 +168,18 @@ function SessionCreatePanel({ plugin, requirement, value, onChange }: SessionCre
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [job.result]);
 
+  const inputFields = requirement.createInputFields ?? [];
+  const inputValid = inputFields.length === 0 || validateWizardValues(inputFields, inputValues).valid;
+
   return (
     <div className="flex flex-col gap-2 rounded-lg border p-4">
       <p className="text-sm font-medium">Connect: {plugin.manifest.name}</p>
       {requirement.permissionsNote && <p className="text-sm text-muted-foreground">{requirement.permissionsNote}</p>}
       <p className="text-sm text-muted-foreground">Requires: {requirement.requiredScopesOrRoles.join(', ') || 'no specific scopes declared'}</p>
+
+      {!value && !job.jobId && inputFields.length > 0 && (
+        <WizardSteps pluginId={plugin.manifest.id} steps={inputFields} values={inputValues} onChange={(name, v) => setInputValues((prev) => ({ ...prev, [name]: v }))} />
+      )}
 
       {!value && !job.jobId && (
         <div>
@@ -175,7 +187,16 @@ function SessionCreatePanel({ plugin, requirement, value, onChange }: SessionCre
             type="button"
             variant="outline"
             size="sm"
-            onClick={() => void job.start(window.api.sessionsCreate({ pluginId: plugin.manifest.id, sessionTypeId: requirement.sessionTypeId }))}
+            disabled={!inputValid}
+            onClick={() =>
+              void job.start(
+                window.api.sessionsCreate({
+                  pluginId: plugin.manifest.id,
+                  sessionTypeId: requirement.sessionTypeId,
+                  ...(inputFields.length > 0 ? { input: inputValues } : {}),
+                }),
+              )
+            }
           >
             Sign in
           </Button>
