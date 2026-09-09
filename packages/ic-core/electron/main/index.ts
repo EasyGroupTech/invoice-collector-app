@@ -1,15 +1,17 @@
-import { readFile, writeFile } from 'node:fs/promises';
-import { app, BrowserWindow, dialog, ipcMain } from 'electron';
+import { copyFile, readFile, writeFile } from 'node:fs/promises';
+import { app, BrowserWindow, dialog, ipcMain, shell, type IpcMainInvokeEvent } from 'electron';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { microsoftEntraDelegatedDeviceCodeSessionPlugin } from 'invoice-collector-plugin-sdk';
 import { defaultAdvancedSettings, loadAdvancedSettings, saveAdvancedSettings, type AdvancedSettings } from '../../src/advanced-settings.js';
+import { logAppEvent, logCollectionEvent, readLogTail, sanitizeIpcArgsForLog } from '../../src/app-log.js';
 import { createCollectJobGuard } from '../../src/collect-job-guard.js';
 import { runCollectPipeline } from '../../src/collect-pipeline.js';
 import { decryptConfigExport, encryptConfigExport, type EncryptedConfigExportFile } from '../../src/config-export-crypto.js';
 import { applyConfigImport, buildConfigExport, type ConfigExportFile } from '../../src/config-export.js';
 import {
   createRecord,
+  deleteFlow,
   loadConfigFile,
   removeRecord,
   saveConfigFile,
@@ -17,7 +19,8 @@ import {
   type CreateRecordInput as ConfigCreateRecordInput,
 } from '../../src/config-store.js';
 import { createHttpApi, type SessionAuthResolver } from '../../src/http-client.js';
-import { installPlugin, uninstallPlugin } from '../../src/plugin-install.js';
+import { installPlugin, reloadInstalledPlugins, uninstallPlugin } from '../../src/plugin-install.js';
+import { renderHtmlToPdf } from './htmlToPdf.js';
 import { createInvoiceHistory } from '../../src/invoice-history.js';
 import { createJobRunner } from '../../src/job-runner.js';
 import { advancedSettingsFile, appLogFile, pluginsDir, profilePaths } from '../../src/paths.js';
@@ -28,26 +31,32 @@ import { createProfileManager } from '../../src/profiles.js';
 import { buildExcelReport, buildHtmlReport, buildReportRows } from '../../src/reporting.js';
 import { loadSboms, type SbomSource } from '../../src/sbom-registry.js';
 import { resolveSessionCreateInput } from '../../src/session-create-input.js';
+import { suggestSessionLabel } from '../../src/session-label-suggest.js';
 import { createSessionsRegistry, type SessionsRegistry } from '../../src/sessions-registry.js';
 import { resolveWizardListData } from '../../src/wizard-data.js';
 import { safeStorageEncryptor } from './safeStorageEncryptor.js';
 import {
   Channels,
+  type AssignSessionInput,
   type CreateRecordInput,
   type CreateSessionInput,
+  type ExportInvoiceRowsInput,
   type ExportReportInput,
   type InstallPluginInput,
   type ProfileCreateInput,
   type ReconnectSessionInput,
   type RemoveRecordInput,
+  type RenameSessionInput,
   type ResolveWizardListDataInput,
   type RunCollectInput,
+  type SuggestSessionLabelInput,
+  type UpdateFlowInput,
 } from '../shared/ipcContracts.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // dist/main -> ic-core's own package root is two levels up. Correct in dev; revisit once phase
-// 1.16's electron-builder config decides where a packaged build's resources actually live.
+// 1.17's electron-builder config decides where a packaged build's resources actually live.
 const IC_CORE_SBOM_PATH = path.join(__dirname, '../../sbom.cdx.json');
 // Resolved via real Node module resolution rather than a relative path from __dirname — robust
 // to however the SDK ends up laid out in node_modules (a workspace symlink today; still correct
@@ -71,13 +80,37 @@ const CORE_SDK_VERSION = '0.0.0';
 // reading/writing the same userData dir and safeStorage keychain entry, an active data-corruption
 // risk if both are ever run at once (confirmed live: the predecessor's dev instance was still
 // running while this was being built). The packaged dev build variant gets its own identity via
-// electron-builder config instead (phase 1.16, not built yet), since app.isPackaged is true for
+// electron-builder config instead (phase 1.17, not built yet), since app.isPackaged is true for
 // any packaged build regardless of channel.
 if (!app.isPackaged) {
   app.setName('Invoice Collector App Dev');
 }
 
 let mainWindow: BrowserWindow | null = null;
+
+// One continuous operational log, not per-profile (paths.ts's own appLogFile is base-dir-scoped) —
+// the same file plugin-log.ts's createPluginLog already appends "[pluginId]"-tagged lines to.
+const APP_LOG_FILE = appLogFile(app.getPath('userData'));
+
+// Wraps every ipcMain.handle(channel, listener) registered AFTER this call (so it must run before
+// any of them below) to log the channel name, sanitized arguments, and success/failure — ported
+// from the reference app's own installIpcAuditLogging, a single interception point that gives an
+// audit trail of every action the user took without instrumenting each handler individually.
+function installIpcAuditLogging(): void {
+  const originalHandle = ipcMain.handle.bind(ipcMain);
+  ipcMain.handle = ((channel: string, listener: (event: IpcMainInvokeEvent, ...args: unknown[]) => unknown) => {
+    return originalHandle(channel, async (event, ...args: unknown[]) => {
+      void logAppEvent(APP_LOG_FILE, `${channel} ${JSON.stringify(sanitizeIpcArgsForLog(channel, args))}`);
+      try {
+        return await listener(event, ...args);
+      } catch (err) {
+        void logAppEvent(APP_LOG_FILE, `${channel} FAILED: ${err instanceof Error ? err.message : String(err)}`);
+        throw err;
+      }
+    });
+  }) as typeof ipcMain.handle;
+}
+installIpcAuditLogging();
 
 const profileManager = createProfileManager(app.getPath('userData'));
 const pluginRegistry = createPluginRegistry();
@@ -126,6 +159,17 @@ function rebuildProfileScopedServices(): void {
     createPluginServices,
   });
   sessionsRegistry.registerSessionPlugin(microsoftEntraDelegatedDeviceCodeSessionPlugin);
+  // A fresh SessionsRegistry starts with an empty custom-sessionPlugin map of its own — every
+  // plugin already loaded into pluginRegistry (whether from this same boot's reloadInstalledPlugins()
+  // call below, or installed earlier in this same running process) needs its own sessionPlugin, if
+  // any, re-registered here too, or SessionsApi.create() for it would silently break the next time
+  // a profile switch (ProfilesSwitch, §16) rebuilds this registry — the plugin *code* isn't
+  // profile-scoped and never gets reloaded on a switch, only this registry is.
+  for (const plugin of pluginRegistry.list()) {
+    if (plugin.sessionPlugin) {
+      sessionsRegistry.registerSessionPlugin(plugin.sessionPlugin);
+    }
+  }
   void sessionsRegistry.startScheduler();
 
   invoiceHistory = createInvoiceHistory(paths.invoiceHistoryFile);
@@ -176,6 +220,7 @@ function createWindow(): void {
 }
 
 jobRunner.onProgress((event) => mainWindow?.webContents.send(Channels.JobProgress, event));
+jobRunner.onProgress((event) => void logCollectionEvent(APP_LOG_FILE, event.message));
 jobRunner.onDone((event) => mainWindow?.webContents.send(Channels.JobDone, event));
 
 // --- Config ---
@@ -193,6 +238,7 @@ ipcMain.handle(Channels.ConfigCreateRecord, async (_event, input: CreateRecordIn
     config: input.config,
     destinationId: input.destinationId,
     sessionId: input.sessionId,
+    scope: input.scope,
   };
   const record = createRecord(recordInput);
   const key = input.kind === 'source' ? 'sources' : 'destinations';
@@ -207,9 +253,76 @@ ipcMain.handle(Channels.ConfigRemoveRecord, async (_event, input: RemoveRecordIn
   await saveConfigFile(filePath, { ...store, [key]: removeRecord(store[key], input.id) });
 });
 
+// §14.1's "collection flow" concept: deletes the flow's own source, cascading to its destination
+// (if nothing else still uses it) and to each one's own session (if nothing — source or
+// destination — still references it), same reasoning deleteFlow() itself already documents.
+ipcMain.handle(Channels.FlowsDelete, async (_event, sourceId: string) => {
+  const filePath = await currentConfigFilePath();
+  const store = await loadConfigFile(filePath);
+  const result = deleteFlow(store, sourceId);
+  await saveConfigFile(filePath, { ...store, sources: result.sources, destinations: result.destinations });
+  for (const sessionId of result.orphanedSessionIds) {
+    await sessionsRegistry.removeSession(sessionId);
+  }
+});
+
+ipcMain.handle(Channels.FlowsUpdate, async (_event, input: UpdateFlowInput) => {
+  const filePath = await currentConfigFilePath();
+  const store = await loadConfigFile(filePath);
+  const existing = store.sources.find((s) => s.id === input.sourceId);
+  if (!existing) throw new Error(`Flow ${input.sourceId} not found`);
+  const updated = {
+    ...existing,
+    name: input.name,
+    scope: input.scope,
+    config: input.config,
+    destinationId: input.destinationId,
+    updatedAt: new Date().toISOString(),
+  };
+  await saveConfigFile(filePath, { ...store, sources: upsertRecord(store.sources, updated) });
+  return updated;
+});
+
+ipcMain.handle(Channels.ConfigAssignSession, async (_event, input: AssignSessionInput) => {
+  const filePath = await currentConfigFilePath();
+  const store = await loadConfigFile(filePath);
+  const key = input.kind === 'source' ? 'sources' : 'destinations';
+  const existing = store[key].find((r) => r.id === input.id);
+  if (!existing) throw new Error(`${input.kind} ${input.id} not found`);
+  const updated = { ...existing, sessionId: input.sessionId, updatedAt: new Date().toISOString() };
+  await saveConfigFile(filePath, { ...store, [key]: upsertRecord(store[key], updated) });
+  return updated;
+});
+
+// Save-dialog + write, same pattern as SbomExport/ReportExport below — the encrypted payload
+// itself is produced first regardless of whether the user actually picks a destination, since
+// there's no point prompting for a password only to then also cancel a save dialog.
 ipcMain.handle(Channels.ConfigExportAll, async (_event, password: string) => {
   const store = await loadConfigFile(await currentConfigFilePath());
-  return encryptConfigExport(buildConfigExport(store), password);
+  const encrypted = encryptConfigExport(buildConfigExport(store), password);
+
+  const result = await dialog.showSaveDialog(mainWindow!, {
+    defaultPath: `invoice-collector-config-${new Date().toISOString().slice(0, 10)}.json`,
+    filters: [{ name: 'Invoice Collector configuration', extensions: ['json'] }],
+  });
+  if (result.canceled || !result.filePath) return { exported: false };
+
+  await writeFile(result.filePath, JSON.stringify(encrypted), 'utf-8');
+  return { exported: true, filePath: result.filePath };
+});
+
+// Split from ConfigImportAll so the renderer can let the user pick the file first, then ask for
+// its passphrase — matching the reference app's own two-step flow, rather than prompting for a
+// password before the user has even chosen a file.
+ipcMain.handle(Channels.ConfigPickImportFile, async () => {
+  const result = await dialog.showOpenDialog(mainWindow!, {
+    properties: ['openFile'],
+    filters: [{ name: 'Invoice Collector configuration', extensions: ['json'] }],
+  });
+  if (result.canceled || result.filePaths.length === 0) return undefined;
+
+  const raw = await readFile(result.filePaths[0], 'utf-8');
+  return JSON.parse(raw) as EncryptedConfigExportFile;
 });
 
 ipcMain.handle(Channels.ConfigImportAll, async (_event, file: EncryptedConfigExportFile, password: string) => {
@@ -254,20 +367,56 @@ ipcMain.handle(Channels.SessionsReconnect, (_event, input: ReconnectSessionInput
   );
 });
 
-// --- Plugins ---
-// Installed-plugin persistence (reloading what's already in plugins/ across an app restart) is a
-// known gap, not silently skipped — see docs/implementation-plan.md's phase 1.11/1.12 notes.
-// pluginRegistry starts empty every launch; installing is the only way to populate it today.
-// Enable/disable is the same underlying gap and isn't built either — only uninstall is, below.
-
-ipcMain.handle(Channels.PluginsList, () =>
-  pluginRegistry.list().map((plugin) => ({
-    manifest: plugin.manifest,
-    sessionRequirements: plugin.sessionRequirements,
-    wizard: plugin.wizard,
-    settingsPanel: plugin.settingsPanel,
-  })),
+// Silent-only — no job/progress wrapping, unlike SessionsReconnect: recoverSession() never falls
+// back to an interactive sign-in, so there's nothing for a progress dialog to ever show.
+ipcMain.handle(Channels.SessionsRefresh, (_event, input: ReconnectSessionInput) =>
+  sessionsRegistry.recoverSession(input.pluginId, input.sessionId),
 );
+
+// A user-facing Logout only clears stored credentials — it doesn't delete the session record
+// (FlowsDelete's own cascade is the only thing that does that, once nothing references it).
+ipcMain.handle(Channels.SessionsLogout, (_event, sessionId: string) => sessionsRegistry.logoutSession(sessionId));
+
+ipcMain.handle(Channels.SessionsSuggestLabel, async (_event, input: SuggestSessionLabelInput) => {
+  const stored = await sessionsRegistry.forPlugin(input.pluginId).get(input.sessionId);
+  if (!stored) return undefined;
+  return suggestSessionLabel(
+    { registry: pluginRegistry, createPluginServices, sessionsApiForPlugin: (pluginId) => sessionsRegistry.forPlugin(pluginId) },
+    input.pluginId,
+    stored.session,
+    new AbortController().signal,
+  );
+});
+
+ipcMain.handle(Channels.SessionsRename, (_event, input: RenameSessionInput) =>
+  sessionsRegistry.renameSession(input.pluginId, input.sessionId, input.label),
+);
+
+// --- Plugins ---
+// Enable/disable isn't built (docs/implementation-plan.md's phase 1.11/1.12 notes) — only
+// install/uninstall are, below. reloadInstalledPlugins() (app.whenReady(), above) repopulates
+// pluginRegistry from whatever's already on disk at every boot, not just after a fresh install.
+
+// One row per *implementation* (§9.4 — see InstalledPluginSummary's own doc comment), for the
+// Add-Source/Destination wizard. Settings' own Plugins management card reads PluginsListPackages
+// instead, below.
+ipcMain.handle(Channels.PluginsList, () =>
+  pluginRegistry.listPackages().flatMap((packageManifest) =>
+    packageManifest.implementations.map((implementationManifest) => {
+      const loaded = pluginRegistry.get(implementationManifest.id)!;
+      return {
+        manifest: loaded.manifest,
+        packageId: packageManifest.id,
+        packageVersion: packageManifest.version,
+        sessionRequirements: loaded.sessionRequirements,
+        wizard: loaded.wizard,
+        settingsPanel: loaded.settingsPanel,
+      };
+    }),
+  ),
+);
+
+ipcMain.handle(Channels.PluginsListPackages, () => pluginRegistry.listPackages());
 
 ipcMain.handle(Channels.PluginsInstall, (_event, input: InstallPluginInput) =>
   installPlugin(input.rawInput, {
@@ -280,6 +429,8 @@ ipcMain.handle(Channels.PluginsInstall, (_event, input: InstallPluginInput) =>
   }),
 );
 
+// pluginId here is a *package* id (§9.4) — uninstallPlugin() unregisters every implementation the
+// package bundles, together.
 ipcMain.handle(Channels.PluginsUninstall, (_event, pluginId: string) =>
   uninstallPlugin(pluginId, { pluginsDir: pluginsDir(app.getPath('userData')), registry: pluginRegistry }),
 );
@@ -332,6 +483,9 @@ ipcMain.handle(Channels.JobsCancel, (_event, jobId: string) => jobRunner.cancelJ
 // --- History ---
 
 ipcMain.handle(Channels.HistoryListForMonth, (_event, issuedMonth: string) => invoiceHistory.listForMonth(issuedMonth));
+ipcMain.handle(Channels.HistoryGetRetentionMonths, () => invoiceHistory.getRetentionMonths());
+ipcMain.handle(Channels.HistorySetRetentionMonths, (_event, months: number) => invoiceHistory.setRetentionMonths(months));
+ipcMain.handle(Channels.HistoryClearAll, () => invoiceHistory.clear());
 
 // --- SBOM / licenses (§13) ---
 
@@ -339,10 +493,12 @@ function buildSbomSources(): SbomSource[] {
   return [
     { id: 'ic-core', label: 'Invoice Collector (core app)', filePath: IC_CORE_SBOM_PATH },
     { id: 'invoice-collector-plugin-sdk', label: 'invoice-collector-plugin-sdk', filePath: SDK_SBOM_PATH },
-    ...pluginRegistry.list().map((plugin) => ({
-      id: plugin.manifest.id,
-      label: plugin.manifest.name,
-      filePath: path.join(pluginsDir(app.getPath('userData')), plugin.manifest.id, plugin.manifest.sbom),
+    // §9.4: one shared SBOM per installed *package*, not per implementation — a package that
+    // bundles a source and a destination together still has just one dependency tree.
+    ...pluginRegistry.listPackages().map((packageManifest) => ({
+      id: packageManifest.id,
+      label: packageManifest.name,
+      filePath: path.join(pluginsDir(app.getPath('userData')), packageManifest.id, packageManifest.sbom),
     })),
   ];
 }
@@ -386,6 +542,25 @@ ipcMain.handle(Channels.ReportExport, async (_event, input: ExportReportInput) =
   return { exported: true, filePath: result.filePath };
 });
 
+// Exports exactly the rows the renderer already has (and has already filtered) — see
+// ExportInvoiceRowsInput's own doc comment for why this doesn't re-query invoiceHistory itself.
+ipcMain.handle(Channels.ReportExportRows, async (_event, input: ExportInvoiceRowsInput) => {
+  const store = await loadConfigFile(await currentConfigFilePath());
+  const rows = buildReportRows(input.records, store.sources, store.destinations);
+
+  const isExcel = input.format === 'excel';
+  const content = isExcel ? await buildExcelReport(rows, input.period) : await renderHtmlToPdf(buildHtmlReport(rows, input.period));
+
+  const result = await dialog.showSaveDialog(mainWindow!, {
+    defaultPath: `collected-invoices-${input.period.start}-to-${input.period.end}.${isExcel ? 'xlsx' : 'pdf'}`,
+    filters: isExcel ? [{ name: 'Excel workbook', extensions: ['xlsx'] }] : [{ name: 'PDF document', extensions: ['pdf'] }],
+  });
+  if (result.canceled || !result.filePath) return { exported: false };
+
+  await writeFile(result.filePath, content);
+  return { exported: true, filePath: result.filePath };
+});
+
 // --- Advanced Settings (§7) ---
 
 ipcMain.handle(Channels.SettingsGetAdvanced, () => currentAdvancedSettings);
@@ -396,11 +571,59 @@ ipcMain.handle(Channels.SettingsSaveAdvanced, async (_event, settings: AdvancedS
   return currentAdvancedSettings;
 });
 
+// --- Logs ---
+
+ipcMain.handle(Channels.LogsRead, () => readLogTail(APP_LOG_FILE));
+
+ipcMain.handle(Channels.LogsDownload, async () => {
+  const result = await dialog.showSaveDialog(mainWindow!, {
+    defaultPath: `invoice-collector-log-${new Date().toISOString().slice(0, 10)}.txt`,
+    filters: [{ name: 'Log file', extensions: ['txt', 'log'] }],
+  });
+  if (result.canceled || !result.filePath) return { exported: false };
+
+  try {
+    await copyFile(APP_LOG_FILE, result.filePath);
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+      throw new Error('Nothing has been logged yet.');
+    }
+    throw err;
+  }
+  return { exported: true, filePath: result.filePath };
+});
+
+// --- App ---
+
+// A device-code sign-in's own verification URL (Microsoft's own domain, never user-typed) needs
+// to open in the OS's real browser, not inside this app — shell.openExternal is the only way to
+// do that from the renderer. Restricted to https: so a compromised/malicious plugin's own progress
+// data can't smuggle a file:/javascript: URI through this generic channel.
+ipcMain.handle(Channels.AppOpenExternal, (_event, url: string) => {
+  if (!url.startsWith('https://')) {
+    throw new Error(`Refusing to open a non-https URL: ${url}`);
+  }
+  return shell.openExternal(url);
+});
+
 // --- Lifecycle ---
 
 app.whenReady().then(async () => {
   await profileManager.init();
   currentAdvancedSettings = await loadAdvancedSettings(advancedSettingsFile(app.getPath('userData')));
+  // §5's "plugins aren't reloaded from disk at boot yet" gap — a plugin installed in an earlier
+  // run left real files under pluginsDir, but nothing re-registered them into this fresh launch's
+  // registry until now. Runs before rebuildProfileScopedServices() so its own sessionPlugin
+  // re-registration loop (sessionsRegistry doesn't exist yet at this point) picks up every plugin
+  // loaded here.
+  await reloadInstalledPlugins({
+    pluginsDir: pluginsDir(app.getPath('userData')),
+    coreSdkVersion: CORE_SDK_VERSION,
+    registry: pluginRegistry,
+    onError: (pluginId, error) => {
+      console.error(`Failed to reload plugin "${pluginId}" from disk:`, error);
+    },
+  });
   rebuildProfileScopedServices();
   createWindow();
 });

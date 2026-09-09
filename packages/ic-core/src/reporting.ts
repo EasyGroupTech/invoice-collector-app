@@ -1,11 +1,18 @@
 import writeXlsxFile from 'write-excel-file/node';
 import type { CollectPeriod } from './collect-pipeline.js';
+import { displayNameFor } from './invoice-display.js';
 import type { InvoiceHistoryRecord } from './invoice-history.js';
 
 export interface ReportRow {
   sourceName: string;
-  destinationName: string;
+  /** The invoice's own actual upload location (`InvoiceHistoryRecord.location`) when known —
+   * falls back to the destination's name only for a record written before that field existed, or
+   * by a destination type that reported no location. */
+  destinationPath: string;
   invoiceId: string;
+  /** Displayed in place of `invoiceId` wherever this row is shown — see
+   * `InvoiceHistoryRecord.invoiceName`'s own doc comment for when this is unset. */
+  invoiceName?: string;
   issuedDate: string;
   amount?: { value: number; currency: string };
   status: InvoiceHistoryRecord['status'];
@@ -30,8 +37,9 @@ export function buildReportRows(records: InvoiceHistoryRecord[], sources: NameLo
 
   return records.map((r) => ({
     sourceName: sourceNames.get(r.sourceId) ?? r.sourceId,
-    destinationName: destinationNames.get(r.destinationId) ?? r.destinationId,
+    destinationPath: r.location ?? destinationNames.get(r.destinationId) ?? r.destinationId,
     invoiceId: r.invoiceId,
+    invoiceName: displayNameFor(r),
     issuedDate: r.issuedDate,
     amount: r.amount,
     status: r.status,
@@ -47,10 +55,13 @@ function escapeHtml(value: string): string {
   return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-const REPORT_COLUMNS = ['Source', 'Destination', 'Invoice', 'Issued', 'Amount', 'Status', 'Collected'] as const;
+/** Same columns, same order, same labels as the Collect page's own "Collected invoices" table
+ * (`CollectPage.tsx`) — exporting anything else would mean the file doesn't actually match what
+ * the user just filtered/looked at on screen before clicking Save. */
+const REPORT_COLUMNS = ['Name', 'Source', 'Date issued', 'Total amount', 'Status', 'Collected', 'Uploaded destination path'] as const;
 
 function rowCells(row: ReportRow): string[] {
-  return [row.sourceName, row.destinationName, row.invoiceId, row.issuedDate, formatAmount(row.amount), row.status, row.collectedAt];
+  return [row.invoiceName ?? row.invoiceId, row.sourceName, row.issuedDate, formatAmount(row.amount), row.status, row.collectedAt, row.destinationPath];
 }
 
 /** A self-contained HTML document (inline `<style>`, no external assets) — meant to be handed

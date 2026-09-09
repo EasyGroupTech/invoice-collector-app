@@ -25,8 +25,9 @@ describe('buildReportRows', () => {
     expect(rows).toEqual([
       {
         sourceName: 'Contoso Mailbox',
-        destinationName: 'Downloads',
+        destinationPath: 'Downloads',
         invoiceId: 'inv-1',
+        invoiceName: 'inv-1', // displayNameFor()'s own last-resort fallback — no invoiceName or location here
         issuedDate: '2026-01-15',
         amount: undefined,
         status: 'uploaded',
@@ -38,19 +39,43 @@ describe('buildReportRows', () => {
   it('falls back to the bare id when the source/destination is no longer in config', () => {
     const rows = buildReportRows([historyRecord()], [], []);
     expect(rows[0].sourceName).toBe('source-1');
-    expect(rows[0].destinationName).toBe('dest-1');
+    expect(rows[0].destinationPath).toBe('dest-1');
+  });
+
+  it("uses the invoice's own actual upload location over the destination's bare name, when present", () => {
+    const rows = buildReportRows(
+      [historyRecord({ location: '/Users/me/Downloads/INV-1_invoice.pdf' })],
+      [{ id: 'source-1', name: 'Contoso Mailbox' }],
+      [{ id: 'dest-1', name: 'Downloads' }],
+    );
+    expect(rows[0].destinationPath).toBe('/Users/me/Downloads/INV-1_invoice.pdf');
   });
 
   it('carries amount through unchanged when present', () => {
     const rows = buildReportRows([historyRecord({ amount: { value: 42.5, currency: 'USD' } })], [], []);
     expect(rows[0].amount).toEqual({ value: 42.5, currency: 'USD' });
   });
+
+  it('carries invoiceName through unchanged when present', () => {
+    const rows = buildReportRows([historyRecord({ invoiceName: 'G181587741' })], [], []);
+    expect(rows[0].invoiceName).toBe('G181587741');
+  });
+
+  it("derives invoiceName from the uploaded file's own basename when the record predates invoiceName, but has a location", () => {
+    const rows = buildReportRows([historyRecord({ location: '/Users/me/Downloads/G181587741_G181587741.pdf' })], [], []);
+    expect(rows[0].invoiceName).toBe('G181587741_G181587741');
+  });
+
+  it('falls back to the bare invoiceId for invoiceName when neither invoiceName nor location is available', () => {
+    const rows = buildReportRows([historyRecord()], [], []);
+    expect(rows[0].invoiceName).toBe('inv-1');
+  });
 });
 
 const sampleRows: ReportRow[] = [
   {
     sourceName: 'Contoso Mailbox',
-    destinationName: 'Downloads',
+    destinationPath: 'Downloads',
     invoiceId: 'inv-1',
     issuedDate: '2026-01-15',
     amount: { value: 42.5, currency: 'USD' },
@@ -60,6 +85,12 @@ const sampleRows: ReportRow[] = [
 ];
 
 describe('buildHtmlReport', () => {
+  it("uses the same column order/labels as the Collect page's own Collected invoices table", () => {
+    const html = buildHtmlReport(sampleRows, { start: '2026-01-01', end: '2026-01-31' });
+    const headers = [...html.matchAll(/<th>(.*?)<\/th>/g)].map((m) => m[1]);
+    expect(headers).toEqual(['Name', 'Source', 'Date issued', 'Total amount', 'Status', 'Collected', 'Uploaded destination path']);
+  });
+
   it('includes the period, row count, and every row cell', () => {
     const html = buildHtmlReport(sampleRows, { start: '2026-01-01', end: '2026-01-31' });
     expect(html).toContain('2026-01-01');
@@ -83,6 +114,17 @@ describe('buildHtmlReport', () => {
   it('pluralizes "invoices" correctly for zero and multiple rows', () => {
     expect(buildHtmlReport([], { start: '2026-01-01', end: '2026-01-31' })).toContain('0 invoices');
     expect(buildHtmlReport([sampleRows[0], sampleRows[0]], { start: '2026-01-01', end: '2026-01-31' })).toContain('2 invoices');
+  });
+
+  it('shows invoiceName in the Name column when present, not the bare invoiceId', () => {
+    const html = buildHtmlReport([{ ...sampleRows[0], invoiceName: 'G181587741' }], { start: '2026-01-01', end: '2026-01-31' });
+    expect(html).toContain('G181587741');
+    expect(html).not.toContain('>inv-1<');
+  });
+
+  it('falls back to invoiceId in the Name column when invoiceName is unset', () => {
+    const html = buildHtmlReport(sampleRows, { start: '2026-01-01', end: '2026-01-31' });
+    expect(html).toContain('>inv-1<');
   });
 });
 

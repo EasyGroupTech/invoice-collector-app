@@ -1,4 +1,4 @@
-export type { PluginManifest } from './manifest.js';
+export type { PluginImplementationManifest, PluginManifest } from './manifest.js';
 
 export type {
   HttpRequestInput,
@@ -36,6 +36,10 @@ export type {
   ListColumn,
   ListDescriptor,
   DetailDescriptor,
+  TextSelectField,
+  TextSelectDescriptor,
+  TextSelectSample,
+  CapturedTextSelection,
   WizardStepDescriptor,
   SettingsPanelDescriptor,
 } from './ui.js';
@@ -46,12 +50,14 @@ export type {
   PluginDestinationRecord,
   DiscoveredInvoice,
   InvoiceContent,
+  UploadableInvoice,
   UploadResult,
   PluginLifecycle,
   WizardListDataRequest,
   WizardListDataResult,
   WizardDataSourceProvider,
   BuiltInSessionInputProvider,
+  SessionLabelSuggester,
   SourcePlugin,
   DestinationPlugin,
 } from './plugin.js';

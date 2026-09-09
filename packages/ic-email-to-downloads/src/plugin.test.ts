@@ -1,4 +1,4 @@
-import type { HttpApi, HttpRequestInput, HttpResponse, PluginContext } from 'invoice-collector-plugin-sdk';
+import type { HttpApi, HttpRequestInput, HttpResponse, PluginContext, Session } from 'invoice-collector-plugin-sdk';
 import { describe, expect, it, vi } from 'vitest';
 import plugin from './plugin.js';
 
@@ -41,8 +41,30 @@ function record(overrides: Partial<{ sessionId: string; config: unknown }> = {})
   };
 }
 
-function attachmentContentBytes(text: string): { contentBytes: string } {
-  return { contentBytes: Buffer.from(text).toString('base64') };
+function fakeBinaryResponse(status: number, text: string): HttpResponse {
+  const bytes = new TextEncoder().encode(text);
+  return {
+    status,
+    headers: {},
+    json: () => {
+      throw new Error('not JSON');
+    },
+    text: () => text,
+    arrayBuffer: () => bytes.buffer as ArrayBuffer,
+  };
+}
+
+function fakeSession(overrides: Partial<Session> = {}): Session {
+  return {
+    id: 'session-1',
+    sessionTypeId: 'microsoft-entra-delegated-device-code',
+    label: 'Microsoft 365 sign-in',
+    createdByPluginId: 'app.easygroup.source.email-mail',
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z',
+    status: 'active',
+    ...overrides,
+  };
 }
 
 describe('builtInSessionCreateInput', () => {
@@ -60,6 +82,27 @@ describe('builtInSessionCreateInput', () => {
       scope: 'Mail.Read offline_access',
       label: 'Microsoft 365 sign-in',
     });
+  });
+});
+
+describe('suggestSessionLabel (§6 friendly session naming)', () => {
+  it('suggests the signed-in tenant\'s primary domain for a device-code session', async () => {
+    const http = dispatchingHttp([
+      { match: '/organization', response: fakeResponse(200, { value: [{ verifiedDomains: [{ name: 'contoso.com', isDefault: true }] }] }) },
+    ]);
+    const ctx = fakeContext(http);
+
+    const suggestion = await plugin.suggestSessionLabel!(ctx, fakeSession(), new AbortController().signal);
+
+    expect(suggestion).toBe('contoso.com');
+  });
+
+  it('returns undefined for a session type this plugin does not recognize', async () => {
+    const ctx = fakeContext(dispatchingHttp([]));
+
+    const suggestion = await plugin.suggestSessionLabel!(ctx, fakeSession({ sessionTypeId: 'some-other-session-type' }), new AbortController().signal);
+
+    expect(suggestion).toBeUndefined();
   });
 });
 
@@ -98,6 +141,76 @@ describe('resolveListData', () => {
       plugin.resolveListData!(fakeContext(dispatchingHttp([])), { dataSource: 'nope', fieldValues: {}, sessionId: 's' }, new AbortController().signal),
     ).rejects.toThrow(/Unknown dataSource/);
   });
+
+  describe('fieldRuleSample (§14.3 manual field-rule capture)', () => {
+    it('returns an empty-body, non-alreadyParsed row when no session is selected yet', async () => {
+      const http = dispatchingHttp([]);
+      const result = await plugin.resolveListData!(fakeContext(http), { dataSource: 'fieldRuleSample', fieldValues: {} }, new AbortController().signal);
+      expect(result).toEqual({ rows: [] });
+      expect(http.request).not.toHaveBeenCalled();
+    });
+
+    it("finds the first matching message the built-in rules can't fully parse and returns its body/PDF text", async () => {
+      const http = dispatchingHttp([
+        {
+          match: '/me/messages?',
+          response: fakeResponse(200, {
+            value: [
+              { id: 'm1', subject: 'Invoice', receivedDateTime: '2026-01-10T00:00:00Z', hasAttachments: true },
+              { id: 'm2', subject: 'Invoice', receivedDateTime: '2026-01-11T00:00:00Z', hasAttachments: true },
+            ],
+          }),
+        },
+        {
+          match: '/me/messages/m1?',
+          response: fakeResponse(200, { body: { contentType: 'text', content: 'Invoice Number: INV-1\nInvoice Date: January 10, 2026\nAmount: $50.00 USD' } }),
+        },
+        { match: '/messages/m1/attachments?', response: fakeResponse(200, { value: [] }) },
+        { match: '/me/messages/m2?', response: fakeResponse(200, { body: { contentType: 'text', content: 'Ref# ZX-9 for your purchase.' } }) },
+        { match: '/messages/m2/attachments?', response: fakeResponse(200, { value: [] }) },
+      ]);
+
+      const result = await plugin.resolveListData!(
+        fakeContext(http),
+        { dataSource: 'fieldRuleSample', fieldValues: {}, sessionId: 'session-1' },
+        new AbortController().signal,
+      );
+
+      // m1 already parses fully via the built-in rules, so it's skipped in favor of m2.
+      expect(result.rows).toEqual([{ bodyText: 'Ref# ZX-9 for your purchase.', alreadyParsed: false }]);
+    });
+
+    it('reports alreadyParsed when every matching message already parses fully', async () => {
+      const http = dispatchingHttp([
+        { match: '/me/messages?', response: fakeResponse(200, { value: [{ id: 'm1', subject: 'Invoice', receivedDateTime: '2026-01-10T00:00:00Z', hasAttachments: true }] }) },
+        {
+          match: '/me/messages/m1?',
+          response: fakeResponse(200, { body: { contentType: 'text', content: 'Invoice Number: INV-1\nInvoice Date: January 10, 2026\nAmount: $50.00 USD' } }),
+        },
+        { match: '/messages/m1/attachments?', response: fakeResponse(200, { value: [] }) },
+      ]);
+
+      const result = await plugin.resolveListData!(
+        fakeContext(http),
+        { dataSource: 'fieldRuleSample', fieldValues: {}, sessionId: 'session-1' },
+        new AbortController().signal,
+      );
+
+      expect(result.rows).toEqual([{ bodyText: '', alreadyParsed: true }]);
+    });
+
+    it('reports not-alreadyParsed (nothing to show) when there are no matching messages at all', async () => {
+      const http = dispatchingHttp([{ match: '/me/messages?', response: fakeResponse(200, { value: [] }) }]);
+
+      const result = await plugin.resolveListData!(
+        fakeContext(http),
+        { dataSource: 'fieldRuleSample', fieldValues: {}, sessionId: 'session-1' },
+        new AbortController().signal,
+      );
+
+      expect(result.rows).toEqual([{ bodyText: '', alreadyParsed: false }]);
+    });
+  });
 });
 
 describe('discover', () => {
@@ -116,6 +229,7 @@ describe('discover', () => {
     expect(outcomes).toEqual([
       {
         id: 'm1:a1',
+        name: 'INV-1',
         issuedDate: '2026-01-10',
         amount: { value: 50, currency: 'USD' },
         pluginRef: { messageId: 'm1', attachmentId: 'a1', attachmentName: 'invoice.pdf', attachmentContentType: 'application/pdf', invoiceNumber: 'INV-1' },
@@ -131,7 +245,7 @@ describe('discover', () => {
       { match: '/me/messages?', response: fakeResponse(200, { value: [{ id: 'm1', subject: 'Your bill is ready', receivedDateTime: '2026-02-05T00:00:00Z', hasAttachments: true }] }) },
       { match: '/me/messages/m1?', response: fakeResponse(200, { subject: 'Your bill is ready', receivedDateTime: '2026-02-05T00:00:00Z', body: { contentType: 'html', content: '<p>Sign in to view your invoice.</p>' } }) },
       { match: '/attachments?', response: fakeResponse(200, { value: [{ '@odata.type': '#microsoft.graph.fileAttachment', id: 'a1', name: 'bill.pdf', contentType: 'application/pdf', isInline: false }] }) },
-      { match: '/attachments/a1', response: fakeResponse(200, attachmentContentBytes(pdf)) },
+      { match: '/attachments/a1', response: fakeBinaryResponse(200, pdf) },
     ]);
 
     const outcomes = [];
@@ -142,6 +256,7 @@ describe('discover', () => {
     expect(outcomes).toEqual([
       {
         id: 'm1:a1',
+        name: 'INV-2',
         issuedDate: '2026-02-05', // no date found anywhere — falls back to the message's own received date
         amount: { value: 75, currency: 'EUR' },
         pluginRef: { messageId: 'm1', attachmentId: 'a1', attachmentName: 'bill.pdf', attachmentContentType: 'application/pdf', invoiceNumber: 'INV-2' },
@@ -163,12 +278,78 @@ describe('discover', () => {
     expect(outcomes).toEqual([]);
   });
 
+  it("resolves fields via the source's own configured field rules when the built-in rules can't parse this template", async () => {
+    const http = dispatchingHttp([
+      { match: '/me/messages?', response: fakeResponse(200, { value: [{ id: 'm1', subject: 'Your receipt', receivedDateTime: '2026-05-01T00:00:00Z', hasAttachments: true }] }) },
+      {
+        match: '/me/messages/m1?',
+        response: fakeResponse(200, {
+          subject: 'Your receipt',
+          receivedDateTime: '2026-05-01T00:00:00Z',
+          body: { contentType: 'text', content: 'Ref# ZX-500 Charged on May 5, 2026. You owe: 20.00 USD' },
+        }),
+      },
+      { match: '/attachments?', response: fakeResponse(200, { value: [{ '@odata.type': '#microsoft.graph.fileAttachment', id: 'a1', name: 'receipt.pdf', contentType: 'application/pdf', isInline: false }] }) },
+      { match: '/attachments/a1', response: fakeBinaryResponse(200, '%PDF-1.4\nnothing recognizable here either\n%%EOF') },
+    ]);
+
+    const fieldRules = [
+      { fieldName: 'invoiceNumber' as const, source: 'body' as const, label: 'Ref#' },
+      { fieldName: 'issuedDate' as const, source: 'body' as const, label: 'Charged on' },
+      { fieldName: 'amount' as const, source: 'body' as const, label: 'You owe:' },
+    ];
+
+    const outcomes = [];
+    for await (const invoice of plugin.discover(
+      fakeContext(http),
+      record({ config: { fieldRules } }),
+      { start: '2026-05-01', end: '2026-05-31' },
+      new AbortController().signal,
+    )) {
+      outcomes.push(invoice);
+    }
+
+    expect(outcomes).toEqual([
+      {
+        id: 'm1:a1',
+        name: 'ZX-500',
+        issuedDate: '2026-05-05',
+        amount: { value: 20, currency: 'USD' },
+        pluginRef: { messageId: 'm1', attachmentId: 'a1', attachmentName: 'receipt.pdf', attachmentContentType: 'application/pdf', invoiceNumber: 'ZX-500' },
+      },
+    ]);
+  });
+
+  it("falls back to the attachment's own filename for `name` when no invoice number was found", async () => {
+    const http = dispatchingHttp([
+      { match: '/me/messages?', response: fakeResponse(200, { value: [{ id: 'm1', subject: 'Your receipt', receivedDateTime: '2026-03-01T00:00:00Z', hasAttachments: true }] }) },
+      {
+        match: '/me/messages/m1?',
+        response: fakeResponse(200, {
+          subject: 'Your receipt',
+          receivedDateTime: '2026-03-01T00:00:00Z',
+          body: { contentType: 'text', content: 'Amount: $40.00 USD' }, // no invoice number anywhere in the body
+        }),
+      },
+      { match: '/attachments?', response: fakeResponse(200, { value: [{ '@odata.type': '#microsoft.graph.fileAttachment', id: 'a1', name: 'receipt-march.pdf', contentType: 'application/pdf', isInline: false }] }) },
+      { match: '/attachments/a1', response: fakeBinaryResponse(200, '%PDF-1.4\nnothing recognizable here either\n%%EOF') },
+    ]);
+
+    const outcomes = [];
+    for await (const invoice of plugin.discover(fakeContext(http), record(), { start: '2026-03-01', end: '2026-03-31' }, new AbortController().signal)) {
+      outcomes.push(invoice);
+    }
+
+    expect(outcomes).toHaveLength(1);
+    expect(outcomes[0].name).toBe('receipt-march.pdf');
+  });
+
   it('skips a message where the built-in rules found nothing at all, neither in the body nor the PDF', async () => {
     const http = dispatchingHttp([
       { match: '/me/messages?', response: fakeResponse(200, { value: [{ id: 'm1', subject: 'Invoice', receivedDateTime: '2026-01-10T00:00:00Z', hasAttachments: true }] }) },
       { match: '/me/messages/m1?', response: fakeResponse(200, { subject: 'Invoice', receivedDateTime: '2026-01-10T00:00:00Z', body: { contentType: 'text', content: 'Nothing recognizable here.' } }) },
       { match: '/attachments?', response: fakeResponse(200, { value: [{ '@odata.type': '#microsoft.graph.fileAttachment', id: 'a1', name: 'invoice.pdf', contentType: 'application/pdf', isInline: false }] }) },
-      { match: '/attachments/a1', response: fakeResponse(200, attachmentContentBytes('%PDF-1.4\ncorrupt with no recognizable fields\n%%EOF')) },
+      { match: '/attachments/a1', response: fakeBinaryResponse(200, '%PDF-1.4\ncorrupt with no recognizable fields\n%%EOF') },
     ]);
 
     const outcomes = [];
@@ -219,7 +400,7 @@ describe('discover', () => {
 
 describe('fetchContent', () => {
   it('downloads the attachment and names the file from the invoice number discover() found', async () => {
-    const http = dispatchingHttp([{ match: '/attachments/a1', response: fakeResponse(200, attachmentContentBytes('pdf bytes here')) }]);
+    const http = dispatchingHttp([{ match: '/attachments/a1', response: fakeBinaryResponse(200, 'pdf bytes here') }]);
 
     const content = await plugin.fetchContent(
       fakeContext(http),

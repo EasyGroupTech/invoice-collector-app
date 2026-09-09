@@ -12,7 +12,9 @@ export interface ParsedInvoiceFields {
   amount?: { value: number; currency: string };
 }
 
-const MONTH_NAMES = [
+/** Exported for mail-field-rules.ts's own long-form date matching — same month-name parsing, just
+ * anchored on a user-captured label instead of a fixed English keyword. */
+export const MONTH_NAMES = [
   'january',
   'february',
   'march',

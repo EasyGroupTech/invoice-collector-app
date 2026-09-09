@@ -14,9 +14,17 @@ export interface InvoiceHistoryRecord {
   sourceId: string;
   destinationId: string;
   invoiceId: string;
+  /** Human-readable label (`DiscoveredInvoice.name`) — an invoice number when the plugin found
+   * one, a filename otherwise. Unset for a record written before this field existed, or by a
+   * plugin that hasn't started supplying one; every display of this record falls back to
+   * `invoiceId` in that case, but `invoiceId` is often an opaque API id, never meant to be read. */
+  invoiceName?: string;
   issuedDate: string;
   amount?: { value: number; currency: string };
   status: UploadResult['status'];
+  /** Where the invoice actually landed — see `UploadResult.location`. Unset for a record written
+   * before this field existed, or by a destination type that reported no location. */
+  location?: string;
   collectedAt: string;
 }
 
@@ -97,6 +105,13 @@ export interface InvoiceHistory extends DedupChecker {
   prune(now?: Date): Promise<void>;
   listForMonth(issuedMonth: string): Promise<InvoiceHistoryRecord[]>;
   listForPeriod(period: CollectPeriod): Promise<InvoiceHistoryRecord[]>;
+  getRetentionMonths(): Promise<number>;
+  /** Persists the new retention window only — matches the reference app's own handler exactly:
+   * doesn't prune immediately, the new window just takes effect on the next `prune()` call. */
+  setRetentionMonths(months: number): Promise<void>;
+  /** Wipes every collected-invoice record (e.g. to clear out test data) — keeps the
+   * retention-months setting intact, only clears the invoices list. */
+  clear(): Promise<void>;
 }
 
 export function createInvoiceHistory(filePath: string): InvoiceHistory {
@@ -120,15 +135,17 @@ export function createInvoiceHistory(filePath: string): InvoiceHistory {
       return store.invoices.some((r) => r.sourceId === sourceId && r.invoiceId === invoiceId);
     },
 
-    async record(sourceId, destinationId, invoice: DiscoveredInvoice, status) {
+    async record(sourceId, destinationId, invoice: DiscoveredInvoice, result: UploadResult) {
       const store = await state();
       const record: InvoiceHistoryRecord = {
         sourceId,
         destinationId,
         invoiceId: invoice.id,
+        invoiceName: invoice.name,
         issuedDate: invoice.issuedDate,
         amount: invoice.amount,
-        status,
+        status: result.status,
+        location: result.location,
         collectedAt: new Date().toISOString(),
       };
       await persist(upsertInvoiceHistoryRecord(store, record));
@@ -147,6 +164,21 @@ export function createInvoiceHistory(filePath: string): InvoiceHistory {
     async listForPeriod(period) {
       const store = await state();
       return invoicesForPeriod(store, period);
+    },
+
+    async getRetentionMonths() {
+      const store = await state();
+      return store.retentionMonths;
+    },
+
+    async setRetentionMonths(months) {
+      const store = await state();
+      await persist({ ...store, retentionMonths: months });
+    },
+
+    async clear() {
+      const store = await state();
+      await persist({ ...store, invoices: [] });
     },
   };
 }

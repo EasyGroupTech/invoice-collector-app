@@ -121,5 +121,14 @@ export interface SessionsApi {
     signal?: AbortSignal,
     onProgress?: (message: string, data?: Record<string, unknown>) => void,
   ): Promise<Session>;
+  /**
+   * Tries a silent `SessionPlugin.refresh()` renewal first (the same mechanism the proactive
+   * scheduler and 401-triggered recovery already use) — only falls back to the full interactive
+   * `create()` flow (using the session's originally-stored `create()` input) if there's no
+   * `refresh()` method or the refresh attempt itself fails. A user clicking "Reconnect" shouldn't
+   * be forced through a brand new device-code sign-in when the existing refresh token still works;
+   * `onProgress` only ever fires for the fallback path, since a successful refresh has nothing to
+   * report.
+   */
   reconnect(sessionId: string, signal?: AbortSignal, onProgress?: (message: string, data?: Record<string, unknown>) => void): Promise<Session>;
 }

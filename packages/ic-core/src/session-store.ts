@@ -17,8 +17,11 @@ export interface StoredSession {
   status: SessionStatus;
   expiresAt?: string;
   keepAliveIntervalMs?: number;
-  /** Encrypted `SessionPlugin.create()`/`refresh()` result secret, base64 via an Encryptor. */
-  secretCiphertext: string;
+  /** Encrypted `SessionPlugin.create()`/`refresh()` result secret, base64 via an Encryptor. Unset
+   * after a Logout (§6's "Logout only clears stored credentials, it doesn't delete the session" —
+   * the record, its `createInputCiphertext`, and its identity/label all stay put; only the secret
+   * and its own expiry info are cleared, and `status` moves to `needs-reconnect`). */
+  secretCiphertext?: string;
   /** Encrypted original input to `create()` — replayed by `reconnect()`, since core has no
    * generic way to reconstruct a plugin-specific create input from a stored secret alone. */
   createInputCiphertext: string;

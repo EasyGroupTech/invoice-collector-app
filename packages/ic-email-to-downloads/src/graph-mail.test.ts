@@ -1,6 +1,6 @@
 import type { HttpApi, HttpResponse } from 'invoice-collector-plugin-sdk';
 import { describe, expect, it, vi } from 'vitest';
-import { getAttachmentBytes, getMessageDetail, listAttachments, listMessages } from './graph-mail.js';
+import { getAttachmentBytes, getMessageDetail, getPrimaryDomain, listAttachments, listMessages } from './graph-mail.js';
 
 function fakeResponse(status: number, body: unknown): HttpResponse {
   return {
@@ -9,6 +9,18 @@ function fakeResponse(status: number, body: unknown): HttpResponse {
     json: () => body,
     text: () => JSON.stringify(body),
     arrayBuffer: () => new ArrayBuffer(0),
+  };
+}
+
+function fakeBinaryResponse(status: number, bytes: Uint8Array): HttpResponse {
+  return {
+    status,
+    headers: {},
+    json: () => {
+      throw new Error('not JSON');
+    },
+    text: () => new TextDecoder().decode(bytes),
+    arrayBuffer: () => bytes.buffer as ArrayBuffer,
   };
 }
 
@@ -104,13 +116,55 @@ describe('listAttachments', () => {
 });
 
 describe('getAttachmentBytes', () => {
-  it('decodes the base64 contentBytes into real bytes', async () => {
+  it('returns the raw bytes from the /$value endpoint', async () => {
     const original = new TextEncoder().encode('hello pdf');
-    const base64 = Buffer.from(original).toString('base64');
-    const http = fakeHttp([fakeResponse(200, { contentBytes: base64 })]);
+    const http = fakeHttp([fakeBinaryResponse(200, original)]);
 
     const bytes = await getAttachmentBytes(http, 'session-1', 'm1', 'a1', new AbortController().signal);
 
     expect(new TextDecoder().decode(bytes)).toBe('hello pdf');
+  });
+
+  it('requests the /$value raw-content segment, not $select=contentBytes', async () => {
+    const http = fakeHttp([fakeBinaryResponse(200, new Uint8Array())]);
+
+    await getAttachmentBytes(http, 'session-1', 'm1', 'a1', new AbortController().signal);
+
+    const callArgs = (http.request as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    expect(callArgs.url).toMatch(/\/attachments\/a1\/\$value$/);
+    expect(callArgs.url).not.toContain('$select');
+  });
+
+  it('throws a clear error on a non-200 response', async () => {
+    const http = fakeHttp([fakeBinaryResponse(403, new Uint8Array())]);
+    await expect(getAttachmentBytes(http, 'session-1', 'm1', 'a1', new AbortController().signal)).rejects.toThrow(/HTTP 403/);
+  });
+});
+
+describe('getPrimaryDomain (used by suggestSessionLabel, §6)', () => {
+  it('returns the verified domain marked isDefault, even when it is not first in the list', async () => {
+    const http = fakeHttp([
+      fakeResponse(200, { value: [{ verifiedDomains: [{ name: 'onmicrosoft.com', isDefault: false }, { name: 'contoso.com', isDefault: true }] }] }),
+    ]);
+
+    await expect(getPrimaryDomain(http, 'session-1', new AbortController().signal)).resolves.toBe('contoso.com');
+  });
+
+  it('falls back to the first verified domain when none is marked isDefault', async () => {
+    const http = fakeHttp([fakeResponse(200, { value: [{ verifiedDomains: [{ name: 'contoso.com' }] }] })]);
+
+    await expect(getPrimaryDomain(http, 'session-1', new AbortController().signal)).resolves.toBe('contoso.com');
+  });
+
+  it('returns undefined when the tenant has no verified domains', async () => {
+    const http = fakeHttp([fakeResponse(200, { value: [{ verifiedDomains: [] }] })]);
+
+    await expect(getPrimaryDomain(http, 'session-1', new AbortController().signal)).resolves.toBeUndefined();
+  });
+
+  it('returns undefined on a non-200 response rather than throwing', async () => {
+    const http = fakeHttp([fakeResponse(403, { error: 'Forbidden' })]);
+
+    await expect(getPrimaryDomain(http, 'session-1', new AbortController().signal)).resolves.toBeUndefined();
   });
 });

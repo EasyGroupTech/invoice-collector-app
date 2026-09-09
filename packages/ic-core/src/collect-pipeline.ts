@@ -30,7 +30,7 @@ export interface DedupChecker {
     sourceId: string,
     destinationId: string,
     invoice: DiscoveredInvoice,
-    status: UploadResult['status'],
+    result: UploadResult,
   ): Promise<void>;
 }
 
@@ -175,8 +175,13 @@ export async function runCollectPipeline(
             // discover this particular invoice (§6's cross-plugin scoping cares about exactly
             // this: createdByPluginId has to be the plugin that actually created a session).
             const destinationCtx = buildContext(deps, destination.pluginId, report, source.id);
-            const uploadResult = await destinationPlugin.upload(destinationCtx, destination, { ...discovered, ...content }, signal);
-            await deps.dedup.record(source.id, destinationId, discovered, uploadResult.status);
+            const uploadResult = await destinationPlugin.upload(
+              destinationCtx,
+              destination,
+              { ...discovered, ...content, sourceName: source.name },
+              signal,
+            );
+            await deps.dedup.record(source.id, destinationId, discovered, uploadResult);
             outcomes.push({
               sourceId: source.id,
               destinationId,
@@ -184,7 +189,7 @@ export async function runCollectPipeline(
               issuedDate: discovered.issuedDate,
               status: uploadResult.status,
             });
-            report({ message: `${source.name}: ${uploadResult.status} ${discovered.id}`, sourceId: source.id });
+            report({ message: `${source.name}: ${uploadResult.status} ${discovered.name ?? discovered.id}`, sourceId: source.id });
           } catch (err) {
             if (signal.aborted) throw err;
             const message = errorMessage(err);
@@ -196,7 +201,7 @@ export async function runCollectPipeline(
               status: 'error',
               error: message,
             });
-            report({ message: `${source.name}: FAILED ${discovered.id}: ${message}`, sourceId: source.id });
+            report({ message: `${source.name}: FAILED ${discovered.name ?? discovered.id}: ${message}`, sourceId: source.id });
           }
         }
       } catch (err) {

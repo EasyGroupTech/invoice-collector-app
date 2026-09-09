@@ -4,9 +4,8 @@
  *
  * Beyond flat field forms, this includes list/detail/selection primitives specifically because a
  * flat form schema can't express real cases this SDK needs to support — e.g.
- * `ic-email-to-downloads`'s mail-message preview list (in current use) and its inline
- * manual-field-rule capture form (backlog, deferred past the first release — see
- * docs/architecture-design.md §14.3 in the app repo), both driven by whichever row is selected.
+ * `ic-email-to-downloads`'s mail-message preview list (in current use) and its manual-field-rule
+ * capture step (§14.3's backlog item, now built — see `TextSelectDescriptor` below).
  */
 
 export type FieldType = 'text' | 'password' | 'number' | 'select' | 'checkbox' | 'textarea';
@@ -63,7 +62,60 @@ export interface DetailDescriptor {
   fields: FieldDescriptor[];
 }
 
-export type WizardStepDescriptor = FieldDescriptor | ListDescriptor | DetailDescriptor;
+/** One field a text selection can be captured *as* — rendered as its own "Set as {label}" button.
+ * Purely a display label + identifier; core has no opinion on what a given `name` means. */
+export interface TextSelectField {
+  name: string;
+  label: string;
+}
+
+/**
+ * The reference app's own manual-field-rule capture, ported: renders one or two blocks of
+ * plain text (resolved via `dataSource`, same live-plugin-call mechanism `ListDescriptor` already
+ * uses) that the user can highlight a substring of via a real text selection, then capture as one
+ * of `fields` via a button — core computes the ~40-char label preceding the selection and hands
+ * back a `CapturedTextSelection`, appended to this step's own value array (`values[name]`). Core
+ * neither knows nor interprets what a captured selection *means* (which regex it becomes, how it's
+ * applied) — that's entirely the owning plugin's own concern, once this step's value lands in its
+ * `config` on record creation.
+ *
+ * `dataSource` must resolve to a `WizardListDataResult` whose first row matches `TextSelectSample`
+ * below.
+ */
+export interface TextSelectDescriptor {
+  kind: 'textSelect';
+  name: string;
+  label: string;
+  fields: TextSelectField[];
+  dataSource: string;
+}
+
+/** The single row a `TextSelectDescriptor`'s own `dataSource` resolves to. */
+export interface TextSelectSample {
+  bodyText: string;
+  /** Omitted when there's no PDF attachment to also offer a selectable block for. */
+  pdfText?: string;
+  /**
+   * True when there was nothing worth capturing a rule against — either every candidate the
+   * plugin checked already parses fully with its own built-in rules, or there were no candidates
+   * at all. The renderer shows a plain confirmation instead of the capture UI in that case;
+   * `bodyText`/`pdfText` are meaningless (and typically empty) when this is true.
+   */
+  alreadyParsed: boolean;
+}
+
+/** What a user captures via a `TextSelectDescriptor` — appended to that step's own value array as
+ * they go. Fully generic: `fieldName` is only ever one of the owning descriptor's own `fields`,
+ * `source` says which of the two rendered blocks the selection came from, and `label` is the raw
+ * text immediately preceding the selected value (used as a literal match anchor, not a regex the
+ * user writes themselves). */
+export interface CapturedTextSelection {
+  fieldName: string;
+  source: 'body' | 'pdf';
+  label: string;
+}
+
+export type WizardStepDescriptor = FieldDescriptor | ListDescriptor | DetailDescriptor | TextSelectDescriptor;
 
 export interface SettingsPanelDescriptor {
   title: string;

@@ -233,6 +233,58 @@ describe('SessionsRegistry', () => {
     await expect(other.reconnect(created.id)).rejects.toThrow(/session not found/i);
   });
 
+  describe('reconnect() prefers a silent refresh over a new interactive sign-in', () => {
+    it('renews via refresh() and never calls create() when refresh succeeds', async () => {
+      const create = vi.fn(async (_ctx, input: unknown): Promise<SessionCreateResult> => ({
+        label: (input as { label: string }).label,
+        secret: { token: 'initial-token' },
+      }));
+      const refresh = vi.fn(async (): Promise<SessionRefreshResult> => ({ secret: { token: 'refreshed-token' } }));
+      registry.registerSessionPlugin(fakeSessionPlugin(BUILT_IN_TYPE, { create, refresh }));
+      const api = registry.forPlugin('ic-email-to-downloads');
+      const created = await api.create(BUILT_IN_TYPE, { label: 'Mailbox sign-in' });
+      create.mockClear();
+
+      const reconnected = await api.reconnect(created.id);
+
+      expect(refresh).toHaveBeenCalledTimes(1);
+      expect(create).not.toHaveBeenCalled();
+      expect(reconnected.status).toBe('active');
+      expect((await api.get(created.id))?.secret).toEqual({ token: 'refreshed-token' });
+    });
+
+    it('falls back to the interactive create() flow when refresh() throws', async () => {
+      let call = 0;
+      const create = vi.fn(async (_ctx, input: unknown): Promise<SessionCreateResult> => {
+        call += 1;
+        return { label: (input as { label: string }).label, secret: { token: `token-${call}` } };
+      });
+      const refresh = vi.fn(async (): Promise<SessionRefreshResult> => {
+        throw new Error('refresh token revoked');
+      });
+      registry.registerSessionPlugin(fakeSessionPlugin(BUILT_IN_TYPE, { create, refresh }));
+      const api = registry.forPlugin('ic-email-to-downloads');
+      const created = await api.create(BUILT_IN_TYPE, { label: 'Mailbox sign-in' });
+
+      const reconnected = await api.reconnect(created.id);
+
+      expect(refresh).toHaveBeenCalledTimes(1);
+      expect(create).toHaveBeenCalledTimes(2); // once for the original create(), once for the fallback
+      expect(reconnected.status).toBe('active');
+      expect((await api.get(created.id))?.secret).toEqual({ token: 'token-2' });
+    });
+
+    it('falls back to the interactive create() flow for a session type with no refresh() at all', async () => {
+      registry.registerSessionPlugin(fakeSessionPlugin(BUILT_IN_TYPE)); // no refresh, matches today's built-in-less test double
+      const api = registry.forPlugin('ic-email-to-downloads');
+      const created = await api.create(BUILT_IN_TYPE, { label: 'Mailbox sign-in' });
+
+      const reconnected = await api.reconnect(created.id);
+
+      expect(reconnected.status).toBe('active');
+    });
+  });
+
   describe('listAll (internal, for core\'s own Sessions UI)', () => {
     it('returns every session regardless of which plugin created it', async () => {
       registry.registerSessionPlugin(fakeSessionPlugin(BUILT_IN_TYPE));
@@ -257,6 +309,95 @@ describe('SessionsRegistry', () => {
 
       expect(all[0]).not.toHaveProperty('secret');
       expect(all[0]).not.toHaveProperty('secretCiphertext');
+    });
+  });
+
+  describe('removeSession (internal, cascade-delete once nothing references a session any more)', () => {
+    it('removes the session — no longer in listAll()', async () => {
+      registry.registerSessionPlugin(fakeSessionPlugin(BUILT_IN_TYPE));
+      const created = await registry.forPlugin('ic-email-to-downloads').create(BUILT_IN_TYPE, { label: 'Mailbox sign-in' });
+
+      await registry.removeSession(created.id);
+
+      expect(await registry.listAll()).toEqual([]);
+    });
+
+    it('persists the removal — a fresh registry instance over the same file no longer sees it', async () => {
+      registry.registerSessionPlugin(fakeSessionPlugin(BUILT_IN_TYPE));
+      const created = await registry.forPlugin('ic-email-to-downloads').create(BUILT_IN_TYPE, { label: 'Mailbox sign-in' });
+
+      await registry.removeSession(created.id);
+
+      const reopened = createSessionsRegistry({ filePath, encryptor: fakeEncryptor, createPluginServices: stubPluginServices });
+      expect(await reopened.listAll()).toEqual([]);
+    });
+
+    it('leaves other sessions untouched', async () => {
+      registry.registerSessionPlugin(fakeSessionPlugin(BUILT_IN_TYPE));
+      const api = registry.forPlugin('ic-email-to-downloads');
+      const a = await api.create(BUILT_IN_TYPE, { label: 'A' });
+      const b = await api.create(BUILT_IN_TYPE, { label: 'B' });
+
+      await registry.removeSession(a.id);
+
+      expect((await registry.listAll()).map((s) => s.id)).toEqual([b.id]);
+    });
+
+    it('is a silent no-op for a session id that does not exist', async () => {
+      await expect(registry.removeSession('does-not-exist')).resolves.toBeUndefined();
+    });
+  });
+
+  describe('logoutSession (user-facing "Logout" — clears credentials, keeps the record)', () => {
+    it('clears the secret and expiry info and moves status to needs-reconnect, but keeps the session in listAll()', async () => {
+      registry.registerSessionPlugin(fakeSessionPlugin(BUILT_IN_TYPE));
+      const created = await registry.forPlugin('ic-email-to-downloads').create(BUILT_IN_TYPE, { label: 'Mailbox sign-in' });
+
+      await registry.logoutSession(created.id);
+
+      const [session] = await registry.listAll();
+      expect(session).toBeDefined();
+      expect(session.id).toBe(created.id);
+      expect(session.label).toBe('Mailbox sign-in');
+      expect(session.status).toBe('needs-reconnect');
+      expect(session.expiresAt).toBeUndefined();
+      expect(session.keepAliveIntervalMs).toBeUndefined();
+    });
+
+    it('leaves get() unable to resolve a secret, but still resolving the session itself', async () => {
+      registry.registerSessionPlugin(fakeSessionPlugin(BUILT_IN_TYPE));
+      const api = registry.forPlugin('ic-email-to-downloads');
+      const created = await api.create(BUILT_IN_TYPE, { label: 'Mailbox sign-in' });
+
+      await registry.logoutSession(created.id);
+
+      const resolved = await api.get(created.id);
+      expect(resolved?.session.id).toBe(created.id);
+      expect(resolved?.secret).toBeUndefined();
+    });
+
+    it('attachAuth() throws a clear "needs reconnect" error rather than crashing on a missing secret', async () => {
+      registry.registerSessionPlugin(fakeSessionPlugin(BUILT_IN_TYPE));
+      const created = await registry.forPlugin('ic-email-to-downloads').create(BUILT_IN_TYPE, { label: 'Mailbox sign-in' });
+
+      await registry.logoutSession(created.id);
+
+      await expect(registry.attachAuth('ic-email-to-downloads', created.id, { url: 'https://example.com' })).rejects.toThrow(/needs to be reconnected/i);
+    });
+
+    it('persists across instances (real file-backed store, not in-memory only)', async () => {
+      registry.registerSessionPlugin(fakeSessionPlugin(BUILT_IN_TYPE));
+      const created = await registry.forPlugin('ic-email-to-downloads').create(BUILT_IN_TYPE, { label: 'Mailbox sign-in' });
+
+      await registry.logoutSession(created.id);
+
+      const reopened = createSessionsRegistry({ filePath, encryptor: fakeEncryptor, createPluginServices: stubPluginServices });
+      const [session] = await reopened.listAll();
+      expect(session.status).toBe('needs-reconnect');
+    });
+
+    it('is a silent no-op for a session id that does not exist', async () => {
+      await expect(registry.logoutSession('does-not-exist')).resolves.toBeUndefined();
     });
   });
 
@@ -323,6 +464,33 @@ describe('SessionsRegistry', () => {
       const created = await creator.create(CUSTOM_TYPE, { label: 'AWS keys' });
 
       await expect(registry.recoverSession('some-other-plugin', created.id)).rejects.toThrow(/session not found/i);
+    });
+  });
+
+  describe('renameSession (used by a plugin\'s suggestSessionLabel() flow, §6)', () => {
+    it("updates the session's own label, leaving everything else untouched", async () => {
+      registry.registerSessionPlugin(fakeSessionPlugin(BUILT_IN_TYPE));
+      const api = registry.forPlugin('ic-email-to-downloads');
+      const created = await api.create(BUILT_IN_TYPE, { label: 'Microsoft 365 sign-in' });
+
+      const renamed = await registry.renameSession('ic-email-to-downloads', created.id, 'contoso.com');
+
+      expect(renamed.label).toBe('contoso.com');
+      expect(renamed.id).toBe(created.id);
+      expect(renamed.status).toBe(created.status);
+      expect((await api.get(created.id))?.secret).toEqual({ token: 'initial-token' });
+    });
+
+    it('rejects a session id not visible to the calling plugin', async () => {
+      registry.registerSessionPlugin(fakeSessionPlugin(CUSTOM_TYPE));
+      const creator = registry.forPlugin('commercial-aws-plugin');
+      const created = await creator.create(CUSTOM_TYPE, { label: 'AWS keys' });
+
+      await expect(registry.renameSession('some-other-plugin', created.id, 'new name')).rejects.toThrow(/session not found/i);
+    });
+
+    it('rejects an id that was never a real session', async () => {
+      await expect(registry.renameSession('ic-email-to-downloads', 'not-a-real-id', 'new name')).rejects.toThrow(/session not found/i);
     });
   });
 

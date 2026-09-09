@@ -3,14 +3,16 @@ import type {
   InvoiceContent,
   PluginContext,
   PluginSourceRecord,
+  Session,
   SessionRequirement,
   SourcePlugin,
   WizardListDataRequest,
   WizardListDataResult,
 } from 'invoice-collector-plugin-sdk';
 import { buildInvoiceFileName } from './file-naming.js';
-import { getAttachmentBytes, getMessageDetail, listAttachments, listMessages } from './graph-mail.js';
-import { htmlToText, parseInvoiceFields } from './invoice-text-parsing.js';
+import { getAttachmentBytes, getMessageDetail, getPrimaryDomain, listAttachments, listMessages } from './graph-mail.js';
+import { htmlToText, parseInvoiceFields, type ParsedInvoiceFields } from './invoice-text-parsing.js';
+import { extractFieldsWithRules } from './mail-field-rules.js';
 import { matchesMailFilter, type MailSourceConfig } from './mail-filter.js';
 import { extractPdfText } from './pdf-text.js';
 
@@ -32,6 +34,16 @@ const AUTHORITY = 'https://login.microsoftonline.com/organizations';
  * matching §5's note that a source's `config` is never allowed to carry a captured date range. */
 const PREVIEW_WINDOW_DAYS = 30;
 
+/** How many of the preview window's matching messages the field-rule-capture step will examine
+ * (detail + attachment fetches, real API calls each) looking for one the built-in rules can't
+ * fully parse — a defensive cap so a large, loosely-filtered mailbox can't make this wizard step
+ * hang scanning dozens of messages one by one. */
+const FIELD_RULE_SAMPLE_SCAN_LIMIT = 20;
+
+function isComplete(fields: ParsedInvoiceFields): boolean {
+  return fields.invoiceNumber !== undefined && fields.issuedDate !== undefined && fields.amount !== undefined;
+}
+
 interface PdfAttachmentRef {
   messageId: string;
   attachmentId: string;
@@ -50,13 +62,8 @@ function todayIsoDate(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-async function resolveListData(ctx: PluginContext, request: WizardListDataRequest, signal: AbortSignal): Promise<WizardListDataResult> {
-  if (request.dataSource !== 'messagePreview') {
-    throw new Error(`Unknown dataSource "${request.dataSource}"`);
-  }
-  if (!request.sessionId) {
-    return { rows: [] };
-  }
+async function resolveMessagePreview(ctx: PluginContext, request: WizardListDataRequest, signal: AbortSignal): Promise<WizardListDataResult> {
+  if (!request.sessionId) return { rows: [] };
 
   const config = request.fieldValues as MailSourceConfig;
   const messages = await listMessages(
@@ -77,10 +84,75 @@ async function resolveListData(ctx: PluginContext, request: WizardListDataReques
   };
 }
 
-/** Finds fields via the built-in rules: the message body first (cheap, no extra request), then —
- * only if that came up empty and a real file attachment exists — that attachment's own PDF text.
- * Manual field-rule capture (reconciling what these rules miss) is deliberately out of scope
- * here, per §14.3. */
+/**
+ * §14.3's manual field-rule capture — the wizard's own `textSelect` step, one row deep. Scans the
+ * same preview-window/filtered candidates `messagePreview` does, looking for the first one the
+ * built-in rules (body-only, then PDF-only, then a body+PDF per-field merge — see
+ * `extractInvoiceFields`'s own three stages) still can't fully parse, and hands back its raw
+ * body/PDF text for the wizard to render selectably. `alreadyParsed: true` means every candidate
+ * examined already parses fine (or there were none at all) — nothing to teach here.
+ */
+async function resolveFieldRuleSample(ctx: PluginContext, request: WizardListDataRequest, signal: AbortSignal): Promise<WizardListDataResult> {
+  if (!request.sessionId) return { rows: [] };
+
+  const config = request.fieldValues as MailSourceConfig;
+  const messages = await listMessages(
+    ctx.http,
+    request.sessionId,
+    { start: isoDateNDaysAgo(PREVIEW_WINDOW_DAYS), end: todayIsoDate(), hasAttachmentsOnly: config.hasAttachmentsOnly },
+    signal,
+  );
+  const candidates = messages.filter((message) => matchesMailFilter(message, config)).slice(0, FIELD_RULE_SAMPLE_SCAN_LIMIT);
+
+  for (const message of candidates) {
+    const detail = await getMessageDetail(ctx.http, request.sessionId, message.id, signal);
+    const bodyText = detail.bodyContentType === 'html' ? htmlToText(detail.bodyContent) : detail.bodyContent;
+    if (isComplete(parseInvoiceFields(bodyText))) continue;
+
+    let pdfText: string | undefined;
+    const attachments = await listAttachments(ctx.http, request.sessionId, message.id, signal);
+    const fileAttachment = attachments[0];
+    if (fileAttachment) {
+      try {
+        const bytes = await getAttachmentBytes(ctx.http, request.sessionId, message.id, fileAttachment.id, signal);
+        pdfText = await extractPdfText(bytes);
+        if (isComplete(parseInvoiceFields(pdfText))) continue;
+      } catch (err) {
+        ctx.log.warn('Could not extract text from the attached PDF while sampling for field-rule capture', {
+          messageId: message.id,
+          attachmentId: fileAttachment.id,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
+
+    // A field found in the body and another only in the PDF can still add up to a fully parsed
+    // invoice even though neither text alone was complete — only genuinely offer this message up
+    // for manual capture once the combined result still falls short.
+    if (isComplete(extractFieldsWithRules(bodyText, pdfText, []).fields)) continue;
+
+    return { rows: [{ bodyText, pdfText, alreadyParsed: false }] };
+  }
+
+  return { rows: [{ bodyText: '', alreadyParsed: candidates.length > 0 }] };
+}
+
+async function resolveListData(ctx: PluginContext, request: WizardListDataRequest, signal: AbortSignal): Promise<WizardListDataResult> {
+  if (request.dataSource === 'messagePreview') return resolveMessagePreview(ctx, request, signal);
+  if (request.dataSource === 'fieldRuleSample') return resolveFieldRuleSample(ctx, request, signal);
+  throw new Error(`Unknown dataSource "${request.dataSource}"`);
+}
+
+/**
+ * Finds fields via three stages, each trying harder than the last: the message body alone (cheap,
+ * no extra request) — if that's not already a *complete* result, the attachment's own PDF text
+ * alone (if one exists) — and if that's still not complete, a per-field reconciliation
+ * (§14.3, `extractFieldsWithRules`) that merges body and PDF field-by-field (a field found in one
+ * and another only in the other can still add up to complete) and, for whatever's still missing,
+ * tries a user-captured field rule before giving up on that one field. Passing an empty
+ * `fieldRules` array degrades stage 3 to just that body+PDF merge, so this stays the right final
+ * fallback even for a source with no rules configured at all.
+ */
 async function extractInvoiceFields(
   ctx: PluginContext,
   sessionId: string,
@@ -88,28 +160,30 @@ async function extractInvoiceFields(
   bodyContentType: 'text' | 'html',
   bodyContent: string,
   fileAttachment: { id: string; name: string; contentType: string } | undefined,
+  config: MailSourceConfig,
   signal: AbortSignal,
-) {
+): Promise<ParsedInvoiceFields> {
   const bodyText = bodyContentType === 'html' ? htmlToText(bodyContent) : bodyContent;
   const bodyFields = parseInvoiceFields(bodyText);
-  if (bodyFields.invoiceNumber ?? bodyFields.issuedDate ?? bodyFields.amount) {
-    return bodyFields;
+  if (isComplete(bodyFields)) return bodyFields;
+
+  let pdfText: string | undefined;
+  if (fileAttachment) {
+    try {
+      const bytes = await getAttachmentBytes(ctx.http, sessionId, messageId, fileAttachment.id, signal);
+      pdfText = await extractPdfText(bytes);
+      const pdfFields = parseInvoiceFields(pdfText);
+      if (isComplete(pdfFields)) return pdfFields;
+    } catch (err) {
+      ctx.log.warn('Could not extract text from the attached PDF', {
+        messageId,
+        attachmentId: fileAttachment.id,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
   }
 
-  if (!fileAttachment) return bodyFields;
-
-  try {
-    const bytes = await getAttachmentBytes(ctx.http, sessionId, messageId, fileAttachment.id, signal);
-    const pdfText = await extractPdfText(bytes);
-    return parseInvoiceFields(pdfText);
-  } catch (err) {
-    ctx.log.warn('Could not extract text from the attached PDF', {
-      messageId,
-      attachmentId: fileAttachment.id,
-      error: err instanceof Error ? err.message : String(err),
-    });
-    return bodyFields;
-  }
+  return extractFieldsWithRules(bodyText, pdfText, config.fieldRules ?? []).fields;
 }
 
 async function* discover(
@@ -141,10 +215,10 @@ async function* discover(
       continue;
     }
 
-    const fields = await extractInvoiceFields(ctx, record.sessionId, message.id, detail.bodyContentType, detail.bodyContent, fileAttachment, signal);
+    const fields = await extractInvoiceFields(ctx, record.sessionId, message.id, detail.bodyContentType, detail.bodyContent, fileAttachment, config, signal);
     if (fields.invoiceNumber === undefined && fields.issuedDate === undefined && fields.amount === undefined) {
-      // The built-in rules found nothing at all — not confidently an invoice in this phase's
-      // scope (manual field-rule capture, for exactly this case, is §14.3's backlog item).
+      // Nothing at all found, even after a configured field rule got its own chance — not
+      // confidently an invoice.
       continue;
     }
 
@@ -158,6 +232,11 @@ async function* discover(
 
     yield {
       id: `${message.id}:${fileAttachment.id}`,
+      // Same preference order buildInvoiceFileName() already uses for the downloaded file's own
+      // name — a parsed invoice number when there is one, else the attachment's own filename,
+      // either way readable, unlike `id` (a Graph message+attachment id pair, never meant for
+      // display).
+      name: fields.invoiceNumber ?? fileAttachment.name,
       issuedDate: fields.issuedDate ?? message.receivedDateTime.slice(0, 10),
       amount: fields.amount,
       pluginRef,
@@ -192,19 +271,26 @@ function builtInSessionCreateInput(requirement: SessionRequirement): unknown {
   };
 }
 
+/** The wizard's own friendly-name follow-up (§6): once a device-code session is established, its
+ * signed-in tenant's primary verified domain reads far better as a session name than the generic
+ * built-in label — the shared `microsoftEntraDelegatedDeviceCodeSessionPlugin` doesn't know this
+ * (it also serves ARM consumers, which have no "mailbox tenant domain" concept), so it lives here,
+ * in the one plugin that actually wants it. */
+async function suggestSessionLabel(ctx: PluginContext, session: Session, signal: AbortSignal): Promise<string | undefined> {
+  if (session.sessionTypeId !== SESSION_TYPE_ID) return undefined;
+  return getPrimaryDomain(ctx.http, session.id, signal);
+}
+
 const graphMailSource: SourcePlugin = {
+  // §9.4: version/pluginApiVersion/repository/sbom are package-level now (this implementation's
+  // package is app.easygroup.email-to-downloads — see package-manifest.ts). Whether that package
+  // is ever actually checked against a GitHub Artifact Attestation, or this simply loads as a
+  // first-party bundled package without going through the generic install pipeline at all, is
+  // phase 1.17's own packaging decision, not this manifest's concern.
   manifest: {
     id: 'app.easygroup.source.email-mail',
     name: 'Graph Mail',
-    version: '0.0.0',
-    pluginApiVersion: '0.0.0',
     kind: 'source',
-    // Genuinely true — this bundled reference plugin lives in this same public repo (§2/§9).
-    // Whether that fact is ever actually checked against an attestation, or this simply loads
-    // as a first-party bundled plugin without going through the generic install pipeline at
-    // all, is phase 1.16's own packaging decision, not this manifest's concern.
-    repository: 'https://github.com/EasyGroupTech/invoice-collector-app',
-    sbom: 'sbom.cdx.json',
     main: 'index.js',
   },
   sessionRequirements: [
@@ -223,16 +309,31 @@ const graphMailSource: SourcePlugin = {
       kind: 'list',
       name: 'messagePreview',
       label: `Matching messages (last ${PREVIEW_WINDOW_DAYS} days)`,
+      // Order matters here beyond just labeling — the wizard renders this as a two-line block per
+      // message (subject, then every other column joined), not a table, so this is display order:
+      // subject as the prominent first line, received-date-then-sender as the second.
       columns: [
         { key: 'subject', label: 'Subject' },
-        { key: 'from', label: 'From' },
         { key: 'received', label: 'Received' },
+        { key: 'from', label: 'From' },
       ],
       dataSource: 'messagePreview',
+    },
+    {
+      kind: 'textSelect',
+      name: 'fieldRules',
+      label: 'Teach a template the built-in rules miss (optional)',
+      fields: [
+        { name: 'invoiceNumber', label: 'Invoice Number' },
+        { name: 'issuedDate', label: 'Issued Date' },
+        { name: 'amount', label: 'Amount' },
+      ],
+      dataSource: 'fieldRuleSample',
     },
   ],
   resolveListData,
   builtInSessionCreateInput,
+  suggestSessionLabel,
   discover,
   fetchContent,
 };

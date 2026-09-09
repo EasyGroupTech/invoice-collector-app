@@ -1,7 +1,7 @@
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import type { DiscoveredInvoice, InvoiceContent, PluginContext, PluginDestinationRecord } from 'invoice-collector-plugin-sdk';
+import type { PluginContext, PluginDestinationRecord, UploadableInvoice } from 'invoice-collector-plugin-sdk';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import localFolderDestination from './local-folder-plugin.js';
 
@@ -20,13 +20,15 @@ function fakeRecord(overrides: Partial<PluginDestinationRecord> = {}): PluginDes
   };
 }
 
-function fakeInvoice(): DiscoveredInvoice & InvoiceContent {
+function fakeInvoice(overrides: Partial<UploadableInvoice> = {}): UploadableInvoice {
   return {
     id: 'inv-1',
     issuedDate: '2026-01-01',
+    sourceName: 'Contoso Mailbox',
     fileName: 'INV-1_invoice.pdf',
     mimeType: 'application/pdf',
     bytes: new Uint8Array([1, 2, 3]),
+    ...overrides,
   };
 }
 
@@ -49,12 +51,13 @@ describe('localFolderDestination.upload', () => {
     await rm(dir, { recursive: true, force: true });
   });
 
-  it('writes the invoice into the session-selected folder', async () => {
+  it('writes the invoice into <session-selected folder>/<source>/<issued yyyy-mm>', async () => {
     const ctx = fakeContextWithFolder(dir);
     const result = await localFolderDestination.upload(ctx, fakeRecord({ sessionId: 'session-1' }), fakeInvoice(), signal);
 
-    expect(result).toEqual({ status: 'uploaded' });
-    expect(await readFile(path.join(dir, 'INV-1_invoice.pdf'))).toEqual(Buffer.from([1, 2, 3]));
+    const expectedPath = path.join(dir, 'Contoso Mailbox', '2026-01', 'INV-1_invoice.pdf');
+    expect(result).toEqual({ status: 'uploaded', location: expectedPath });
+    expect(await readFile(expectedPath)).toEqual(Buffer.from([1, 2, 3]));
   });
 
   it('throws when no session is assigned to this destination', async () => {

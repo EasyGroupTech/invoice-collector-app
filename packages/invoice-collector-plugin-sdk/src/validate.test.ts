@@ -1,15 +1,21 @@
 import { describe, expect, it } from 'vitest';
 import { validateManifest, validateSessionRequirements, validateWizardDataSources } from './validate.js';
-import type { FieldDescriptor, ListDescriptor } from './ui.js';
+import type { FieldDescriptor, ListDescriptor, TextSelectDescriptor } from './ui.js';
 
-const validManifest = {
+const validImplementation = {
   id: 'app.easygroup.source.email-mail',
   name: 'Graph Mail',
+  kind: 'source',
+  main: 'index.js',
+};
+
+const validManifest = {
+  id: 'app.easygroup.email-to-downloads',
+  name: 'Microsoft Graph Email to Downloads',
   version: '0.1.0',
   pluginApiVersion: '^1.0.0',
-  kind: 'source',
   sbom: 'sbom.cdx.json',
-  main: 'index.js',
+  implementations: [validImplementation],
 };
 
 describe('validateManifest', () => {
@@ -19,6 +25,12 @@ describe('validateManifest', () => {
 
   it('accepts an optional repository field when it is a string', () => {
     const result = validateManifest({ ...validManifest, repository: 'https://github.com/x/y' });
+    expect(result).toEqual({ valid: true, errors: [] });
+  });
+
+  it('accepts a package that bundles more than one implementation', () => {
+    const destinationImpl = { id: 'app.easygroup.destination.local-folder', name: 'Local Folder', kind: 'destination', main: 'local-folder.js' };
+    const result = validateManifest({ ...validManifest, implementations: [validImplementation, destinationImpl] });
     expect(result).toEqual({ valid: true, errors: [] });
   });
 
@@ -35,23 +47,10 @@ describe('validateManifest', () => {
     expect(result.errors).toContain('manifest.sbom must be a non-empty string');
   });
 
-  it('rejects a missing main — core has no entry module to load without it (§9.1)', () => {
-    const { main, ...withoutMain } = validManifest;
-    const result = validateManifest(withoutMain);
-    expect(result.valid).toBe(false);
-    expect(result.errors).toContain('manifest.main must be a non-empty string');
-  });
-
   it('rejects an empty-string required field', () => {
     const result = validateManifest({ ...validManifest, id: '' });
     expect(result.valid).toBe(false);
     expect(result.errors).toContain('manifest.id must be a non-empty string');
-  });
-
-  it('rejects a kind that is neither "source" nor "destination"', () => {
-    const result = validateManifest({ ...validManifest, kind: 'transform' });
-    expect(result.valid).toBe(false);
-    expect(result.errors).toContain('manifest.kind must be "source" or "destination"');
   });
 
   it('rejects a non-string repository field', () => {
@@ -60,8 +59,43 @@ describe('validateManifest', () => {
     expect(result.errors).toContain('manifest.repository must be a string when present');
   });
 
+  it('rejects a missing implementations array', () => {
+    const { implementations, ...withoutImplementations } = validManifest;
+    const result = validateManifest(withoutImplementations);
+    expect(result.valid).toBe(false);
+    expect(result.errors).toContain('manifest.implementations must be a non-empty array');
+  });
+
+  it('rejects an empty implementations array', () => {
+    const result = validateManifest({ ...validManifest, implementations: [] });
+    expect(result.valid).toBe(false);
+    expect(result.errors).toContain('manifest.implementations must be a non-empty array');
+  });
+
+  it('rejects an implementation missing a required field', () => {
+    const { main, ...withoutMain } = validImplementation;
+    const result = validateManifest({ ...validManifest, implementations: [withoutMain] });
+    expect(result.valid).toBe(false);
+    expect(result.errors).toContain('manifest.implementations[0].main must be a non-empty string');
+  });
+
+  it('rejects an implementation kind that is neither "source" nor "destination"', () => {
+    const result = validateManifest({ ...validManifest, implementations: [{ ...validImplementation, kind: 'transform' }] });
+    expect(result.valid).toBe(false);
+    expect(result.errors).toContain('manifest.implementations[0].kind must be "source" or "destination"');
+  });
+
+  it('reports errors with the correct index across multiple implementations', () => {
+    const result = validateManifest({
+      ...validManifest,
+      implementations: [validImplementation, { ...validImplementation, id: '' }],
+    });
+    expect(result.valid).toBe(false);
+    expect(result.errors).toContain('manifest.implementations[1].id must be a non-empty string');
+  });
+
   it('collects every violation at once rather than stopping at the first', () => {
-    const result = validateManifest({ id: '', kind: 'nope' });
+    const result = validateManifest({ id: '', implementations: [{ kind: 'nope' }] });
     expect(result.valid).toBe(false);
     expect(result.errors.length).toBeGreaterThan(1);
   });
@@ -148,6 +182,13 @@ const listStep: ListDescriptor = {
   columns: [{ key: 'subject', label: 'Subject' }],
   dataSource: 'mailPreview',
 };
+const textSelectStep: TextSelectDescriptor = {
+  kind: 'textSelect',
+  name: 'fieldRules',
+  label: 'Teach a rule',
+  fields: [{ name: 'invoiceNumber', label: 'Invoice Number' }],
+  dataSource: 'fieldRuleSample',
+};
 
 describe('validateWizardDataSources', () => {
   it('accepts a plugin with no list steps and no resolveListData', () => {
@@ -173,7 +214,7 @@ describe('validateWizardDataSources', () => {
     const result = validateWizardDataSources({ wizard: [listStep] });
     expect(result.valid).toBe(false);
     expect(result.errors).toContain(
-      'plugin declares a ListDescriptor wizard/settings-panel step but does not implement resolveListData',
+      'plugin declares a ListDescriptor/TextSelectDescriptor wizard/settings-panel step but does not implement resolveListData',
     );
   });
 
@@ -183,5 +224,18 @@ describe('validateWizardDataSources', () => {
       settingsPanel: { title: 'Settings', steps: [listStep] },
     });
     expect(result.valid).toBe(false);
+  });
+
+  it('rejects a wizard textSelect step with no resolveListData implemented', () => {
+    const result = validateWizardDataSources({ wizard: [textSelectStep] });
+    expect(result.valid).toBe(false);
+    expect(result.errors).toContain(
+      'plugin declares a ListDescriptor/TextSelectDescriptor wizard/settings-panel step but does not implement resolveListData',
+    );
+  });
+
+  it('accepts a wizard textSelect step that implements resolveListData', () => {
+    const result = validateWizardDataSources({ wizard: [textSelectStep], resolveListData: async () => ({ rows: [] }) });
+    expect(result).toEqual({ valid: true, errors: [] });
   });
 });

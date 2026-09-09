@@ -46,6 +46,11 @@ export interface SessionsRegistry {
    * visible to `pluginId`, has no refresh() mechanism, or the refresh attempt itself fails (in
    * which case the session is still persisted as `needs-reconnect` before the throw). */
   recoverSession(pluginId: string, sessionId: string): Promise<Session>;
+  /** Updates a session's own label — e.g. once a plugin's `suggestSessionLabel()` hook (§6)
+   * resolves a friendlier name than whatever the session type itself set by default. Touches only
+   * the label; the secret/status/expiry are untouched. Scoped by the same cross-plugin visibility
+   * rule as `attachAuth`/`recoverSession`. */
+  renameSession(pluginId: string, sessionId: string, label: string): Promise<Session>;
   /**
    * Every session, unscoped by the cross-plugin sharing rule — not part of the plugin-facing
    * SessionsApi. For core's own Sessions UI (§6: "lists established sessions, their status... and
@@ -53,6 +58,26 @@ export interface SessionsRegistry {
    * plugin's own view of it. A plugin never gets this; only core's own IPC layer does.
    */
   listAll(): Promise<Session[]>;
+  /**
+   * Forgets a session entirely — unscoped, same reasoning as `listAll`: this is core's own
+   * housekeeping acting on the full picture, not a plugin-facing capability. Not a user-facing
+   * "Logout" (see `logoutSession` for that) — this is the cascade-delete primitive a source/
+   * destination removal uses once a session is no longer referenced by anything (§14.1's flow
+   * concept: a flow's own session gets deleted for real once nothing uses it any more, the same
+   * way its destination does). A source/destination record still pointing at this sessionId isn't
+   * touched here — the caller is responsible for having already confirmed nothing does. Silently a
+   * no-op if the session doesn't exist (already gone is the same end state as removed).
+   */
+  removeSession(sessionId: string): Promise<void>;
+  /**
+   * A user-facing "Logout" — clears the stored secret (and its own expiry info) and moves the
+   * session to `needs-reconnect`, but keeps the session record itself: its id, label, type, and
+   * `createInputCiphertext` (still needed for a later Login to re-establish it) all survive. This
+   * is deliberately *not* the same as `removeSession` — logging out doesn't delete anything, it
+   * just invalidates the credentials, exactly the way logging out of a website doesn't delete your
+   * account. Unscoped, same reasoning as `listAll`. Silently a no-op if the session doesn't exist.
+   */
+  logoutSession(sessionId: string): Promise<void>;
 }
 
 function isBuiltInSessionType(sessionTypeId: string): boolean {
@@ -199,6 +224,9 @@ export function createSessionsRegistry(options: SessionsRegistryOptions): Sessio
     if (!plugin) {
       throw new Error(`No SessionPlugin registered for session type "${stored.sessionTypeId}"`);
     }
+    if (!stored.secretCiphertext) {
+      throw new Error(`Session ${sessionId} needs to be reconnected — logged out`);
+    }
     const secret = JSON.parse(decryptField(options.encryptor, stored.secretCiphertext)) as unknown;
     return plugin.applyAuth(secret, request);
   }
@@ -226,6 +254,17 @@ export function createSessionsRegistry(options: SessionsRegistryOptions): Sessio
     return toPublicSession(outcome.updated);
   }
 
+  async function renameSession(pluginId: string, sessionId: string, label: string): Promise<Session> {
+    const current = await state();
+    const stored = current.sessions.find((s) => s.id === sessionId);
+    if (!stored || !visibleTo(stored, pluginId)) {
+      throw new Error(`Session not found: ${sessionId}`);
+    }
+    const updated: StoredSession = { ...stored, label, updatedAt: now().toISOString() };
+    await persist({ ...current, sessions: upsert(current.sessions, updated) });
+    return toPublicSession(updated);
+  }
+
   function forPlugin(pluginId: string): SessionsApi {
     return {
       async list(sessionTypeId) {
@@ -242,7 +281,13 @@ export function createSessionsRegistry(options: SessionsRegistryOptions): Sessio
         if (!stored || !visibleTo(stored, pluginId)) return undefined;
         return {
           session: toPublicSession(stored),
-          secret: JSON.parse(decryptField(options.encryptor, stored.secretCiphertext)) as unknown,
+          // Logged out (§6) — no secret to decrypt. A plugin's own refresh()/upload()/discover()
+          // reading this back gets `undefined` and fails on its own terms (e.g.
+          // local-folder-session.ts's refresh() already throws "No stored folder path found" for
+          // exactly this shape), which attemptRefresh()'s existing try/catch already turns into a
+          // clean needs-reconnect outcome — no special-casing needed here beyond not crashing on
+          // decrypting a value that isn't there.
+          secret: stored.secretCiphertext ? (JSON.parse(decryptField(options.encryptor, stored.secretCiphertext)) as unknown) : undefined,
         };
       },
 
@@ -280,6 +325,19 @@ export function createSessionsRegistry(options: SessionsRegistryOptions): Sessio
         const stored = current.sessions.find((s) => s.id === sessionId);
         if (!stored || !visibleTo(stored, pluginId)) {
           throw new Error(`Session not found: ${sessionId}`);
+        }
+
+        // Try a silent refresh-token renewal first — same mechanism the proactive scheduler and
+        // 401-triggered recovery already use. Only fall back to the full interactive create() flow
+        // (a brand new device-code sign-in, for the built-in) when there's no refresh mechanism or
+        // it actually failed — a user-facing Reconnect click shouldn't force a new sign-in prompt
+        // when the existing refresh token still works.
+        const refreshOutcome = await attemptRefresh(stored);
+        if (refreshOutcome.kind === 'refreshed' || refreshOutcome.kind === 'unchanged') {
+          const latest = await state();
+          await persist({ ...latest, sessions: upsert(latest.sessions, refreshOutcome.updated) });
+          scheduleFor(refreshOutcome.updated);
+          return toPublicSession(refreshOutcome.updated);
         }
 
         const plugin = plugins.get(stored.sessionTypeId);
@@ -329,10 +387,33 @@ export function createSessionsRegistry(options: SessionsRegistryOptions): Sessio
 
     attachAuth,
     recoverSession,
+    renameSession,
 
     async listAll() {
       const current = await state();
       return current.sessions.map(toPublicSession);
+    },
+
+    async removeSession(sessionId) {
+      clearTimerFor(sessionId);
+      const current = await state();
+      await persist({ ...current, sessions: current.sessions.filter((s) => s.id !== sessionId) });
+    },
+
+    async logoutSession(sessionId) {
+      const current = await state();
+      const stored = current.sessions.find((s) => s.id === sessionId);
+      if (!stored) return;
+      clearTimerFor(sessionId); // nothing left to proactively refresh — there's no secret anymore
+      const updated: StoredSession = {
+        ...stored,
+        status: 'needs-reconnect',
+        secretCiphertext: undefined,
+        expiresAt: undefined,
+        keepAliveIntervalMs: undefined,
+        updatedAt: now().toISOString(),
+      };
+      await persist({ ...current, sessions: upsert(current.sessions, updated) });
     },
   };
 }

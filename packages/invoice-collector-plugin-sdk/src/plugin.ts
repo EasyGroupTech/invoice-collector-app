@@ -1,5 +1,5 @@
-import type { PluginManifest } from './manifest.js';
-import type { SessionPlugin, SessionRequirement } from './session.js';
+import type { PluginImplementationManifest } from './manifest.js';
+import type { Session, SessionPlugin, SessionRequirement } from './session.js';
 import type { PluginContext } from './context.js';
 import type { WizardStepDescriptor, SettingsPanelDescriptor } from './ui.js';
 
@@ -21,6 +21,14 @@ export interface PluginBackedRecord {
    * silently truncates what the user just asked for.
    */
   collectFromDate?: string;
+  /**
+   * Sources only. A free-text label the user optionally assigns when creating the source (§14.1's
+   * Add Collector wizard), shown alongside its own invoices in the Collect page's history table.
+   * Empty/unset by default — purely a user organizational label (e.g. distinguishing two Graph
+   * Mail collectors against the same mailbox with different filters), never derived automatically
+   * the way a multi-scope billing provider might set one per discovered invoice.
+   */
+  scope?: string;
   /** Plugin-owned JSON, non-secret, non-session config only. */
   config: unknown;
   createdAt: string;
@@ -36,8 +44,14 @@ export type PluginSourceRecord = PluginBackedRecord;
 export type PluginDestinationRecord = PluginBackedRecord;
 
 export interface DiscoveredInvoice {
-  /** Core's dedup key, scoped per-source — never guessed at, always plugin-supplied. */
+  /** Core's dedup key, scoped per-source — never guessed at, always plugin-supplied. Usually
+   * opaque (an API-internal id) — never shown to a user; see `name` for that. */
   id: string;
+  /** Human-readable label — an invoice number if the plugin can determine one, a filename,
+   * whatever's most recognizable. Wherever core shows an invoice to a user (the Collect page's
+   * own table, the report export), it falls back to `id` if this is omitted, but a plugin that can
+   * do better than an opaque id should. */
+  name?: string;
   issuedDate: string;
   amount?: { value: number; currency: string };
   /** Opaque to core — whatever this plugin's own fetchContent() needs to resolve the actual
@@ -51,8 +65,25 @@ export interface InvoiceContent {
   bytes: Uint8Array;
 }
 
+/**
+ * What a destination's own `upload()` actually receives — `DiscoveredInvoice` and `InvoiceContent`
+ * merged, plus `sourceName`: core supplies this (from the `PluginSourceRecord` that discovered the
+ * invoice), not the destination plugin itself, since a destination has no other way to know which
+ * source an upload came from. Useful for e.g. organizing uploads into a per-source subfolder.
+ */
+export interface UploadableInvoice extends DiscoveredInvoice, InvoiceContent {
+  sourceName: string;
+}
+
 export interface UploadResult {
   status: 'uploaded' | 'already-existed' | 'overwritten';
+  /**
+   * Where the invoice actually landed — a filesystem path for a local-folder-style destination, a
+   * URL for a cloud one, whatever's meaningful for a user to go find the file afterward. Optional:
+   * a destination type without a stable "here's where it is" answer can omit this; the UI falls
+   * back to the destination's own name instead.
+   */
+  location?: string;
 }
 
 /**
@@ -108,13 +139,32 @@ export interface BuiltInSessionInputProvider {
   builtInSessionCreateInput?(requirement: SessionRequirement): unknown;
 }
 
+/**
+ * Called once, right after a session this plugin uses has just been created — an opportunity to
+ * suggest a friendlier label than whatever the session type itself set (a built-in like the
+ * device-code one has no way to know it's talking to, say, "Graph Mail for Contoso Ltd" — it just
+ * sets whatever generic label the calling plugin supplied via `builtInSessionCreateInput`). The
+ * suggestion is made by calling *through* the now-established session (`ctx.http` with the
+ * session's own id already works for this — the session is fully persisted by the time this
+ * runs), e.g. looking up the signed-in tenant's own verified domain. Optional — a plugin with
+ * nothing better to suggest just omits this; a thrown/rejected call is treated the same as
+ * returning `undefined`, since a suggestion is a nice-to-have, never something session creation
+ * itself should be blocked on. The caller (core's own Sessions UI/wizard) decides whether and how
+ * to let the user accept, edit, or ignore the suggestion — this hook only ever proposes a string.
+ */
+export interface SessionLabelSuggester {
+  suggestSessionLabel?(ctx: PluginContext, session: Session, signal: AbortSignal): Promise<string | undefined>;
+}
+
 export interface PluginLifecycle {
   /**
-   * Called once, automatically, when core detects this plugin's version increased from
-   * fromVersion to manifest.version — before the new version's discover()/fetchContent()/
-   * upload() ever runs. Responsible for migrating anything this plugin owns: its own
-   * PluginContext.storage entries and the `config` field of every existing PluginBackedRecord
-   * referencing this plugin. Optional — not every version bump needs a data migration.
+   * Called once, automatically, when core detects the *package* this implementation belongs to
+   * has a version increased from fromVersion to the package's own current version (§9.4 — version
+   * is a package-level property, shared by every implementation the package bundles) — before the
+   * new version's discover()/fetchContent()/upload() ever runs. Responsible for migrating anything
+   * this implementation owns: its own PluginContext.storage entries and the `config` field of
+   * every existing PluginBackedRecord referencing it. Optional — not every version bump needs a
+   * data migration.
    */
   migrate?(
     ctx: PluginContext,
@@ -123,8 +173,8 @@ export interface PluginLifecycle {
   ): Promise<{ records: PluginBackedRecord[] }>;
 }
 
-export interface SourcePlugin extends PluginLifecycle, WizardDataSourceProvider, BuiltInSessionInputProvider {
-  manifest: PluginManifest;
+export interface SourcePlugin extends PluginLifecycle, WizardDataSourceProvider, BuiltInSessionInputProvider, SessionLabelSuggester {
+  manifest: PluginImplementationManifest;
   /** Which session type(s) this plugin can use, and what it needs from each — required, must
    * list at least one entry. */
   sessionRequirements: SessionRequirement[];
@@ -152,8 +202,8 @@ export interface SourcePlugin extends PluginLifecycle, WizardDataSourceProvider,
   ): Promise<InvoiceContent>;
 }
 
-export interface DestinationPlugin extends PluginLifecycle, WizardDataSourceProvider, BuiltInSessionInputProvider {
-  manifest: PluginManifest;
+export interface DestinationPlugin extends PluginLifecycle, WizardDataSourceProvider, BuiltInSessionInputProvider, SessionLabelSuggester {
+  manifest: PluginImplementationManifest;
   sessionRequirements: SessionRequirement[];
   /** See `SourcePlugin.sessionPlugin` — same mechanism, same reason. */
   sessionPlugin?: SessionPlugin;
@@ -168,7 +218,7 @@ export interface DestinationPlugin extends PluginLifecycle, WizardDataSourceProv
   upload(
     ctx: PluginContext,
     record: PluginDestinationRecord,
-    invoice: DiscoveredInvoice & InvoiceContent,
+    invoice: UploadableInvoice,
     signal: AbortSignal,
   ): Promise<UploadResult>;
 }

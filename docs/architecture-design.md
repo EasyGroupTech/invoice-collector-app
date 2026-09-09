@@ -131,23 +131,37 @@ Session handling (§6), HTTP (§7), and UI extensibility (§8) are each broken o
 section below since they're substantial enough to design on their own — this section just gives
 the outer shape.
 
+A plugin is a **bundle** of the session/source/destination implementations it declares — a
+module, installed and removed as that one whole unit, not per individual implementation it happens
+to contain (`ic-email-to-downloads`, e.g., bundles both a Graph Mail source and a Local Folder
+destination — one install, one manifest.json, one Uninstall). Version, trust tier (`repository`),
+and dependencies (`sbom`) are properties of the *package*, not of any one implementation inside
+it — they're built, versioned, attested, and removed together (§9.4):
+
 ```ts
-export interface PluginManifest {
-  id: string;              // reverse-DNS-style unique id, e.g. "app.easygroup.source.email-mail"
+export interface PluginImplementationManifest {
+  id: string;   // reverse-DNS-style, unique *within the package*, e.g. "app.easygroup.source.email-mail"
   name: string;
-  version: string;         // semver, this plugin's own version
-  pluginApiVersion: string; // semver range this plugin was built against — core refuses to load
-                            // a plugin whose range doesn't satisfy the core's own SDK version
   kind: 'source' | 'destination';
-  repository?: string;     // public git URL — presence is what makes this an OSS-trusted plugin (§9)
-  sbom: string;             // required — path within the plugin package to its CycloneDX SBOM
+  main: string; // required — path within the package to the compiled entry module core
+                // dynamically imports; its default export is this implementation's
+                // SourcePlugin/DestinationPlugin object (matching `kind`)
+}
+
+export interface PluginManifest {
+  id: string;              // reverse-DNS-style unique id for this package, e.g. "app.easygroup.email-to-downloads"
+  name: string;
+  version: string;         // semver, this package's own version — shared by every implementation it bundles
+  pluginApiVersion: string; // semver range this package was built against — core refuses to load
+                            // a package whose range doesn't satisfy the core's own SDK version
+  repository?: string;     // public git URL — presence is what makes this an OSS-trusted package (§9)
+  sbom: string;             // required — path within the package to its one shared CycloneDX SBOM
                               // (JSON) describing its third-party dependencies and their licenses
-                              // (§13); core refuses to load a plugin that omits this, the same way
+                              // (§13); core refuses to load a package that omits this, the same way
                               // it refuses one whose pluginApiVersion range doesn't satisfy the
                               // core's own SDK version
-  main: string;             // required — path within the plugin package to the compiled entry
-                              // module core dynamically imports; its default export is this
-                              // plugin's SourcePlugin/DestinationPlugin object (matching `kind`)
+  implementations: PluginImplementationManifest[]; // every session/source/destination this
+                              // package implements — must list at least one
 }
 ```
 
@@ -738,17 +752,27 @@ open-source tier's lack of a warning imply a stronger guarantee than it is.
 
 ### 9.4 Plugin package format
 
-- **A `.zip` archive** — contains `manifest.json`, the compiled entry module (`manifest.main`),
-  the CycloneDX SBOM (`manifest.sbom`), and any other assets the plugin needs, extracted into its
-  own directory under `plugins/<manifest.id>/` (sibling to `profiles/`). Zip over tar.gz:
-  native/trivial on both Windows and macOS with no new dependency-hygiene surface beyond a single
-  well-known extraction library.
+- **A `.zip` archive** — contains one package-level `manifest.json` (§5's `PluginManifest`, with
+  its `implementations` array), each implementation's own compiled entry module
+  (`implementations[i].main`), the package's one shared CycloneDX SBOM (`manifest.sbom`), and any
+  other assets the package needs, extracted into its own directory under `plugins/<manifest.id>/`
+  (sibling to `profiles/`) — `manifest.id` here is the *package's* id, not any one implementation's.
+  Zip over tar.gz: native/trivial on both Windows and macOS with no new dependency-hygiene surface
+  beyond a single well-known extraction library.
 - **The full pipeline runs through a live in-process plugin registry** — resolve → download →
   extract → validate (manifest shape via the SDK's own `validateManifest`/
   `validateSessionRequirements`, `pluginApiVersion` two-major window, `sbom` present and
-  parseable) → GitHub Artifact Attestation check (where applicable) → trust-tier decision →
-  dynamic `import()` of `manifest.main` → register into a `PluginRegistry` (loaded `SourcePlugin`/
-  `DestinationPlugin` by id).
+  parseable) → GitHub Artifact Attestation check (where applicable, covering the whole zip — one
+  attestation per package, not per implementation) → trust-tier decision → for each entry in
+  `manifest.implementations`: dynamic `import()` of its own `main`, then register into a
+  `PluginRegistry` (loaded `SourcePlugin`/`DestinationPlugin` by *implementation* id) — followed by
+  registering the package itself (id, name, version, repository, sbom, and the full
+  `implementations` list) so Settings' own Plugins management card, its SBOM subsection, and
+  uninstall (which unregisters every implementation the package bundled, together, in one action)
+  all have the package-level view they need. A plugin author who wants a `SourcePlugin` and a
+  `DestinationPlugin` sharing one release, one version, and one dependency tree — the common
+  case — declares both under `implementations` in a single manifest.json; nothing stops a package
+  from declaring just one either, the array only needs to be non-empty.
 
 ## 10. Development process: TDD, one feature per branch, PR review
 

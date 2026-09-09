@@ -7,10 +7,12 @@
 // changes (same convention CLAUDE.md already documents for the private predecessor app).
 import type {
   AdvancedSettings,
+  AssignSessionInput,
   ConfigImportResult,
   CreateRecordInput,
   CreateSessionInput,
   EncryptedConfigExportFile,
+  ExportInvoiceRowsInput,
   ExportReportInput,
   FileExportResult,
   InstallPluginInput,
@@ -19,18 +21,23 @@ import type {
   JobDoneEvent,
   JobHandle,
   JobProgressEvent,
+  LogReadResult,
   PluginBackedRecord,
   PluginInstallNeedsConfirmation,
   PluginInstallResult,
+  PluginManifest,
   ProfileCreateInput,
   ProfileSummary,
   ReconnectSessionInput,
   RemoveRecordInput,
+  RenameSessionInput,
   ResolveWizardListDataInput,
   RunCollectInput,
   RunCollectResult,
   SbomEntry,
   Session,
+  SuggestSessionLabelInput,
+  UpdateFlowInput,
   WizardListDataResult,
 } from '../../electron/shared/ipcContracts';
 
@@ -41,7 +48,11 @@ declare global {
       configListDestinations(): Promise<PluginBackedRecord[]>;
       configCreateRecord(input: CreateRecordInput): Promise<PluginBackedRecord>;
       configRemoveRecord(input: RemoveRecordInput): Promise<void>;
-      configExportAll(password: string): Promise<EncryptedConfigExportFile>;
+      flowsDelete(sourceId: string): Promise<void>;
+      flowsUpdate(input: UpdateFlowInput): Promise<PluginBackedRecord>;
+      configAssignSession(input: AssignSessionInput): Promise<PluginBackedRecord>;
+      configExportAll(password: string): Promise<FileExportResult>;
+      configPickImportFile(): Promise<EncryptedConfigExportFile | undefined>;
       configImportAll(file: EncryptedConfigExportFile, password: string): Promise<ConfigImportResult>;
 
       profilesList(): Promise<ProfileSummary[]>;
@@ -52,8 +63,13 @@ declare global {
       sessionsList(): Promise<Session[]>;
       sessionsCreate(input: CreateSessionInput): Promise<JobHandle>;
       sessionsReconnect(input: ReconnectSessionInput): Promise<JobHandle>;
+      sessionsRefresh(input: ReconnectSessionInput): Promise<Session>;
+      sessionsLogout(sessionId: string): Promise<void>;
+      sessionsSuggestLabel(input: SuggestSessionLabelInput): Promise<string | undefined>;
+      sessionsRename(input: RenameSessionInput): Promise<Session>;
 
       pluginsList(): Promise<InstalledPluginSummary[]>;
+      pluginsListPackages(): Promise<PluginManifest[]>;
       pluginsInstall(input: InstallPluginInput): Promise<PluginInstallResult | PluginInstallNeedsConfirmation>;
       pluginsUninstall(pluginId: string): Promise<void>;
 
@@ -63,14 +79,23 @@ declare global {
       jobsCancel(jobId: string): Promise<void>;
 
       historyListForMonth(issuedMonth: string): Promise<InvoiceHistoryRecord[]>;
+      historyGetRetentionMonths(): Promise<number>;
+      historySetRetentionMonths(months: number): Promise<void>;
+      historyClearAll(): Promise<void>;
 
       sbomList(): Promise<SbomEntry[]>;
       sbomExport(id: string): Promise<FileExportResult>;
 
       reportExport(input: ExportReportInput): Promise<FileExportResult>;
+      reportExportRows(input: ExportInvoiceRowsInput): Promise<FileExportResult>;
 
       settingsGetAdvanced(): Promise<AdvancedSettings>;
       settingsSaveAdvanced(settings: AdvancedSettings): Promise<AdvancedSettings>;
+
+      logsRead(): Promise<LogReadResult>;
+      logsDownload(): Promise<FileExportResult>;
+
+      openExternal(url: string): Promise<void>;
 
       onJobProgress(callback: (event: JobProgressEvent) => void): () => void;
       onJobDone(callback: (event: JobDoneEvent) => void): () => void;
