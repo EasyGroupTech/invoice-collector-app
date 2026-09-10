@@ -1,5 +1,6 @@
 import type { PluginContext } from './context.js';
 import type { HttpRequestInput } from './http.js';
+import type { FieldDescriptor } from './ui.js';
 
 /**
  * The SDK's own built-in session types — currently just one, deliberately. See §6.1.
@@ -97,6 +98,21 @@ export interface SessionRequirement {
   requiredScopesOrRoles: string[];
   /** Human-readable explanation of *why*, shown alongside the raw list. */
   permissionsNote?: string;
+  /**
+   * Plain input fields (§8) this session type's own create() needs collected from the user before
+   * it can run — only meaningful when confirmsBuiltIn is false (a built-in type's input always
+   * comes from a plugin's own BuiltInSessionInputProvider.builtInSessionCreateInput() instead) and
+   * the session genuinely needs real structured input, unlike the trivial custom case (e.g. an
+   * OS-native picker) which needs none. Rendered by core's own wizard (the same FieldInput/
+   * WizardSteps components a plugin's own `wizard` array already uses, §8) before the "create new
+   * session" action runs, and the resulting values are passed straight through as SessionsApi.
+   * create()'s own `input` argument.
+   *
+   * Deliberately FieldDescriptor[] only, not the full WizardStepDescriptor[] — a list/detail/
+   * textSelect step needs an established session to resolve its own dataSource, which doesn't
+   * exist yet at this point in the flow (there's no session to resolve it *through*).
+   */
+  createInputFields?: FieldDescriptor[];
 }
 
 /**
