@@ -26,30 +26,44 @@ export type LoadedPlugin = SourcePlugin | DestinationPlugin;
  *   together shows up as one row, one Uninstall action, one SBOM entry — not two.
  */
 export interface PluginRegistry {
-  register(plugin: LoadedPlugin): void;
+  /**
+   * `packageId` is required so `getInstallUrl()` can resolve an implementation back to the
+   * package it was installed as part of (§9.1) — an implementation has no other reachable link to
+   * its own package once registered.
+   */
+  register(plugin: LoadedPlugin, packageId: string): void;
   unregister(pluginId: string): void;
   get(pluginId: string): LoadedPlugin | undefined;
   list(): LoadedPlugin[];
   listSources(): SourcePlugin[];
   listDestinations(): DestinationPlugin[];
 
-  registerPackage(manifest: PluginManifest): void;
+  /** `installUrl` is the exact URL this package was installed from (§9.1, PluginContext.
+   * installUrl) — omitted for a built-in/bundled plugin with no real install step. */
+  registerPackage(manifest: PluginManifest, installUrl?: string): void;
   unregisterPackage(packageId: string): void;
   getPackage(packageId: string): PluginManifest | undefined;
   listPackages(): PluginManifest[];
+  /** Resolves an implementation's own pluginId back to the install URL of the package it belongs
+   * to — undefined if that implementation isn't registered, or its package was never given one. */
+  getInstallUrl(pluginId: string): string | undefined;
 }
 
 export function createPluginRegistry(): PluginRegistry {
   const plugins = new Map<string, LoadedPlugin>();
   const packages = new Map<string, PluginManifest>();
+  const packageIdByImplementationId = new Map<string, string>();
+  const installUrlByPackageId = new Map<string, string>();
 
   return {
-    register(plugin) {
+    register(plugin, packageId) {
       plugins.set(plugin.manifest.id, plugin);
+      packageIdByImplementationId.set(plugin.manifest.id, packageId);
     },
 
     unregister(pluginId) {
       plugins.delete(pluginId);
+      packageIdByImplementationId.delete(pluginId);
     },
 
     get(pluginId) {
@@ -68,12 +82,15 @@ export function createPluginRegistry(): PluginRegistry {
       return [...plugins.values()].filter((p): p is DestinationPlugin => p.manifest.kind === 'destination');
     },
 
-    registerPackage(manifest) {
+    registerPackage(manifest, installUrl) {
       packages.set(manifest.id, manifest);
+      if (installUrl) installUrlByPackageId.set(manifest.id, installUrl);
+      else installUrlByPackageId.delete(manifest.id);
     },
 
     unregisterPackage(packageId) {
       packages.delete(packageId);
+      installUrlByPackageId.delete(packageId);
     },
 
     getPackage(packageId) {
@@ -82,6 +99,12 @@ export function createPluginRegistry(): PluginRegistry {
 
     listPackages() {
       return [...packages.values()];
+    },
+
+    getInstallUrl(pluginId) {
+      const packageId = packageIdByImplementationId.get(pluginId);
+      if (!packageId) return undefined;
+      return installUrlByPackageId.get(packageId);
     },
   };
 }

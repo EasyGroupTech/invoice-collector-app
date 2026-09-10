@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { mkdir, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { zipSync } from 'fflate';
@@ -137,6 +137,27 @@ describe('installPlugin', () => {
 
     const installedFiles = await readdir(path.join(pluginsDir, validManifest.id));
     expect(installedFiles).toEqual(expect.arrayContaining(['manifest.json', 'sbom.cdx.json', 'index.js']));
+  });
+
+  it('persists the resolved download URL (install-source.json) and exposes it via registry.getInstallUrl (§9.1, PluginContext.installUrl)', async () => {
+    const zip = buildZip({
+      'manifest.json': JSON.stringify(validManifest),
+      'sbom.cdx.json': JSON.stringify(validSbom),
+      'index.js': fakeSourceModuleSource,
+    });
+
+    await installPlugin('https://cdn.example.com/plugin.zip?e=abc123', {
+      pluginsDir,
+      coreSdkVersion: CORE_SDK_VERSION,
+      trustAckFilePath,
+      registry,
+      confirmUnverified: true,
+      fetchImpl: fetchReturningZip(zip),
+    });
+
+    expect(registry.getInstallUrl(validImplementation.id)).toBe('https://cdn.example.com/plugin.zip?e=abc123');
+    const installSource = JSON.parse(await readFile(path.join(pluginsDir, validManifest.id, 'install-source.json'), 'utf-8'));
+    expect(installSource).toEqual({ downloadUrl: 'https://cdn.example.com/plugin.zip?e=abc123' });
   });
 
   it('returns needs-confirmation for an unverified-tier package not previously acknowledged, without registering or leaving files behind', async () => {
@@ -628,6 +649,26 @@ describe('reloadInstalledPlugins', () => {
 
     expect(registry.get('app.easygroup.reload-test')).toBeDefined();
     expect(registry.getPackage('app.easygroup.reload-test')).toBeDefined();
+  });
+
+  it('restores installUrl from install-source.json, the same value installPlugin() itself would have persisted', async () => {
+    const id = 'app.easygroup.reload-install-url-test';
+    await writePluginOnDisk(id);
+    await writeFile(path.join(pluginsDir, id, 'install-source.json'), JSON.stringify({ downloadUrl: 'https://cdn.example.com/plugin.zip?e=abc123' }), 'utf-8');
+
+    await reloadInstalledPlugins({ pluginsDir, coreSdkVersion: CORE_SDK_VERSION, registry });
+
+    expect(registry.getInstallUrl(id)).toBe('https://cdn.example.com/plugin.zip?e=abc123');
+  });
+
+  it('leaves installUrl undefined (not a throw) for a package installed before install-source.json existed', async () => {
+    const id = 'app.easygroup.reload-no-install-source-test';
+    await writePluginOnDisk(id); // no install-source.json written at all — an older install
+
+    await reloadInstalledPlugins({ pluginsDir, coreSdkVersion: CORE_SDK_VERSION, registry });
+
+    expect(registry.get(id)).toBeDefined();
+    expect(registry.getInstallUrl(id)).toBeUndefined();
   });
 
   it("registers a reloaded implementation's own sessionPlugin, same as installPlugin()", async () => {

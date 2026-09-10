@@ -36,4 +36,13 @@ export interface PluginContext {
   http: HttpApi;
   log: PluginLogApi;
   progress: PluginProgressApi;
+  /**
+   * The exact URL this plugin's own package was installed from (§9.1) — undefined for a plugin
+   * bundled directly into core rather than installed through the generic pipeline. A commercial
+   * plugin's install link can carry its own license/purchase parameters in this URL's query
+   * string (§15 leaves the actual scheme entirely up to the plugin); this is how it gets to read
+   * them back, the same URL a purchaser was given, with no separate "fetch my license" step or
+   * core-side awareness of what the parameters mean.
+   */
+  installUrl?: string;
 }

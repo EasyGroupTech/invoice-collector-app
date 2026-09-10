@@ -29,7 +29,7 @@ describe('PluginRegistry', () => {
   it('registers and retrieves a source plugin by id', () => {
     const registry = createPluginRegistry();
     const plugin = fakeSourcePlugin('app.easygroup.source.email-mail');
-    registry.register(plugin);
+    registry.register(plugin, 'test-package');
 
     expect(registry.get('app.easygroup.source.email-mail')).toBe(plugin);
   });
@@ -37,7 +37,7 @@ describe('PluginRegistry', () => {
   it('registers and retrieves a destination plugin by id', () => {
     const registry = createPluginRegistry();
     const plugin = fakeDestinationPlugin('app.easygroup.destination.local-downloads');
-    registry.register(plugin);
+    registry.register(plugin, 'test-package');
 
     expect(registry.get('app.easygroup.destination.local-downloads')).toBe(plugin);
   });
@@ -51,8 +51,8 @@ describe('PluginRegistry', () => {
     const registry = createPluginRegistry();
     const source = fakeSourcePlugin('source-1');
     const destination = fakeDestinationPlugin('destination-1');
-    registry.register(source);
-    registry.register(destination);
+    registry.register(source, 'test-package');
+    registry.register(destination, 'test-package');
 
     expect(registry.list()).toEqual(expect.arrayContaining([source, destination]));
     expect(registry.list()).toHaveLength(2);
@@ -61,8 +61,8 @@ describe('PluginRegistry', () => {
   it('lists only source plugins', () => {
     const registry = createPluginRegistry();
     const source = fakeSourcePlugin('source-1');
-    registry.register(source);
-    registry.register(fakeDestinationPlugin('destination-1'));
+    registry.register(source, 'test-package');
+    registry.register(fakeDestinationPlugin('destination-1'), 'test-package');
 
     expect(registry.listSources()).toEqual([source]);
   });
@@ -70,8 +70,8 @@ describe('PluginRegistry', () => {
   it('lists only destination plugins', () => {
     const registry = createPluginRegistry();
     const destination = fakeDestinationPlugin('destination-1');
-    registry.register(fakeSourcePlugin('source-1'));
-    registry.register(destination);
+    registry.register(fakeSourcePlugin('source-1'), 'test-package');
+    registry.register(destination, 'test-package');
 
     expect(registry.listDestinations()).toEqual([destination]);
   });
@@ -81,8 +81,8 @@ describe('PluginRegistry', () => {
     const v1 = fakeSourcePlugin('source-1');
     const v2 = fakeSourcePlugin('source-1');
 
-    registry.register(v1);
-    registry.register(v2);
+    registry.register(v1, 'test-package');
+    registry.register(v2, 'test-package');
 
     expect(registry.get('source-1')).toBe(v2);
     expect(registry.list()).toHaveLength(1);
@@ -90,7 +90,7 @@ describe('PluginRegistry', () => {
 
   it('unregister() removes a plugin by id', () => {
     const registry = createPluginRegistry();
-    registry.register(fakeSourcePlugin('source-1'));
+    registry.register(fakeSourcePlugin('source-1'), 'test-package');
 
     registry.unregister('source-1');
 
@@ -126,7 +126,7 @@ describe('PluginRegistry', () => {
     it('unregisterPackage() removes a package by id, independent of the flat implementation registry', () => {
       const registry = createPluginRegistry();
       registry.registerPackage(fakePackageManifest('package-a'));
-      registry.register(fakeSourcePlugin('source-1'));
+      registry.register(fakeSourcePlugin('source-1'), 'test-package');
 
       registry.unregisterPackage('package-a');
 
@@ -155,6 +155,59 @@ describe('PluginRegistry', () => {
       registry.registerPackage(manifest);
 
       expect(registry.getPackage('app.easygroup.email-to-downloads')?.implementations).toHaveLength(2);
+    });
+  });
+
+  describe('getInstallUrl (§9.1, PluginContext.installUrl)', () => {
+    it('resolves an implementation back to its own package\'s install URL', () => {
+      const registry = createPluginRegistry();
+      registry.registerPackage(fakePackageManifest('plugin-azure-billing'), 'https://cdn.example.com/plugin-azure-billing?e=abc123');
+      registry.register(fakeSourcePlugin('tech.easygroup.source.azure-billing'), 'plugin-azure-billing');
+
+      expect(registry.getInstallUrl('tech.easygroup.source.azure-billing')).toBe('https://cdn.example.com/plugin-azure-billing?e=abc123');
+    });
+
+    it('is undefined for an implementation whose package was registered with no installUrl', () => {
+      const registry = createPluginRegistry();
+      registry.registerPackage(fakePackageManifest('app.easygroup.email-to-downloads'));
+      registry.register(fakeSourcePlugin('app.easygroup.source.email-mail'), 'app.easygroup.email-to-downloads');
+
+      expect(registry.getInstallUrl('app.easygroup.source.email-mail')).toBeUndefined();
+    });
+
+    it('is undefined for an implementation id that was never registered', () => {
+      const registry = createPluginRegistry();
+      expect(registry.getInstallUrl('does-not-exist')).toBeUndefined();
+    });
+
+    it('two implementations bundled in the same package share that one package\'s install URL', () => {
+      const registry = createPluginRegistry();
+      registry.registerPackage(fakePackageManifest('plugin-browser-session-claude'), 'https://cdn.example.com/plugin-browser-session-claude?e=xyz');
+      registry.register(fakeSourcePlugin('tech.easygroup.source.claude-team'), 'plugin-browser-session-claude');
+      registry.register(fakeSourcePlugin('tech.easygroup.source.claude-api'), 'plugin-browser-session-claude');
+
+      expect(registry.getInstallUrl('tech.easygroup.source.claude-team')).toBe('https://cdn.example.com/plugin-browser-session-claude?e=xyz');
+      expect(registry.getInstallUrl('tech.easygroup.source.claude-api')).toBe('https://cdn.example.com/plugin-browser-session-claude?e=xyz');
+    });
+
+    it('unregistering the package clears its install URL for every implementation that referenced it', () => {
+      const registry = createPluginRegistry();
+      registry.registerPackage(fakePackageManifest('plugin-azure-billing'), 'https://cdn.example.com/plugin-azure-billing?e=abc123');
+      registry.register(fakeSourcePlugin('tech.easygroup.source.azure-billing'), 'plugin-azure-billing');
+
+      registry.unregisterPackage('plugin-azure-billing');
+
+      expect(registry.getInstallUrl('tech.easygroup.source.azure-billing')).toBeUndefined();
+    });
+
+    it('re-registering a package without an installUrl clears any previously stored one (an update with no URL)', () => {
+      const registry = createPluginRegistry();
+      registry.registerPackage(fakePackageManifest('plugin-azure-billing'), 'https://cdn.example.com/plugin-azure-billing?e=abc123');
+      registry.register(fakeSourcePlugin('tech.easygroup.source.azure-billing'), 'plugin-azure-billing');
+
+      registry.registerPackage(fakePackageManifest('plugin-azure-billing'));
+
+      expect(registry.getInstallUrl('tech.easygroup.source.azure-billing')).toBeUndefined();
     });
   });
 });

@@ -93,8 +93,8 @@ describe('runCollectPipeline', () => {
     const registry = createPluginRegistry();
     const sourcePlugin = fakeSourcePlugin([invoice]);
     const destinationPlugin = fakeDestinationPlugin();
-    registry.register(sourcePlugin);
-    registry.register(destinationPlugin);
+    registry.register(sourcePlugin, 'test-package');
+    registry.register(destinationPlugin, 'test-package');
 
     const result = await runCollectPipeline(
       [record()],
@@ -120,8 +120,9 @@ describe('runCollectPipeline', () => {
           yield invoice;
         },
       }),
+      'test-package',
     );
-    registry.register(fakeDestinationPlugin());
+    registry.register(fakeDestinationPlugin(), 'test-package');
     const messages: Array<{ message: string; data?: unknown }> = [];
 
     await runCollectPipeline(
@@ -139,7 +140,7 @@ describe('runCollectPipeline', () => {
   it('gives the destination plugin its own ctx scoped to its own pluginId, not the source\'s', async () => {
     const invoice: DiscoveredInvoice = { id: 'inv-1', issuedDate: '2026-01-15' };
     const registry = createPluginRegistry();
-    registry.register(fakeSourcePlugin([invoice]));
+    registry.register(fakeSourcePlugin([invoice]), 'test-package');
     let uploadCtx: PluginContext | undefined;
     registry.register(
       fakeDestinationPlugin({
@@ -148,6 +149,7 @@ describe('runCollectPipeline', () => {
           return { status: 'uploaded' as const };
         }),
       }),
+      'test-package',
     );
     const servicesByPluginId = new Map<string, Omit<PluginContext, 'sessions'>>();
     const createPluginServicesSpy = vi.fn((pluginId: string) => {
@@ -175,8 +177,8 @@ describe('runCollectPipeline', () => {
     const registry = createPluginRegistry();
     const sourcePlugin = fakeSourcePlugin([invoice]);
     const destinationPlugin = fakeDestinationPlugin();
-    registry.register(sourcePlugin);
-    registry.register(destinationPlugin);
+    registry.register(sourcePlugin, 'test-package');
+    registry.register(destinationPlugin, 'test-package');
     const dedup = fakeDedup({ has: vi.fn(async () => true) });
 
     const result = await runCollectPipeline(
@@ -196,8 +198,8 @@ describe('runCollectPipeline', () => {
   it('records a successful upload in the dedup checker', async () => {
     const invoice: DiscoveredInvoice = { id: 'inv-1', issuedDate: '2026-01-15' };
     const registry = createPluginRegistry();
-    registry.register(fakeSourcePlugin([invoice]));
-    registry.register(fakeDestinationPlugin());
+    registry.register(fakeSourcePlugin([invoice]), 'test-package');
+    registry.register(fakeDestinationPlugin(), 'test-package');
     const dedup = fakeDedup();
 
     await runCollectPipeline(
@@ -220,8 +222,8 @@ describe('runCollectPipeline', () => {
         throw new Error('network error');
       }),
     });
-    registry.register(sourcePlugin);
-    registry.register(fakeDestinationPlugin());
+    registry.register(sourcePlugin, 'test-package');
+    registry.register(fakeDestinationPlugin(), 'test-package');
     const dedup = fakeDedup();
 
     const result = await runCollectPipeline(
@@ -252,9 +254,9 @@ describe('runCollectPipeline', () => {
     const workingSource = fakeSourcePlugin([workingInvoice], {
       manifest: { id: 'working-plugin', name: 'x', kind: 'source', main: 'm' },
     });
-    registry.register(failingSource);
-    registry.register(workingSource);
-    registry.register(fakeDestinationPlugin());
+    registry.register(failingSource, 'test-package');
+    registry.register(workingSource, 'test-package');
+    registry.register(fakeDestinationPlugin(), 'test-package');
 
     const messages: string[] = [];
     const result = await runCollectPipeline(
@@ -272,7 +274,7 @@ describe('runCollectPipeline', () => {
 
   it('skips a source with no destination assigned, reporting why', async () => {
     const registry = createPluginRegistry();
-    registry.register(fakeSourcePlugin([]));
+    registry.register(fakeSourcePlugin([]), 'test-package');
     const messages: string[] = [];
 
     const result = await runCollectPipeline(
@@ -290,8 +292,8 @@ describe('runCollectPipeline', () => {
 
   it('filters sources by sourceIds when not "all"', async () => {
     const registry = createPluginRegistry();
-    registry.register(fakeSourcePlugin([{ id: 'inv-1', issuedDate: '2026-01-15' }]));
-    registry.register(fakeDestinationPlugin());
+    registry.register(fakeSourcePlugin([{ id: 'inv-1', issuedDate: '2026-01-15' }]), 'test-package');
+    registry.register(fakeDestinationPlugin(), 'test-package');
 
     const result = await runCollectPipeline(
       [record({ id: 'source-a' }), record({ id: 'source-b' })],
@@ -307,8 +309,8 @@ describe('runCollectPipeline', () => {
 
   it('lowers a destination\'s collectFromDate when the requested period starts earlier, and persists it', async () => {
     const registry = createPluginRegistry();
-    registry.register(fakeSourcePlugin([]));
-    registry.register(fakeDestinationPlugin());
+    registry.register(fakeSourcePlugin([]), 'test-package');
+    registry.register(fakeDestinationPlugin(), 'test-package');
     const onDestinationCutoffLowered = vi.fn(async () => {});
 
     await runCollectPipeline(
@@ -325,8 +327,8 @@ describe('runCollectPipeline', () => {
 
   it('does not lower collectFromDate when the requested period starts on/after it', async () => {
     const registry = createPluginRegistry();
-    registry.register(fakeSourcePlugin([]));
-    registry.register(fakeDestinationPlugin());
+    registry.register(fakeSourcePlugin([]), 'test-package');
+    registry.register(fakeDestinationPlugin(), 'test-package');
     const onDestinationCutoffLowered = vi.fn(async () => {});
 
     await runCollectPipeline(
@@ -350,8 +352,8 @@ describe('runCollectPipeline', () => {
         return { fileName: 'a.pdf', mimeType: 'application/pdf', bytes: new Uint8Array() };
       }),
     });
-    registry.register(sourcePlugin);
-    registry.register(fakeDestinationPlugin());
+    registry.register(sourcePlugin, 'test-package');
+    registry.register(fakeDestinationPlugin(), 'test-package');
 
     await expect(
       runCollectPipeline(
@@ -367,7 +369,7 @@ describe('runCollectPipeline', () => {
 
   it('skips a source whose plugin is not installed, reporting why', async () => {
     const registry = createPluginRegistry();
-    registry.register(fakeDestinationPlugin());
+    registry.register(fakeDestinationPlugin(), 'test-package');
     const messages: string[] = [];
 
     const result = await runCollectPipeline(
