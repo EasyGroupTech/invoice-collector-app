@@ -53,6 +53,30 @@ describe('generateSbom', () => {
     expect(args).toEqual(expect.arrayContaining(['--workspace', 'my-plugin', '--no-include-workspace-root']));
   });
 
+  it('passes --ignore-npm-errors only when explicitly requested', async () => {
+    const child = fakeChildProcess();
+    readFileMock.mockResolvedValue(JSON.stringify({ bomFormat: 'CycloneDX', components: [] }));
+
+    const resultPromise = generateSbom({ cwd: '/fake/pkg', ignoreNpmErrors: true });
+    child.emit('exit', 0);
+    await resultPromise;
+
+    const [, args] = spawnMock.mock.calls[0] as [string, string[]];
+    expect(args).toContain('--ignore-npm-errors');
+  });
+
+  it('omits --ignore-npm-errors by default', async () => {
+    const child = fakeChildProcess();
+    readFileMock.mockResolvedValue(JSON.stringify({ bomFormat: 'CycloneDX', components: [] }));
+
+    const resultPromise = generateSbom({ cwd: '/fake/pkg' });
+    child.emit('exit', 0);
+    await resultPromise;
+
+    const [, args] = spawnMock.mock.calls[0] as [string, string[]];
+    expect(args).not.toContain('--ignore-npm-errors');
+  });
+
   it('rejects when cyclonedx-npm exits non-zero', async () => {
     const child = fakeChildProcess();
     const resultPromise = generateSbom({ cwd: '/fake/pkg' });

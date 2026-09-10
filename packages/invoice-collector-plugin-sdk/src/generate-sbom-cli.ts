@@ -19,6 +19,9 @@ function parseArgs(argv: string[]): GenerateSbomOptions {
         options.outputFile = value;
         i += 1;
         break;
+      case '--ignore-npm-errors':
+        options.ignoreNpmErrors = true;
+        break;
       default:
         throw new Error(`generate-sbom: unrecognized argument "${arg}"`);
     }

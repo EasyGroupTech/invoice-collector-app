@@ -26,6 +26,17 @@ export interface GenerateSbomOptions {
    * "sbom.cdx.json".
    */
   outputFile?: string;
+  /**
+   * Passed through to `cyclonedx-npm --ignore-npm-errors`. `cyclonedx-npm` builds its dependency
+   * tree via `npm ls`, which exits non-zero (and this then aborts entirely) for *any* tree
+   * irregularity it reports — including ones with nothing to do with this scan's own correctness,
+   * like an optional, platform-specific dependency that's legitimately absent on the machine doing
+   * the scan (confirmed against a real project: `@tailwindcss/oxide-*`'s own non-current-platform
+   * variants reported as "missing" by `npm ls`, on an otherwise completely valid install). Off by
+   * default — only opt in once a real `npm ls` failure has actually been confirmed harmless for
+   * the project being scanned, not reached for reflexively.
+   */
+  ignoreNpmErrors?: boolean;
 }
 
 export interface GenerateSbomResult {
@@ -52,7 +63,7 @@ export const CYCLONEDX_NPM_VERSION = '6.0.1';
  * stable default emits (§13). `--omit dev`: a plugin's shipped SBOM should reflect what actually
  * runs, not its own build/test tooling.
  */
-function runCyclonedxNpm(cwd: string, outputFile: string, workspace: string | undefined): Promise<void> {
+function runCyclonedxNpm(cwd: string, outputFile: string, workspace: string | undefined, ignoreNpmErrors: boolean | undefined): Promise<void> {
   return new Promise((resolve, reject) => {
     const args = [
       '--yes',
@@ -64,6 +75,9 @@ function runCyclonedxNpm(cwd: string, outputFile: string, workspace: string | un
     ];
     if (workspace) {
       args.push('--workspace', workspace, '--no-include-workspace-root');
+    }
+    if (ignoreNpmErrors) {
+      args.push('--ignore-npm-errors');
     }
     const child = spawn(process.platform === 'win32' ? 'npx.cmd' : 'npx', args, { cwd, stdio: 'inherit' });
     child.on('error', reject);
@@ -89,7 +103,7 @@ export async function generateSbom(options: GenerateSbomOptions = {}): Promise<G
   const cwd = options.cwd ?? process.cwd();
   const outputFile = options.outputFile ?? DEFAULT_OUTPUT_FILE;
 
-  await runCyclonedxNpm(cwd, outputFile, options.workspace);
+  await runCyclonedxNpm(cwd, outputFile, options.workspace, options.ignoreNpmErrors);
 
   const absoluteOutputFile = path.isAbsolute(outputFile) ? outputFile : path.join(cwd, outputFile);
   const sbom = JSON.parse(await readFile(absoluteOutputFile, 'utf8')) as CycloneDxDocument;
