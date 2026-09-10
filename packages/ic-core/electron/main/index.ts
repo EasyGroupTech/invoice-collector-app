@@ -142,6 +142,7 @@ function createPluginServices(pluginId: string) {
   return {
     storage: createPluginStorage(paths.pluginStorageFile(pluginId)),
     http: createHttpApi(pluginId, { sessionsRegistry: sessionAuthResolver, retryPolicy: () => currentAdvancedSettings.retryPolicy }),
+    installUrl: pluginRegistry.getInstallUrl(pluginId),
     log,
     // Default sink for a ctx.progress.report() call with no live job listening (e.g. the
     // scheduler's own background refresh) — recorded, not dropped silently.

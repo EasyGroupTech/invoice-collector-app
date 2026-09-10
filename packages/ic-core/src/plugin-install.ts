@@ -1,4 +1,4 @@
-import { readdir, readFile, rename, rm } from 'node:fs/promises';
+import { readdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import {
@@ -161,13 +161,19 @@ export async function installPlugin(
     await rename(stagingDir, finalDir);
     installDir = finalDir;
 
+    // Persisted alongside manifest.json so reloadInstalledPlugins() can restore it on the next
+    // boot too — PluginRegistry's own installUrl tracking is in-memory only, and a commercial
+    // plugin reading its own license/purchase query params off this URL (§15, PluginContext.
+    // installUrl) needs that to survive a restart, not just the process that installed it.
+    await writeFile(path.join(finalDir, 'install-source.json'), JSON.stringify({ downloadUrl: source.downloadUrl }));
+
     for (const implementation of manifest.implementations) {
       const moduleUrl = pathToFileURL(path.join(finalDir, implementation.main)).href;
       const loaded = await importModule(moduleUrl);
       const plugin = loaded.default as SourcePlugin | DestinationPlugin;
-      validateAndRegisterPlugin(implementation, plugin, options.registry, options.sessionsRegistry);
+      validateAndRegisterPlugin(implementation, plugin, options.registry, manifest.id, options.sessionsRegistry);
     }
-    options.registry.registerPackage(manifest);
+    options.registry.registerPackage(manifest, source.downloadUrl);
 
     return { status: 'installed', manifest, tier };
   } catch (err) {
@@ -185,6 +191,7 @@ function validateAndRegisterPlugin(
   implementation: PluginImplementationManifest,
   plugin: SourcePlugin | DestinationPlugin,
   registry: PluginRegistry,
+  packageId: string,
   sessionsRegistry?: SessionsRegistry,
 ): void {
   const sessionRequirementsCheck = validateSessionRequirements(plugin.sessionRequirements);
@@ -197,7 +204,7 @@ function validateAndRegisterPlugin(
     throw new Error(`Implementation ${implementation.id}'s wizard/settingsPanel is invalid: ${wizardDataSourcesCheck.errors.join('; ')}`);
   }
 
-  registry.register(plugin);
+  registry.register(plugin, packageId);
   if (plugin.sessionPlugin) {
     sessionsRegistry?.registerSessionPlugin(plugin.sessionPlugin);
   }
@@ -258,13 +265,24 @@ export async function reloadInstalledPlugins(options: ReloadInstalledPluginsOpti
         );
       }
 
+      // Absent for a package installed before install-source.json existed — installUrl then
+      // stays undefined for it after a reload, same as it would for any plugin with no real
+      // install step; not a new failure mode, just a narrower one than before this file existed.
+      let installUrl: string | undefined;
+      try {
+        const installSource = JSON.parse(await readFile(path.join(packageDir, 'install-source.json'), 'utf-8')) as { downloadUrl?: string };
+        installUrl = installSource.downloadUrl;
+      } catch {
+        // Missing or unparsable — leave installUrl undefined rather than failing the whole reload.
+      }
+
       for (const implementation of manifest.implementations) {
         const moduleUrl = pathToFileURL(path.join(packageDir, implementation.main)).href;
         const loaded = await importModule(moduleUrl);
         const plugin = loaded.default as SourcePlugin | DestinationPlugin;
-        validateAndRegisterPlugin(implementation, plugin, options.registry, options.sessionsRegistry);
+        validateAndRegisterPlugin(implementation, plugin, options.registry, manifest.id, options.sessionsRegistry);
       }
-      options.registry.registerPackage(manifest);
+      options.registry.registerPackage(manifest, installUrl);
     } catch (err) {
       options.onError?.(entryName, err);
     }

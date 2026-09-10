@@ -44,7 +44,7 @@ describe('suggestSessionLabel', () => {
   it("calls the plugin's suggestSessionLabel with a ctx scoped to that plugin, returning its suggestion", async () => {
     const suggest = vi.fn(async () => 'contoso.com');
     const registry = createPluginRegistry();
-    registry.register(fakeSourcePlugin({ suggestSessionLabel: suggest }));
+    registry.register(fakeSourcePlugin({ suggestSessionLabel: suggest }), 'test-package');
     const session = fakeSession();
 
     const createPluginServicesSpy = vi.fn(pluginServices);
@@ -65,7 +65,7 @@ describe('suggestSessionLabel', () => {
 
   it('returns undefined (not a throw) when the plugin has no suggestSessionLabel at all', async () => {
     const registry = createPluginRegistry();
-    registry.register(fakeSourcePlugin());
+    registry.register(fakeSourcePlugin(), 'test-package');
 
     const result = await suggestSessionLabel(
       { registry, createPluginServices: pluginServices, sessionsApiForPlugin: fakeSessionsApi },
@@ -98,6 +98,7 @@ describe('suggestSessionLabel', () => {
           throw new Error('graph call failed');
         }),
       }),
+      'test-package',
     );
 
     const result = await suggestSessionLabel(

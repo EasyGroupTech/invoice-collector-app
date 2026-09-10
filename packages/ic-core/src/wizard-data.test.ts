@@ -32,7 +32,7 @@ describe('resolveWizardListData', () => {
     const rows: WizardListDataResult['rows'] = [{ subject: 'Invoice #1' }];
     const resolveListData = vi.fn(async () => ({ rows }));
     const registry = createPluginRegistry();
-    registry.register(fakeSourcePlugin({ resolveListData }));
+    registry.register(fakeSourcePlugin({ resolveListData }), 'test-package');
 
     const createPluginServicesSpy = vi.fn(pluginServices);
     const sessionsApiForPluginSpy = vi.fn(fakeSessionsApi);
@@ -69,7 +69,7 @@ describe('resolveWizardListData', () => {
 
   it('throws when the registered plugin has no resolveListData — an install-validation invariant, not a normal case', async () => {
     const registry = createPluginRegistry();
-    registry.register(fakeSourcePlugin());
+    registry.register(fakeSourcePlugin(), 'test-package');
 
     await expect(
       resolveWizardListData(
