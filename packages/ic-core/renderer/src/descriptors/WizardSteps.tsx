@@ -55,7 +55,16 @@ export function WizardSteps({ pluginId, steps, values, onChange, sessionId }: Wi
               fieldValues={values}
               sessionId={sessionId}
               selectedRow={selection[step.name]}
-              onSelect={(row) => setSelection((prev) => ({ ...prev, [step.name]: row }))}
+              onSelect={(row) => {
+                setSelection((prev) => ({ ...prev, [step.name]: row }));
+                // Also lands in `values` under the list's own name — the only way a *later*
+                // ListDescriptor's own dataSource resolution (fieldValues, same as any plain
+                // field) can see what was picked in an earlier one. Needed for a cascading
+                // picker (e.g. site -> library -> folder, each depending on the last selection);
+                // purely additive for a list nothing downstream reads back — ic-email-to-
+                // downloads's own single-level preview list ignores it today.
+                onChange(step.name, row);
+              }}
             />
           );
         }
