@@ -6,6 +6,7 @@
 // preload/index.ts and ../../electron/shared/ipcContracts.ts by hand when a channel's signature
 // changes (same convention CLAUDE.md already documents for the private predecessor app).
 import type {
+  ActivatePluginInput,
   AdvancedSettings,
   AssignSessionInput,
   ConfigImportResult,
@@ -72,6 +73,7 @@ declare global {
       pluginsList(): Promise<InstalledPluginSummary[]>;
       pluginsListPackages(): Promise<PluginManifest[]>;
       pluginsInstall(input: InstallPluginInput): Promise<PluginInstallResult | PluginInstallNeedsConfirmation>;
+      pluginsActivate(input: ActivatePluginInput): Promise<{ ok: true } | { ok: false; reason: string }>;
       pluginsUninstall(pluginId: string): Promise<void>;
 
       wizardResolveListData(input: ResolveWizardListDataInput): Promise<WizardListDataResult>;

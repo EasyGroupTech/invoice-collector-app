@@ -59,6 +59,7 @@ export const Channels = {
   PluginsList: 'plugins:list',
   PluginsListPackages: 'plugins:listPackages',
   PluginsInstall: 'plugins:install',
+  PluginsActivate: 'plugins:activate',
   PluginsUninstall: 'plugins:uninstall',
 
   WizardResolveListData: 'wizard:resolveListData',
@@ -179,6 +180,13 @@ export interface ProfileCreateInput {
 export interface InstallPluginInput {
   rawInput: string;
   confirmUnverified?: boolean;
+}
+
+/** Fired once, right after `PluginsInstall` returns an `activationRequirement` — see
+ * `PluginInstallResult.activationRequirement`'s own doc comment. */
+export interface ActivatePluginInput {
+  pluginId: string;
+  input: Record<string, unknown>;
 }
 
 export interface RunCollectInput {

@@ -6,6 +6,7 @@ import {
   validateSessionRequirements,
   validateWizardDataSources,
   type DestinationPlugin,
+  type FieldDescriptor,
   type PluginImplementationManifest,
   type PluginManifest,
   type SourcePlugin,
@@ -29,6 +30,13 @@ export interface PluginInstallResult {
   status: 'installed';
   manifest: PluginManifest;
   tier: TrustTier;
+  /**
+   * Present when this package (any one of its bundled implementations — see `installPlugin`'s own
+   * loop) declares an `ActivationRequirement` (§9.1/§15) — the caller collects `fields` once, right
+   * now, and calls `PluginsActivate` with `pluginId` before considering install fully done.
+   * Undefined for a package with nothing to activate.
+   */
+  activationRequirement?: { pluginId: string; fields: FieldDescriptor[] };
 }
 
 /**
@@ -167,15 +175,22 @@ export async function installPlugin(
     // installUrl) needs that to survive a restart, not just the process that installed it.
     await writeFile(path.join(finalDir, 'install-source.json'), JSON.stringify({ downloadUrl: source.downloadUrl }));
 
+    // First implementation (in manifest order) that declares one — §9.4's package-scoped
+    // ActivationRequirement only ever needs to be declared once per package, even one bundling
+    // several implementations.
+    let activationRequirement: PluginInstallResult['activationRequirement'];
     for (const implementation of manifest.implementations) {
       const moduleUrl = pathToFileURL(path.join(finalDir, implementation.main)).href;
       const loaded = await importModule(moduleUrl);
       const plugin = loaded.default as SourcePlugin | DestinationPlugin;
       validateAndRegisterPlugin(implementation, plugin, options.registry, manifest.id, options.sessionsRegistry);
+      if (!activationRequirement && plugin.activationRequirement) {
+        activationRequirement = { pluginId: plugin.manifest.id, fields: plugin.activationRequirement.fields };
+      }
     }
     options.registry.registerPackage(manifest, source.downloadUrl);
 
-    return { status: 'installed', manifest, tier };
+    return { status: 'installed', manifest, tier, activationRequirement };
   } catch (err) {
     await rm(installDir, { recursive: true, force: true });
     throw err;

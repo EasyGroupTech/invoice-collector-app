@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import {
   Channels,
+  type ActivatePluginInput,
   type AdvancedSettings,
   type AssignSessionInput,
   type ConfigImportResult,
@@ -80,6 +81,8 @@ contextBridge.exposeInMainWorld('api', {
   pluginsListPackages: (): Promise<PluginManifest[]> => ipcRenderer.invoke(Channels.PluginsListPackages),
   pluginsInstall: (input: InstallPluginInput): Promise<PluginInstallResult | PluginInstallNeedsConfirmation> =>
     ipcRenderer.invoke(Channels.PluginsInstall, input),
+  pluginsActivate: (input: ActivatePluginInput): Promise<{ ok: true } | { ok: false; reason: string }> =>
+    ipcRenderer.invoke(Channels.PluginsActivate, input),
   pluginsUninstall: (pluginId: string): Promise<void> => ipcRenderer.invoke(Channels.PluginsUninstall, pluginId),
 
   wizardResolveListData: (input: ResolveWizardListDataInput): Promise<WizardListDataResult> =>

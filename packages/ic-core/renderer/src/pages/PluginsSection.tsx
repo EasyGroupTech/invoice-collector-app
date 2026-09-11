@@ -1,11 +1,14 @@
 import { useEffect, useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
+import type { FieldDescriptor } from 'invoice-collector-plugin-sdk';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { PluginManifest, SbomEntry } from '../../../electron/shared/ipcContracts';
+import { validateWizardValues, type WizardFieldValues } from '../../../src/wizard-form-state.js';
+import { WizardSteps } from '../descriptors/WizardSteps';
 
 /**
  * §9.4's actual concept: a plugin is a *bundle* of the sessions/sources/destinations it
@@ -45,6 +48,8 @@ export function PluginsSection() {
   const [packages, setPackages] = useState<PluginManifest[]>([]);
   const [rawInput, setRawInput] = useState('');
   const [pendingConfirmation, setPendingConfirmation] = useState<{ manifestId: string; manifestName: string } | undefined>(undefined);
+  const [pendingActivation, setPendingActivation] = useState<{ pluginId: string; packageName: string; fields: FieldDescriptor[] } | undefined>(undefined);
+  const [activationValues, setActivationValues] = useState<WizardFieldValues>({});
   const [busy, setBusy] = useState(false);
   const [collapsed, setCollapsed] = useState(true);
 
@@ -77,6 +82,35 @@ export function PluginsSection() {
       toast.success(`${result.manifest.name} installed`);
       await refreshPlugins();
       await refreshSbom();
+      // §9.1/§15 — collected once, right here, right after install succeeds — never again per
+      // source/destination `wizard` run.
+      if (result.activationRequirement) {
+        setActivationValues({});
+        setPendingActivation({
+          pluginId: result.activationRequirement.pluginId,
+          packageName: result.manifest.name,
+          fields: result.activationRequirement.fields,
+        });
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function activate() {
+    if (!pendingActivation) return;
+    setBusy(true);
+    try {
+      const outcome = await window.api.pluginsActivate({ pluginId: pendingActivation.pluginId, input: activationValues });
+      if (!outcome.ok) {
+        toast.error(outcome.reason);
+        return;
+      }
+      toast.success(`${pendingActivation.packageName} activated`);
+      setPendingActivation(undefined);
+      setActivationValues({});
     } catch (err) {
       toast.error(err instanceof Error ? err.message : String(err));
     } finally {
@@ -133,6 +167,42 @@ export function PluginsSection() {
                     </Button>
                     <Button type="button" variant="ghost" size="sm" onClick={() => setPendingConfirmation(undefined)}>
                       Cancel
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {pendingActivation && (
+                <div className="flex flex-col gap-3 rounded-lg border px-4 py-3">
+                  <p className="text-sm">
+                    <strong>{pendingActivation.packageName}</strong> needs a one-time activation step before it can be used — you won't be asked
+                    again for any source or destination you create with it.
+                  </p>
+                  <WizardSteps
+                    pluginId={pendingActivation.pluginId}
+                    steps={pendingActivation.fields}
+                    values={activationValues}
+                    onChange={(name, value) => setActivationValues((prev) => ({ ...prev, [name]: value }))}
+                  />
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      disabled={!validateWizardValues(pendingActivation.fields, activationValues).valid}
+                      onClick={() => void activate()}
+                    >
+                      Activate
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setPendingActivation(undefined);
+                        setActivationValues({});
+                      }}
+                    >
+                      Later
                     </Button>
                   </div>
                 </div>
