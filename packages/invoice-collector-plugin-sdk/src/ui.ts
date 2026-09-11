@@ -64,11 +64,35 @@ export interface ListDescriptor {
    * Renders as a real dropdown (a `<select>`-style picker showing the first declared column's
    * value per row) instead of the default scrollable block list — a flat "pick exactly one of
    * these" choice (e.g. a document library) reads better as a dropdown than a list of rows to
-   * scan. Defaults to `'list'`, so every existing usage (including a hierarchical, drill-down
-   * picker like a folder tree, which needs the block-list style for its own breadcrumb/multi-
-   * column display) is unaffected.
+   * scan. Defaults to `'list'`, so every existing usage is unaffected.
+   *
+   * `'tree'` is for a genuinely hierarchical picker (e.g. a folder tree): resolved lazily one
+   * level at a time — the renderer only calls `resolveListData` again, with
+   * `WizardListDataRequest.parentId` set to a node's own row, when the user actually expands it,
+   * never the whole hierarchy up front. It always shows one extra, renderer-owned top node
+   * (labeled "/", not a row the plugin returns) representing "nothing browsed into yet" —
+   * clicking it selects `{ id: '', ... }` as this step's own value, matching a resolver that
+   * already treats `fieldValues[name]` being absent as "the top level" (e.g. a document
+   * library's own root). Expanding a node and selecting it are deliberately two separate actions
+   * here (an expand toggle vs. clicking the row's own label) — unlike `'list'`'s drill-down
+   * convention, where a row click did both. That's the actual reason this render mode exists:
+   * the combined click was what made a flat drill-down list keep losing a just-picked subfolder,
+   * since selecting a row and browsing into it re-queried the exact same request shape, so the
+   * resolver *had* to reload as if the selection might have gone stale — a tree doesn't need to
+   * guess, because clicking a row's own label never re-triggers a fetch at all.
+   *
+   * A row shaped with `hasChildren: boolean` (opt-in by row shape, not a new descriptor field —
+   * same convention as a row's own string `path` triggering a "you are here" breadcrumb in
+   * `ic-core`'s renderer) hides the expand toggle for a row known in advance to have none, when
+   * the plugin already has that information for free (e.g. Graph's own `childCount`); omitted,
+   * or `true`, always shows one — expanding a genuine leaf just reveals zero children rather than
+   * erroring.
+   *
+   * `autoSelectFirstRow` (above) still applies to `'tree'`, meaning "auto-select the tree's own
+   * top node" instead of a fetched row's — there's no real "first row" to pick among for a tree
+   * the way there is for a flat list.
    */
-  renderAs?: 'list' | 'dropdown';
+  renderAs?: 'list' | 'dropdown' | 'tree';
   /** Only meaningful with `renderAs: 'dropdown'` — shows a text filter above it that narrows the
    * dropdown's own already-resolved rows client-side (matched against every declared column, not
    * just the first) as the user types, no extra dataSource round trip per keystroke. For a

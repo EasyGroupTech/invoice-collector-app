@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { CapturedTextSelection, TextSelectField, WizardStepDescriptor } from 'invoice-collector-plugin-sdk';
-import { Loader2, X } from 'lucide-react';
+import { ChevronDown, ChevronRight, Loader2, X } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -81,6 +81,36 @@ export function WizardSteps({ pluginId, steps, values, onChange, sessionId }: Wi
             setSelection((prev) => ({ ...prev, [step.name]: row }));
             onChange(step.name, row);
           };
+          // A fresh reload no longer contains what was selected here — e.g. an upstream list's
+          // own selection changed (a different site picked after a library was already chosen
+          // under the old one), which just silently re-queried this list rather than reset it. A
+          // stale selection here isn't just a display problem: a *later* list still keying its own
+          // resolution off this one's id would otherwise send an id that no longer means what it
+          // used to (confirmed live — a folder id from the old library sent against the new
+          // library's own drive 404s as "itemNotFound", not an error a user has any way to
+          // self-diagnose).
+          const clear = () => {
+            setSelection((prev) => ({ ...prev, [step.name]: undefined }));
+            onChange(step.name, undefined);
+          };
+          if (step.renderAs === 'tree') {
+            return (
+              <TreeListStep
+                key={step.name}
+                name={step.name}
+                pluginId={pluginId}
+                dataSource={step.dataSource}
+                columns={step.columns}
+                label={step.label}
+                fieldValues={values}
+                sessionId={sessionId}
+                selectedRow={selection[step.name]}
+                autoSelectFirstRow={step.autoSelectFirstRow}
+                onSelect={select}
+                onClear={clear}
+              />
+            );
+          }
           return (
             <ListStep
               key={step.name}
@@ -96,18 +126,7 @@ export function WizardSteps({ pluginId, steps, values, onChange, sessionId }: Wi
               renderAs={step.renderAs}
               filterable={step.filterable}
               onSelect={select}
-              onClear={() => {
-                // A fresh reload no longer contains what was selected here — e.g. an upstream
-                // list's own selection changed (a different site picked after a library was
-                // already chosen under the old one), which just silently re-queried this list
-                // rather than reset it. A stale selection here isn't just a display problem: a
-                // *later* list still keying its own resolution off this one's id would otherwise
-                // send an id that no longer means what it used to (confirmed live — a folder id
-                // from the old library sent against the new library's own drive 404s as
-                // "itemNotFound", not an error a user has any way to self-diagnose).
-                setSelection((prev) => ({ ...prev, [step.name]: undefined }));
-                onChange(step.name, undefined);
-              }}
+              onClear={clear}
             />
           );
         }
@@ -344,6 +363,180 @@ function ListStep({ name, pluginId, dataSource, columns, label, fieldValues, ses
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+// The tree's own top level — not a row any plugin ever returns itself. Selecting it means "the
+// top level" (e.g. a document library's own root); matches every existing resolveListData
+// convention of treating an absent selection as exactly that (ListDescriptor.renderAs's own doc,
+// ui.ts). Its `path: ''` also feeds the same "you are here" breadcrumb convention any other row
+// shaped with a string `path` already gets.
+const TREE_ROOT_ROW: Record<string, unknown> = { id: '', name: '/', path: '' };
+// Sentinel cache/expansion key for the root — distinct from any real row id (even an empty-string
+// one), so a plugin returning a real row shaped with id: '' can't collide with it.
+const TREE_ROOT_KEY = '__tree_root__';
+
+function treeNodeKey(row: Record<string, unknown>): string {
+  return typeof row.id === 'string' || typeof row.id === 'number' ? String(row.id) : '';
+}
+
+interface TreeNodeCacheEntry {
+  status: 'loading' | 'loaded' | 'error';
+  children: Array<Record<string, unknown>>;
+  error?: string;
+}
+
+interface TreeListStepProps {
+  name: string;
+  pluginId: string;
+  dataSource: string;
+  columns: { key: string; label: string }[];
+  label: string;
+  fieldValues: WizardFieldValues;
+  sessionId?: string;
+  selectedRow: Record<string, unknown> | undefined;
+  autoSelectFirstRow?: boolean;
+  onSelect: (row: Record<string, unknown>) => void;
+  onClear: () => void;
+}
+
+/**
+ * `ListDescriptor.renderAs: 'tree'` (ui.ts) — a real expand/collapse tree, resolved lazily one
+ * level at a time via `WizardListDataRequest.parentId`, instead of `ListStep`'s flat
+ * click-a-row-to-both-select-and-descend list. Expanding a node (the chevron) and selecting it
+ * (clicking its own label) are two entirely separate actions here, each touching its own state —
+ * expand only ever reads/writes this component's local `cache`/`expanded`, select only ever calls
+ * `onSelect`/`fieldValues[name]`. Neither depends on the other, which is what actually fixes the
+ * bug class `ListStep`'s drill-down mode kept hitting (§ PR #33/#36 in invoice-collector-app's own
+ * history): there, selecting a row *was* browsing into it, so the exact same request had to double
+ * as both "confirm this" and "show me its children", and core had no way to tell a subfolder that
+ * just isn't among its own freshly-loaded children apart from a selection that had actually gone
+ * stale. A tree never has to guess, because clicking a row's label never re-triggers a fetch.
+ */
+function TreeListStep({ name, pluginId, dataSource, columns, label, fieldValues, sessionId, selectedRow, autoSelectFirstRow, onSelect, onClear }: TreeListStepProps) {
+  const [cache, setCache] = useState<Map<string, TreeNodeCacheEntry>>(new Map());
+  const [expanded, setExpanded] = useState<Set<string>>(new Set([TREE_ROOT_KEY]));
+  // Bumped on every full reset (an upstream field or the session changed) — a fetch still in
+  // flight when that happens checks this on completion and discards its own result rather than
+  // merging a now-irrelevant branch (e.g. the old library's folders) into the tree that replaced it.
+  const generationRef = useRef(0);
+  const onSelectRef = useRef(onSelect);
+  const onClearRef = useRef(onClear);
+  useEffect(() => {
+    onSelectRef.current = onSelect;
+    onClearRef.current = onClear;
+  });
+
+  async function fetchChildren(parentRow: Record<string, unknown> | undefined, generation: number) {
+    const key = parentRow ? treeNodeKey(parentRow) : TREE_ROOT_KEY;
+    setCache((prev) => {
+      const next = new Map(prev);
+      next.set(key, { status: 'loading', children: prev.get(key)?.children ?? [] });
+      return next;
+    });
+    try {
+      const result = await window.api.wizardResolveListData({
+        pluginId,
+        request: { dataSource, fieldValues, sessionId, parentId: parentRow ? treeNodeKey(parentRow) : undefined },
+      });
+      if (generation !== generationRef.current) return; // superseded by a reset since this started
+      setCache((prev) => {
+        const next = new Map(prev);
+        next.set(key, { status: 'loaded', children: result.rows });
+        return next;
+      });
+    } catch (err) {
+      if (generation !== generationRef.current) return;
+      setCache((prev) => {
+        const next = new Map(prev);
+        next.set(key, { status: 'error', children: [], error: err instanceof Error ? err.message : String(err) });
+        return next;
+      });
+    }
+  }
+
+  // Any upstream field (or session) change invalidates the whole tree — core has no way to know
+  // which fields a dataSource actually depends on (the same limitation `ListStep`'s own modes
+  // already live with), so the safe default is to rebuild from the root rather than risk showing
+  // a branch fetched under a now-irrelevant context (e.g. a different library's folder ids).
+  // Deliberately excludes this step's *own* value (`fieldValues[name]`) from the dependency key —
+  // selecting a row never itself re-fetches anything in tree mode, so it must not reset the tree
+  // it's a selection *of*.
+  const upstreamDepsKey = JSON.stringify(Object.fromEntries(Object.entries(fieldValues).filter(([key]) => key !== name)));
+  useEffect(() => {
+    const generation = ++generationRef.current;
+    setCache(new Map());
+    setExpanded(new Set([TREE_ROOT_KEY]));
+    onClearRef.current();
+    if (autoSelectFirstRow) onSelectRef.current(TREE_ROOT_ROW);
+    void fetchChildren(undefined, generation);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [upstreamDepsKey, sessionId]);
+
+  function toggleExpand(row: Record<string, unknown> | 'root') {
+    const key = row === 'root' ? TREE_ROOT_KEY : treeNodeKey(row);
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+        const existing = cache.get(key);
+        if (!existing || existing.status === 'error') void fetchChildren(row === 'root' ? undefined : row, generationRef.current);
+      }
+      return next;
+    });
+  }
+
+  function renderNode(row: Record<string, unknown> | 'root', depth: number) {
+    const key = row === 'root' ? TREE_ROOT_KEY : treeNodeKey(row);
+    const displayRow: Record<string, unknown> = row === 'root' ? TREE_ROOT_ROW : row;
+    const isExpanded = expanded.has(key);
+    const entry = cache.get(key);
+    const canExpand = displayRow.hasChildren !== false;
+    const indentRem = depth * 1.25 + 0.375;
+
+    return (
+      <div key={key}>
+        <div className={cn('flex items-center gap-1.5 rounded px-1.5 py-1 hover:bg-accent/50', rowsMatch(displayRow, selectedRow) && 'bg-accent')} style={{ paddingLeft: `${indentRem}rem` }}>
+          {canExpand ? (
+            <button type="button" onClick={() => toggleExpand(row)} className="flex size-4 shrink-0 items-center justify-center text-muted-foreground hover:text-foreground">
+              {entry?.status === 'loading' ? <Loader2 className="size-3 animate-spin" /> : isExpanded ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
+            </button>
+          ) : (
+            <span className="size-4 shrink-0" />
+          )}
+          <button type="button" onClick={() => onSelect(displayRow)} className="flex-1 cursor-pointer truncate text-left text-sm">
+            {truncate(String(displayRow[columns[0]?.key] ?? ''), PRIMARY_COLUMN_MAX_LENGTH)}
+          </button>
+        </div>
+        {isExpanded && entry?.status === 'loaded' && entry.children.length === 0 && (
+          <p className="text-xs text-muted-foreground" style={{ paddingLeft: `${indentRem + 1.25}rem` }}>
+            No subfolders.
+          </p>
+        )}
+        {isExpanded && entry?.status === 'error' && (
+          <p className="text-xs text-destructive" style={{ paddingLeft: `${indentRem + 1.25}rem` }}>
+            {entry.error}
+          </p>
+        )}
+        {isExpanded && entry?.status === 'loaded' && entry.children.map((child) => renderNode(child, depth + 1))}
+      </div>
+    );
+  }
+
+  const currentPath = typeof selectedRow?.path === 'string' ? selectedRow.path : undefined;
+
+  return (
+    <div className="flex flex-col gap-2">
+      <p className="text-sm font-medium">{label}</p>
+      {currentPath !== undefined && (
+        <p className="text-xs text-muted-foreground">
+          Current: <span className="font-mono">/{currentPath}</span>
+        </p>
+      )}
+      <div className="max-h-80 overflow-y-auto rounded-lg border p-1">{renderNode('root', 0)}</div>
     </div>
   );
 }
