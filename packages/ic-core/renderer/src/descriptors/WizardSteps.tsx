@@ -84,6 +84,7 @@ export function WizardSteps({ pluginId, steps, values, onChange, sessionId }: Wi
           return (
             <ListStep
               key={step.name}
+              name={step.name}
               pluginId={pluginId}
               dataSource={step.dataSource}
               columns={step.columns}
@@ -148,6 +149,7 @@ export function WizardSteps({ pluginId, steps, values, onChange, sessionId }: Wi
 }
 
 interface ListStepProps {
+  name: string;
   pluginId: string;
   dataSource: string;
   columns: { key: string; label: string }[];
@@ -162,7 +164,7 @@ interface ListStepProps {
   onClear: () => void;
 }
 
-function ListStep({ pluginId, dataSource, columns, label, fieldValues, sessionId, selectedRow, autoSelectFirstRow, renderAs, filterable, onSelect, onClear }: ListStepProps) {
+function ListStep({ name, pluginId, dataSource, columns, label, fieldValues, sessionId, selectedRow, autoSelectFirstRow, renderAs, filterable, onSelect, onClear }: ListStepProps) {
   const [rows, setRows] = useState<Array<Record<string, unknown>> | undefined>(undefined);
   const [error, setError] = useState<string | undefined>(undefined);
   // Declared unconditionally (hooks can't be called from inside an `if renderAs === 'dropdown'`
@@ -185,23 +187,37 @@ function ListStep({ pluginId, dataSource, columns, label, fieldValues, sessionId
   // resolveListData calls for the same list have no ordering guarantee over the wire, so without
   // this an older, slower response could overwrite a newer selection's own correct rows.
   const requestIdRef = useRef(0);
+  // What `fieldValues[name]` (this list's *own* current selection) was as of the last completed
+  // load — tracked so a reload can tell apart two very different reasons it might not find the
+  // selected row among its fresh rows: (a) *this* list's own selection just changed (the user
+  // picked a new row here) — expected for a drill-down list, where selecting a row deliberately
+  // re-queries to show *its own children*, which never include the row itself; or (b) some *other*
+  // field changed while this list's own selection stayed untouched (e.g. an upstream site/library
+  // pick) — the real "stale, no longer valid" case #33 was fixing. Only (b) should clear anything.
+  const lastLoadedOwnValueRef = useRef<unknown>(undefined);
   const [loading, setLoading] = useState(false);
 
   async function load(values: WizardFieldValues) {
     const requestId = ++requestIdRef.current;
+    const ownValueThisLoad = values[name];
+    const ownValueChangedSinceLastLoad = ownValueThisLoad !== lastLoadedOwnValueRef.current;
     setLoading(true);
     setError(undefined);
     try {
       const result = await window.api.wizardResolveListData({ pluginId, request: { dataSource, fieldValues: values, sessionId } });
       if (requestId !== requestIdRef.current) return; // a newer request has since started — this response is stale
       setRows(result.rows);
+      lastLoadedOwnValueRef.current = ownValueThisLoad;
       // The previously-selected row (if any) may no longer be one of the fresh rows — an upstream
       // list's own selection changing is exactly what re-triggers this reload in the first place.
       // Clearing it here (rather than leaving a stale id sitting in `values`) is what keeps a
       // *later* list's own dataSource resolution from silently depending on a selection that no
-      // longer means what it used to.
+      // longer means what it used to. Skipped when *this* list's own selection is what just
+      // changed (ownValueChangedSinceLastLoad) — a drill-down list's own freshly-picked row is
+      // expected to be absent from its own freshly-reloaded children (they're its children, not
+      // itself), which isn't staleness, it's the whole point of picking it.
       let stillSelected = selectedRowRef.current;
-      if (stillSelected && !result.rows.some((row) => rowsMatch(row, stillSelected))) {
+      if (!ownValueChangedSinceLastLoad && stillSelected && !result.rows.some((row) => rowsMatch(row, stillSelected))) {
         onClearRef.current();
         stillSelected = undefined;
       }
