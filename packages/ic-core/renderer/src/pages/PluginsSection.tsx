@@ -175,8 +175,7 @@ export function PluginsSection() {
               {pendingActivation && (
                 <div className="flex flex-col gap-3 rounded-lg border px-4 py-3">
                   <p className="text-sm">
-                    <strong>{pendingActivation.packageName}</strong> needs a one-time activation step before it can be used — you won't be asked
-                    again for any source or destination you create with it.
+                    <strong>{pendingActivation.packageName}</strong> needs an activation.
                   </p>
                   <WizardSteps
                     pluginId={pendingActivation.pluginId}
