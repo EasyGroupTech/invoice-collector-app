@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
-import type { JobHandle, JobProgressEvent } from '../../../electron/shared/ipcContracts';
+import type { JobDoneEvent, JobHandle, JobProgressEvent } from '../../../electron/shared/ipcContracts';
 
 export type JobOutcome<T> = { ok: true; result: T } | { ok: false; error: string };
 
@@ -29,20 +29,51 @@ export function useJob<T>(): UseJobResult<T> {
   const start = useCallback(async (startJob: Promise<JobHandle>) => {
     setProgressLog([]);
     setResult(undefined);
-    const handle = await startJob;
-    jobIdRef.current = handle.jobId;
-    setJobId(handle.jobId);
+    jobIdRef.current = undefined;
+
+    // Subscribed *before* startJob is even awaited, and buffered until its own jobId is known —
+    // a job whose failure requires no real async work at all (e.g. a session type with no input
+    // to resolve) can run, fail, and broadcast its own done event before this hook ever learns its
+    // jobId from startJob's resolution. Confirmed live: registering the real onJobDone listener
+    // only afterward (the previous code here) missed that event entirely, leaving `result` stuck
+    // undefined forever — a job that's actually finished looking, to the caller, exactly like one
+    // still in progress. Boxed (rather than a bare `let`) so the two closures below observe later
+    // mutations of `.jobId`/`.done` rather than whatever value was in scope when they were created.
+    const pending: { jobId: string | undefined; done: JobDoneEvent | undefined } = { jobId: undefined, done: undefined };
+    const bufferedProgress: JobProgressEvent[] = [];
 
     const unsubscribeProgress = window.api.onJobProgress((event) => {
-      if (event.jobId !== jobIdRef.current) return;
+      if (pending.jobId === undefined) {
+        bufferedProgress.push(event);
+        return;
+      }
+      if (event.jobId !== pending.jobId) return;
       setProgressLog((prev) => [...prev, event]);
     });
     const unsubscribeDone = window.api.onJobDone((event) => {
-      if (event.jobId !== jobIdRef.current) return;
+      if (pending.jobId === undefined) {
+        pending.done = event; // only one job per start() call, so the latest is the right one
+        return;
+      }
+      if (event.jobId !== pending.jobId) return;
       unsubscribeProgress();
       unsubscribeDone();
       setResult(event.ok ? { ok: true, result: event.result as T } : { ok: false, error: event.error });
     });
+
+    const handle = await startJob;
+    pending.jobId = handle.jobId;
+    jobIdRef.current = handle.jobId;
+    setJobId(handle.jobId);
+
+    const ownBufferedProgress = bufferedProgress.filter((event) => event.jobId === pending.jobId);
+    if (ownBufferedProgress.length > 0) setProgressLog((prev) => [...prev, ...ownBufferedProgress]);
+
+    if (pending.done && pending.done.jobId === pending.jobId) {
+      unsubscribeProgress();
+      unsubscribeDone();
+      setResult(pending.done.ok ? { ok: true, result: pending.done.result as T } : { ok: false, error: pending.done.error });
+    }
   }, []);
 
   const cancel = useCallback(() => {
