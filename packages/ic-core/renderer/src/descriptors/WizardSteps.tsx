@@ -59,6 +59,17 @@ export function WizardSteps({ pluginId, steps, values, onChange, sessionId }: Wi
         }
 
         if (step.kind === 'list') {
+          // Also lands in `values` under the list's own name — the only way a *later*
+          // ListDescriptor's own dataSource resolution (fieldValues, same as any plain field) can
+          // see what was picked in an earlier one. Needed for a cascading picker (e.g. site ->
+          // library -> folder, each depending on the last selection); purely additive for a list
+          // nothing downstream reads back — ic-email-to-downloads's own single-level preview list
+          // ignores it today. Shared by a real click (onSelect) and autoSelectFirstRow's own
+          // auto-pick — both are "this is now the selection" from the wizard's own point of view.
+          const select = (row: Record<string, unknown>) => {
+            setSelection((prev) => ({ ...prev, [step.name]: row }));
+            onChange(step.name, row);
+          };
           return (
             <ListStep
               key={step.name}
@@ -69,16 +80,8 @@ export function WizardSteps({ pluginId, steps, values, onChange, sessionId }: Wi
               fieldValues={values}
               sessionId={sessionId}
               selectedRow={selection[step.name]}
-              onSelect={(row) => {
-                setSelection((prev) => ({ ...prev, [step.name]: row }));
-                // Also lands in `values` under the list's own name — the only way a *later*
-                // ListDescriptor's own dataSource resolution (fieldValues, same as any plain
-                // field) can see what was picked in an earlier one. Needed for a cascading
-                // picker (e.g. site -> library -> folder, each depending on the last selection);
-                // purely additive for a list nothing downstream reads back — ic-email-to-
-                // downloads's own single-level preview list ignores it today.
-                onChange(step.name, row);
-              }}
+              autoSelectFirstRow={step.autoSelectFirstRow}
+              onSelect={select}
               onClear={() => {
                 // A fresh reload no longer contains what was selected here — e.g. an upstream
                 // list's own selection changed (a different site picked after a library was
@@ -139,11 +142,12 @@ interface ListStepProps {
   fieldValues: WizardFieldValues;
   sessionId?: string;
   selectedRow: Record<string, unknown> | undefined;
+  autoSelectFirstRow?: boolean;
   onSelect: (row: Record<string, unknown>) => void;
   onClear: () => void;
 }
 
-function ListStep({ pluginId, dataSource, columns, label, fieldValues, sessionId, selectedRow, onSelect, onClear }: ListStepProps) {
+function ListStep({ pluginId, dataSource, columns, label, fieldValues, sessionId, selectedRow, autoSelectFirstRow, onSelect, onClear }: ListStepProps) {
   const [rows, setRows] = useState<Array<Record<string, unknown>> | undefined>(undefined);
   const [error, setError] = useState<string | undefined>(undefined);
   // Read inside the async load() below without it needing to be an effect dependency (which would
@@ -152,9 +156,11 @@ function ListStep({ pluginId, dataSource, columns, label, fieldValues, sessionId
   // effect, not assigned during render itself (React's own rule against mutating a ref while
   // rendering — this can run after every render since it's not the source of any reload).
   const selectedRowRef = useRef(selectedRow);
+  const onSelectRef = useRef(onSelect);
   const onClearRef = useRef(onClear);
   useEffect(() => {
     selectedRowRef.current = selectedRow;
+    onSelectRef.current = onSelect;
     onClearRef.current = onClear;
   });
   // Ignores an in-flight request's own response once a newer one has since started — two
@@ -176,8 +182,16 @@ function ListStep({ pluginId, dataSource, columns, label, fieldValues, sessionId
       // Clearing it here (rather than leaving a stale id sitting in `values`) is what keeps a
       // *later* list's own dataSource resolution from silently depending on a selection that no
       // longer means what it used to.
-      if (selectedRowRef.current && !result.rows.some((row) => rowsMatch(row, selectedRowRef.current))) {
+      let stillSelected = selectedRowRef.current;
+      if (stillSelected && !result.rows.some((row) => rowsMatch(row, stillSelected))) {
         onClearRef.current();
+        stillSelected = undefined;
+      }
+      // §8's ListDescriptor.autoSelectFirstRow — picks up right after the block above, so a
+      // selection just invalidated by a context change (e.g. a different library picked) gets a
+      // fresh default (that library's own root) instead of sitting cleared until the user clicks.
+      if (autoSelectFirstRow && !stillSelected && result.rows.length > 0) {
+        onSelectRef.current(result.rows[0]);
       }
     } catch (err) {
       if (requestId !== requestIdRef.current) return;
@@ -197,6 +211,11 @@ function ListStep({ pluginId, dataSource, columns, label, fieldValues, sessionId
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [JSON.stringify(fieldValues), sessionId]);
 
+  // A "you are here" breadcrumb for a hierarchical picker (e.g. a folder tree) — opt-in by
+  // convention, not a new descriptor field: any row shaped with a string `path` (root = '') gets
+  // one, entirely rows'-own data, nothing SharePoint-specific about it here.
+  const currentPath = typeof selectedRow?.path === 'string' ? selectedRow.path : undefined;
+
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between">
@@ -208,6 +227,11 @@ function ListStep({ pluginId, dataSource, columns, label, fieldValues, sessionId
           </span>
         )}
       </div>
+      {currentPath !== undefined && (
+        <p className="text-xs text-muted-foreground">
+          Current: <span className="font-mono">/{currentPath}</span>
+        </p>
+      )}
       {error && <p className="text-sm text-destructive">{error}</p>}
       {rows && (
         // Its own scroll area, bounded independently of the rest of the wizard/dialog — this list

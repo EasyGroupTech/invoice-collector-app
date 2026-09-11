@@ -50,6 +50,16 @@ export interface ListDescriptor {
    */
   dataSource: string;
   selectable?: boolean;
+  /**
+   * Auto-selects the first resolved row as soon as it loads, if nothing has been explicitly
+   * selected yet — for a list whose rows include a deliberate "default" entry a plugin always
+   * returns first (e.g. a folder picker's own "/ (library root)" row), so the user sees *something*
+   * already selected instead of an ambiguous "nothing chosen" state for a choice that already has
+   * a sensible default. Re-fires the same way after a reload clears the selection (e.g. an upstream
+   * list's own selection changed) — the newly-loaded list's own first row becomes the new default,
+   * which is the right behavior for exactly this case (a fresh drive's own root, not the old one's).
+   */
+  autoSelectFirstRow?: boolean;
 }
 
 export interface DetailDescriptor {
