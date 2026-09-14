@@ -22,6 +22,20 @@ function truncate(value: string, maxLength: number): string {
   return value.length > maxLength ? `${value.slice(0, maxLength)}…` : value;
 }
 
+// A list's own dataSource resolution re-runs on *any* wizard field change (not just fields it
+// actually depends on — core has no way to know that, since resolution is opaque plugin logic),
+// so `rows` gets fresh row objects on basically every keystroke/selection elsewhere in the same
+// wizard. Comparing by reference (`row === selectedRow`) would then lose the highlight the moment
+// anything else in the wizard changes, even though the selected row's own data hasn't. Falls back
+// to reference equality when a row has no `id` field at all (§8 doesn't require one) — real for a
+// plain preview list, just not for anything meant to be selected and depended on downstream.
+function rowsMatch(a: Record<string, unknown> | undefined, b: Record<string, unknown> | undefined): boolean {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  if ('id' in a && 'id' in b) return a.id === b.id;
+  return false;
+}
+
 interface WizardStepsProps {
   pluginId: string;
   steps: WizardStepDescriptor[];
@@ -64,6 +78,18 @@ export function WizardSteps({ pluginId, steps, values, onChange, sessionId }: Wi
                 // purely additive for a list nothing downstream reads back — ic-email-to-
                 // downloads's own single-level preview list ignores it today.
                 onChange(step.name, row);
+              }}
+              onClear={() => {
+                // A fresh reload no longer contains what was selected here — e.g. an upstream
+                // list's own selection changed (a different site picked after a library was
+                // already chosen under the old one), which just silently re-queried this list
+                // rather than reset it. A stale selection here isn't just a display problem: a
+                // *later* list still keying its own resolution off this one's id would otherwise
+                // send an id that no longer means what it used to (confirmed live — a folder id
+                // from the old library sent against the new library's own drive 404s as
+                // "itemNotFound", not an error a user has any way to self-diagnose).
+                setSelection((prev) => ({ ...prev, [step.name]: undefined }));
+                onChange(step.name, undefined);
               }}
             />
           );
@@ -114,23 +140,50 @@ interface ListStepProps {
   sessionId?: string;
   selectedRow: Record<string, unknown> | undefined;
   onSelect: (row: Record<string, unknown>) => void;
+  onClear: () => void;
 }
 
-function ListStep({ pluginId, dataSource, columns, label, fieldValues, sessionId, selectedRow, onSelect }: ListStepProps) {
+function ListStep({ pluginId, dataSource, columns, label, fieldValues, sessionId, selectedRow, onSelect, onClear }: ListStepProps) {
   const [rows, setRows] = useState<Array<Record<string, unknown>> | undefined>(undefined);
   const [error, setError] = useState<string | undefined>(undefined);
+  // Read inside the async load() below without it needing to be an effect dependency (which would
+  // re-trigger a reload — a selection change alone shouldn't re-query the server, only fieldValues/
+  // session should) — always current as of whatever render most recently committed. Synced via an
+  // effect, not assigned during render itself (React's own rule against mutating a ref while
+  // rendering — this can run after every render since it's not the source of any reload).
+  const selectedRowRef = useRef(selectedRow);
+  const onClearRef = useRef(onClear);
+  useEffect(() => {
+    selectedRowRef.current = selectedRow;
+    onClearRef.current = onClear;
+  });
+  // Ignores an in-flight request's own response once a newer one has since started — two
+  // resolveListData calls for the same list have no ordering guarantee over the wire, so without
+  // this an older, slower response could overwrite a newer selection's own correct rows.
+  const requestIdRef = useRef(0);
   const [loading, setLoading] = useState(false);
 
   async function load(values: WizardFieldValues) {
+    const requestId = ++requestIdRef.current;
     setLoading(true);
     setError(undefined);
     try {
       const result = await window.api.wizardResolveListData({ pluginId, request: { dataSource, fieldValues: values, sessionId } });
+      if (requestId !== requestIdRef.current) return; // a newer request has since started — this response is stale
       setRows(result.rows);
+      // The previously-selected row (if any) may no longer be one of the fresh rows — an upstream
+      // list's own selection changing is exactly what re-triggers this reload in the first place.
+      // Clearing it here (rather than leaving a stale id sitting in `values`) is what keeps a
+      // *later* list's own dataSource resolution from silently depending on a selection that no
+      // longer means what it used to.
+      if (selectedRowRef.current && !result.rows.some((row) => rowsMatch(row, selectedRowRef.current))) {
+        onClearRef.current();
+      }
     } catch (err) {
+      if (requestId !== requestIdRef.current) return;
       setError(err instanceof Error ? err.message : String(err));
     } finally {
-      setLoading(false);
+      if (requestId === requestIdRef.current) setLoading(false);
     }
   }
 
@@ -172,7 +225,7 @@ function ListStep({ pluginId, dataSource, columns, label, fieldValues, sessionId
             <div
               key={index}
               onClick={() => onSelect(row)}
-              className={cn('cursor-pointer p-3 hover:bg-accent/50', row === selectedRow && 'bg-accent')}
+              className={cn('cursor-pointer p-3 hover:bg-accent/50', rowsMatch(row, selectedRow) && 'bg-accent')}
             >
               <div className="text-sm font-medium">{truncate(String(row[columns[0]?.key] ?? ''), PRIMARY_COLUMN_MAX_LENGTH)}</div>
               {columns.length > 1 && (
