@@ -3,6 +3,8 @@ import type { CapturedTextSelection, TextSelectField, WizardStepDescriptor } fro
 import { Loader2, X } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { isFieldVisible, seedDetailValuesFromRow, type WizardFieldValues } from '../../../src/wizard-form-state.js';
 import { FieldInput } from './FieldInput';
@@ -34,6 +36,15 @@ function rowsMatch(a: Record<string, unknown> | undefined, b: Record<string, unk
   if (!a || !b) return false;
   if ('id' in a && 'id' in b) return a.id === b.id;
   return false;
+}
+
+// Radix's own Select needs a stable string identity per option (its `value` prop) — `id` when a
+// row has one (every dropdown-worthy row in practice, per ListDescriptor.renderAs's own doc
+// comment), falling back to its index otherwise. The fallback isn't reorder-safe, but dropdown
+// rendering is meant for rows that already have a real id; an id-less list staying stable across
+// reloads was never guaranteed anyway.
+function rowKey(row: Record<string, unknown>, index: number): string {
+  return typeof row.id === 'string' || typeof row.id === 'number' ? String(row.id) : `row-${index}`;
 }
 
 interface WizardStepsProps {
@@ -81,6 +92,8 @@ export function WizardSteps({ pluginId, steps, values, onChange, sessionId }: Wi
               sessionId={sessionId}
               selectedRow={selection[step.name]}
               autoSelectFirstRow={step.autoSelectFirstRow}
+              renderAs={step.renderAs}
+              filterable={step.filterable}
               onSelect={select}
               onClear={() => {
                 // A fresh reload no longer contains what was selected here — e.g. an upstream
@@ -143,13 +156,18 @@ interface ListStepProps {
   sessionId?: string;
   selectedRow: Record<string, unknown> | undefined;
   autoSelectFirstRow?: boolean;
+  renderAs?: 'list' | 'dropdown';
+  filterable?: boolean;
   onSelect: (row: Record<string, unknown>) => void;
   onClear: () => void;
 }
 
-function ListStep({ pluginId, dataSource, columns, label, fieldValues, sessionId, selectedRow, autoSelectFirstRow, onSelect, onClear }: ListStepProps) {
+function ListStep({ pluginId, dataSource, columns, label, fieldValues, sessionId, selectedRow, autoSelectFirstRow, renderAs, filterable, onSelect, onClear }: ListStepProps) {
   const [rows, setRows] = useState<Array<Record<string, unknown>> | undefined>(undefined);
   const [error, setError] = useState<string | undefined>(undefined);
+  // Declared unconditionally (hooks can't be called from inside an `if renderAs === 'dropdown'`
+  // branch) — unused, harmless state for the default list style.
+  const [filterText, setFilterText] = useState('');
   // Read inside the async load() below without it needing to be an effect dependency (which would
   // re-trigger a reload — a selection change alone shouldn't re-query the server, only fieldValues/
   // session should) — always current as of whatever render most recently committed. Synced via an
@@ -215,6 +233,52 @@ function ListStep({ pluginId, dataSource, columns, label, fieldValues, sessionId
   // convention, not a new descriptor field: any row shaped with a string `path` (root = '') gets
   // one, entirely rows'-own data, nothing SharePoint-specific about it here.
   const currentPath = typeof selectedRow?.path === 'string' ? selectedRow.path : undefined;
+
+  if (renderAs === 'dropdown') {
+    const needle = filterText.trim().toLowerCase();
+    const filteredRows = filterable && needle ? (rows ?? []).filter((row) => columns.some((col) => String(row[col.key] ?? '').toLowerCase().includes(needle))) : (rows ?? []);
+    // The currently-selected row stays present even if the filter would otherwise hide it —
+    // Radix's own SelectValue needs its matching SelectItem rendered to show the trigger's label
+    // correctly, and losing the visible selection just because of an unrelated filter keystroke
+    // would be a worse experience than one extra, filter-defying option at the top.
+    const visibleRows = selectedRow && !filteredRows.some((row) => rowsMatch(row, selectedRow)) ? [selectedRow, ...filteredRows] : filteredRows;
+
+    return (
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-medium">{label}</p>
+          {loading && (
+            <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
+              <Loader2 className="size-3.5 animate-spin" />
+              Loading…
+            </span>
+          )}
+        </div>
+        {error && <p className="text-sm text-destructive">{error}</p>}
+        {filterable && <Input placeholder={`Filter ${label.toLowerCase()}…`} value={filterText} onChange={(e) => setFilterText(e.target.value)} />}
+        <Select
+          value={selectedRow ? rowKey(selectedRow, -1) : undefined}
+          onValueChange={(key) => {
+            const row = (rows ?? []).find((candidate, index) => rowKey(candidate, index) === key);
+            if (row) onSelect(row);
+          }}
+          disabled={!rows}
+        >
+          <SelectTrigger className="w-full">
+            <SelectValue placeholder={rows ? 'Select…' : 'Loading…'} />
+          </SelectTrigger>
+          <SelectContent>
+            {visibleRows.length === 0 && <p className="p-2 text-sm text-muted-foreground">No matches.</p>}
+            {visibleRows.map((row, index) => (
+              <SelectItem key={rowKey(row, index)} value={rowKey(row, index)}>
+                {truncate(String(row[columns[0]?.key] ?? ''), PRIMARY_COLUMN_MAX_LENGTH)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-2">

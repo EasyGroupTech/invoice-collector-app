@@ -60,6 +60,21 @@ export interface ListDescriptor {
    * which is the right behavior for exactly this case (a fresh drive's own root, not the old one's).
    */
   autoSelectFirstRow?: boolean;
+  /**
+   * Renders as a real dropdown (a `<select>`-style picker showing the first declared column's
+   * value per row) instead of the default scrollable block list — a flat "pick exactly one of
+   * these" choice (e.g. a document library) reads better as a dropdown than a list of rows to
+   * scan. Defaults to `'list'`, so every existing usage (including a hierarchical, drill-down
+   * picker like a folder tree, which needs the block-list style for its own breadcrumb/multi-
+   * column display) is unaffected.
+   */
+  renderAs?: 'list' | 'dropdown';
+  /** Only meaningful with `renderAs: 'dropdown'` — shows a text filter above it that narrows the
+   * dropdown's own already-resolved rows client-side (matched against every declared column, not
+   * just the first) as the user types, no extra dataSource round trip per keystroke. For a
+   * dropdown with enough rows that scanning them unfiltered isn't practical (e.g. every site a
+   * user can see). */
+  filterable?: boolean;
 }
 
 export interface DetailDescriptor {
