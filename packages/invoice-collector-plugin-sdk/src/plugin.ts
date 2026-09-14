@@ -97,6 +97,19 @@ export interface WizardListDataRequest {
   dataSource: string;
   fieldValues: Record<string, unknown>;
   sessionId?: string;
+  /**
+   * Only meaningful for a `ListDescriptor` with `renderAs: 'tree'` (§8, `ui.ts`) — which node's
+   * children are being lazily fetched, one level at a time, as the renderer expands it. Absent
+   * means the tree's own top level (its implicit "/" root, not a row the plugin returns itself).
+   * Deliberately independent of `fieldValues[dataSource-owning-step-name]` (the step's own current
+   * *selection*, used for the final chosen value): expanding a node to browse its children must
+   * never depend on, or change, what's currently selected — that conflation was exactly what made
+   * a tree-shaped `renderAs: 'list'` picker (the pre-tree design) keep losing a just-picked
+   * subfolder, since selecting a row and browsing into it were the same action re-querying the
+   * same request shape. A tree keeps them fully separate: this field drives what to fetch,
+   * `onSelect`/`fieldValues[name]` alone drives what's chosen.
+   */
+  parentId?: string;
 }
 
 export interface WizardListDataResult {
