@@ -169,6 +169,23 @@ export interface SessionLabelSuggester {
   suggestSessionLabel?(ctx: PluginContext, session: Session, signal: AbortSignal): Promise<string | undefined>;
 }
 
+/**
+ * Symmetric to `SessionLabelSuggester` above — same trigger point (right after a session is
+ * created), same best-effort semantics (nothing here blocks session creation; a thrown/rejected
+ * call is treated as no suggestion, same as returning `undefined`) — but for this plugin's own
+ * `wizard` (§8) field *values* instead of the session's display label. Real motivating case: a
+ * browser-captured session's own captured request URL commonly already contains an id the
+ * `wizard` step would otherwise ask the user to go dig up and paste by hand (e.g. an organization
+ * id embedded in the exact request that proved sign-in worked) — this hook lets a plugin read that
+ * back out of its own just-stored session secret (`ctx.sessions.get(session.id)`) and hand it
+ * straight to the `wizard` step's own initial values, keyed by each field's own `name`. The caller
+ * decides how a returned key that doesn't match any real `wizard` field name is handled (ignored,
+ * today) — this hook only ever proposes values, never anything binding.
+ */
+export interface WizardValueSuggester {
+  suggestWizardValues?(ctx: PluginContext, session: Session, signal: AbortSignal): Promise<Record<string, unknown> | undefined>;
+}
+
 export interface PluginLifecycle {
   /**
    * Called once, automatically, when core detects the *package* this implementation belongs to
@@ -186,7 +203,7 @@ export interface PluginLifecycle {
   ): Promise<{ records: PluginBackedRecord[] }>;
 }
 
-export interface SourcePlugin extends PluginLifecycle, WizardDataSourceProvider, BuiltInSessionInputProvider, SessionLabelSuggester {
+export interface SourcePlugin extends PluginLifecycle, WizardDataSourceProvider, BuiltInSessionInputProvider, SessionLabelSuggester, WizardValueSuggester {
   manifest: PluginImplementationManifest;
   /** Which session type(s) this plugin can use, and what it needs from each — required, must
    * list at least one entry. */
@@ -215,7 +232,7 @@ export interface SourcePlugin extends PluginLifecycle, WizardDataSourceProvider,
   ): Promise<InvoiceContent>;
 }
 
-export interface DestinationPlugin extends PluginLifecycle, WizardDataSourceProvider, BuiltInSessionInputProvider, SessionLabelSuggester {
+export interface DestinationPlugin extends PluginLifecycle, WizardDataSourceProvider, BuiltInSessionInputProvider, SessionLabelSuggester, WizardValueSuggester {
   manifest: PluginImplementationManifest;
   sessionRequirements: SessionRequirement[];
   /** See `SourcePlugin.sessionPlugin` — same mechanism, same reason. */

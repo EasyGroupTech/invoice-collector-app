@@ -32,6 +32,7 @@ import {
   type SbomEntry,
   type Session,
   type SuggestSessionLabelInput,
+  type SuggestWizardValuesInput,
   type UpdateFlowInput,
   type WizardListDataResult,
 } from '../shared/ipcContracts.js';
@@ -83,6 +84,8 @@ contextBridge.exposeInMainWorld('api', {
 
   wizardResolveListData: (input: ResolveWizardListDataInput): Promise<WizardListDataResult> =>
     ipcRenderer.invoke(Channels.WizardResolveListData, input),
+  wizardSuggestValues: (input: SuggestWizardValuesInput): Promise<Record<string, unknown> | undefined> =>
+    ipcRenderer.invoke(Channels.WizardSuggestValues, input),
 
   collectRun: (input: RunCollectInput): Promise<RunCollectResult> => ipcRenderer.invoke(Channels.CollectRun, input),
   jobsCancel: (jobId: string): Promise<void> => ipcRenderer.invoke(Channels.JobsCancel, jobId),

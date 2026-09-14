@@ -37,6 +37,7 @@ import type {
   SbomEntry,
   Session,
   SuggestSessionLabelInput,
+  SuggestWizardValuesInput,
   UpdateFlowInput,
   WizardListDataResult,
 } from '../../electron/shared/ipcContracts';
@@ -74,6 +75,7 @@ declare global {
       pluginsUninstall(pluginId: string): Promise<void>;
 
       wizardResolveListData(input: ResolveWizardListDataInput): Promise<WizardListDataResult>;
+      wizardSuggestValues(input: SuggestWizardValuesInput): Promise<Record<string, unknown> | undefined>;
 
       collectRun(input: RunCollectInput): Promise<RunCollectResult>;
       jobsCancel(jobId: string): Promise<void>;

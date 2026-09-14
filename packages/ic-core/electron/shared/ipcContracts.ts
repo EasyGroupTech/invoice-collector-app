@@ -62,6 +62,7 @@ export const Channels = {
   PluginsUninstall: 'plugins:uninstall',
 
   WizardResolveListData: 'wizard:resolveListData',
+  WizardSuggestValues: 'wizard:suggestValues',
 
   CollectRun: 'collect:run',
   JobsCancel: 'jobs:cancel',
@@ -153,6 +154,13 @@ export interface ReconnectSessionInput {
 /** §6's "friendly session name" follow-up — see `SessionLabelSuggester` in the SDK for what the
  * plugin side of this actually does. */
 export interface SuggestSessionLabelInput {
+  pluginId: string;
+  sessionId: string;
+}
+
+/** Same shape, same trigger point as SuggestSessionLabelInput above — see `WizardValueSuggester`
+ * in the SDK for what the plugin side of this actually does. */
+export interface SuggestWizardValuesInput {
   pluginId: string;
   sessionId: string;
 }
