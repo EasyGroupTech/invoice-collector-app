@@ -2,7 +2,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { createPluginStorage } from './plugin-storage.js';
+import { createPackageWideStorage, createPluginStorage } from './plugin-storage.js';
 
 describe('createPluginStorage', () => {
   let dir: string;
@@ -48,5 +48,64 @@ describe('createPluginStorage', () => {
   it('deleting a key that does not exist is a no-op, not an error', async () => {
     const storage = createPluginStorage(filePath);
     await expect(storage.delete('nope')).resolves.toBeUndefined();
+  });
+});
+
+describe('createPackageWideStorage', () => {
+  let dir: string;
+
+  beforeEach(async () => {
+    dir = await mkdtemp(path.join(tmpdir(), 'ic-core-package-wide-storage-'));
+  });
+
+  afterEach(async () => {
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  it('set() writes to every store, not just the first', async () => {
+    const teamStore = createPluginStorage(path.join(dir, 'claude-team.json'));
+    const apiStore = createPluginStorage(path.join(dir, 'claude-api.json'));
+    const packageStorage = createPackageWideStorage([teamStore, apiStore]);
+
+    await packageStorage.set('license-check:activation', { verifiedEmail: 'buyer@example.com' });
+
+    expect(await teamStore.get('license-check:activation')).toEqual({ verifiedEmail: 'buyer@example.com' });
+    expect(await apiStore.get('license-check:activation')).toEqual({ verifiedEmail: 'buyer@example.com' });
+  });
+
+  it('get() reads from the first store given', async () => {
+    const teamStore = createPluginStorage(path.join(dir, 'claude-team.json'));
+    const apiStore = createPluginStorage(path.join(dir, 'claude-api.json'));
+    await teamStore.set('key', 'from-team');
+    await apiStore.set('key', 'from-api');
+
+    const packageStorage = createPackageWideStorage([teamStore, apiStore]);
+    expect(await packageStorage.get('key')).toBe('from-team');
+  });
+
+  it('delete() removes the key from every store', async () => {
+    const teamStore = createPluginStorage(path.join(dir, 'claude-team.json'));
+    const apiStore = createPluginStorage(path.join(dir, 'claude-api.json'));
+    const packageStorage = createPackageWideStorage([teamStore, apiStore]);
+    await packageStorage.set('key', 'value');
+
+    await packageStorage.delete('key');
+
+    expect(await teamStore.get('key')).toBeUndefined();
+    expect(await apiStore.get('key')).toBeUndefined();
+  });
+
+  it('a single-implementation package (one store) behaves exactly like createPluginStorage alone', async () => {
+    const soloStore = createPluginStorage(path.join(dir, 'azure-billing.json'));
+    const packageStorage = createPackageWideStorage([soloStore]);
+
+    await packageStorage.set('key', 'value');
+
+    expect(await packageStorage.get('key')).toBe('value');
+    expect(await soloStore.get('key')).toBe('value');
+  });
+
+  it('throws if given no stores at all — a caller bug, not a valid empty package', () => {
+    expect(() => createPackageWideStorage([])).toThrow(/at least one store/);
   });
 });

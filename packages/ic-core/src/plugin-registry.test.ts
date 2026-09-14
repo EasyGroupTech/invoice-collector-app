@@ -210,4 +210,39 @@ describe('PluginRegistry', () => {
       expect(registry.getInstallUrl('tech.easygroup.source.azure-billing')).toBeUndefined();
     });
   });
+
+  describe('siblingImplementationIds (§9.1/§15 activation fan-out)', () => {
+    it('returns just the one implementation for a single-implementation package', () => {
+      const registry = createPluginRegistry();
+      registry.register(fakeSourcePlugin('tech.easygroup.source.azure-billing'), 'plugin-azure-billing');
+
+      expect(registry.siblingImplementationIds('tech.easygroup.source.azure-billing')).toEqual(['tech.easygroup.source.azure-billing']);
+    });
+
+    it('returns every implementation bundled in the same package, including the one asked about', () => {
+      const registry = createPluginRegistry();
+      registry.register(fakeSourcePlugin('tech.easygroup.source.claude-team'), 'plugin-browser-session-claude');
+      registry.register(fakeSourcePlugin('tech.easygroup.source.claude-api'), 'plugin-browser-session-claude');
+
+      expect(registry.siblingImplementationIds('tech.easygroup.source.claude-team')).toEqual(
+        expect.arrayContaining(['tech.easygroup.source.claude-team', 'tech.easygroup.source.claude-api']),
+      );
+      expect(registry.siblingImplementationIds('tech.easygroup.source.claude-api')).toEqual(
+        expect.arrayContaining(['tech.easygroup.source.claude-team', 'tech.easygroup.source.claude-api']),
+      );
+    });
+
+    it('does not pull in an implementation from a different package', () => {
+      const registry = createPluginRegistry();
+      registry.register(fakeSourcePlugin('tech.easygroup.source.claude-team'), 'plugin-browser-session-claude');
+      registry.register(fakeSourcePlugin('tech.easygroup.source.aws-invoicing'), 'plugin-browser-session-aws');
+
+      expect(registry.siblingImplementationIds('tech.easygroup.source.claude-team')).toEqual(['tech.easygroup.source.claude-team']);
+    });
+
+    it('falls back to just the given id for an implementation that was never registered', () => {
+      const registry = createPluginRegistry();
+      expect(registry.siblingImplementationIds('does-not-exist')).toEqual(['does-not-exist']);
+    });
+  });
 });

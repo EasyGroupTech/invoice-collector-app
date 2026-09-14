@@ -26,7 +26,7 @@ import { createJobRunner } from '../../src/job-runner.js';
 import { advancedSettingsFile, appLogFile, pluginsDir, profilePaths } from '../../src/paths.js';
 import { createPluginLog } from '../../src/plugin-log.js';
 import { createPluginRegistry } from '../../src/plugin-registry.js';
-import { createPluginStorage } from '../../src/plugin-storage.js';
+import { createPackageWideStorage, createPluginStorage } from '../../src/plugin-storage.js';
 import { createProfileManager } from '../../src/profiles.js';
 import { buildExcelReport, buildHtmlReport, buildReportRows } from '../../src/reporting.js';
 import { loadSboms, type SbomSource } from '../../src/sbom-registry.js';
@@ -448,12 +448,22 @@ ipcMain.handle(Channels.PluginsInstall, (_event, input: InstallPluginInput) =>
 // returns an activationRequirement, never again per source/destination. pluginId here is the
 // *implementation* id installPlugin() picked (the first bundled implementation that declared
 // activationRequirement), matching plugin-install.ts's own PluginInstallResult.activationRequirement.
+// `storage` is fanned out (plugin-storage.ts's createPackageWideStorage) across every sibling
+// implementation the same package bundles — a real gap found live (Claude API failing "hasn't
+// been activated yet" right after Claude Team's own activation succeeded): ctx.storage is
+// otherwise scoped per *implementation* id, so a package bundling more than one (Claude Team +
+// Claude API/Console) only ever actually activated the single implementation core happened to run
+// activate() against, leaving every sibling permanently stuck unactivated with no way for the user
+// to fix it (activation isn't a repeatable per-record step). A single-implementation package's own
+// fan-out is just itself — no behavior change, no storage-path migration for anyone.
 ipcMain.handle(Channels.PluginsActivate, async (_event, input: ActivatePluginInput) => {
   const plugin = pluginRegistry.get(input.pluginId);
   if (!plugin?.activationRequirement) {
     throw new Error(`Plugin ${input.pluginId} has no activation requirement`);
   }
-  const ctx = { ...createPluginServices(input.pluginId), sessions: sessionsRegistry.forPlugin(input.pluginId) };
+  const paths = profilePaths(profileManager.getActiveProfileDir());
+  const storage = createPackageWideStorage(pluginRegistry.siblingImplementationIds(input.pluginId).map((id) => createPluginStorage(paths.pluginStorageFile(id))));
+  const ctx = { ...createPluginServices(input.pluginId), storage, sessions: sessionsRegistry.forPlugin(input.pluginId) };
   return plugin.activationRequirement.activate(ctx, input.input, new AbortController().signal);
 });
 
