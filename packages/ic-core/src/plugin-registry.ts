@@ -47,6 +47,13 @@ export interface PluginRegistry {
   /** Resolves an implementation's own pluginId back to the install URL of the package it belongs
    * to — undefined if that implementation isn't registered, or its package was never given one. */
   getInstallUrl(pluginId: string): string | undefined;
+  /** Every implementation id (including `pluginId` itself) registered under the same package as
+   * `pluginId` — just `[pluginId]` for a single-implementation package, or one not registered at
+   * all. Backs activation's own fan-out storage (§9.1/§15) — a package bundling more than one
+   * implementation (e.g. Claude Team + Claude API/Console, one package, two SourcePlugins) still
+   * only ever runs `activate()` once, against whichever implementation the install flow picked,
+   * but every sibling implementation needs to see the *same* activation record, not just that one. */
+  siblingImplementationIds(pluginId: string): string[];
 }
 
 export function createPluginRegistry(): PluginRegistry {
@@ -105,6 +112,12 @@ export function createPluginRegistry(): PluginRegistry {
       const packageId = packageIdByImplementationId.get(pluginId);
       if (!packageId) return undefined;
       return installUrlByPackageId.get(packageId);
+    },
+
+    siblingImplementationIds(pluginId) {
+      const packageId = packageIdByImplementationId.get(pluginId);
+      if (!packageId) return [pluginId];
+      return [...packageIdByImplementationId.entries()].filter(([, pkg]) => pkg === packageId).map(([id]) => id);
     },
   };
 }
