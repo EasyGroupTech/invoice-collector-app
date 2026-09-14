@@ -141,14 +141,21 @@ interface SessionCreatePanelProps {
   requirement: SessionRequirement;
   value: EstablishedSession | undefined;
   onChange: (value: EstablishedSession | undefined) => void;
+  /** Called once, right alongside the label suggestion below, with whatever `WizardValueSuggester`
+   * (e.g. an organization id a browser-captured session's own stored secret already carries) the
+   * plugin could derive from the session it just established — merged into the *later* `configure`
+   * step's own wizard values by the caller, so a field like "Organization UUID" can already be
+   * filled in by the time the user reaches it instead of asking them to go dig it up themselves. */
+  onValuesSuggested?: (values: Record<string, unknown>) => void;
 }
 
 /** Step 3's "establish it" half of what step 2 chose "create new" for. Once the session job
  * finishes, asks the plugin (via `SessionLabelSuggester`, e.g. Graph Mail deriving the signed-in
  * tenant's domain) for a friendly name, then hands the user an editable field pre-filled with that
  * suggestion — the actual rename only lands (via `sessionsRename`) when the wizard advances past
- * this step, so an edit here never fights the suggestion fetch. */
-function SessionCreatePanel({ plugin, requirement, value, onChange }: SessionCreatePanelProps) {
+ * this step, so an edit here never fights the suggestion fetch. Also asks (via
+ * `WizardValueSuggester`) for values to pre-fill the later `configure` step's own wizard with. */
+function SessionCreatePanel({ plugin, requirement, value, onChange, onValuesSuggested }: SessionCreatePanelProps) {
   const job = useJob<Session>();
   const [suggesting, setSuggesting] = useState(false);
   // Only meaningful when requirement.createInputFields is set (a custom session type that needs
@@ -161,9 +168,14 @@ function SessionCreatePanel({ plugin, requirement, value, onChange }: SessionCre
     if (!job.result?.ok || value) return;
     const session = job.result.result;
     setSuggesting(true);
-    void window.api
-      .sessionsSuggestLabel({ pluginId: plugin.manifest.id, sessionId: session.id })
-      .then((suggested) => onChange({ session, name: suggested ?? session.label }))
+    void Promise.all([
+      window.api.sessionsSuggestLabel({ pluginId: plugin.manifest.id, sessionId: session.id }),
+      window.api.wizardSuggestValues({ pluginId: plugin.manifest.id, sessionId: session.id }),
+    ])
+      .then(([suggestedLabel, suggestedValues]) => {
+        onChange({ session, name: suggestedLabel ?? session.label });
+        if (suggestedValues) onValuesSuggested?.(suggestedValues);
+      })
       .finally(() => setSuggesting(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [job.result]);
@@ -552,7 +564,13 @@ export function AddCollectorWizard({ onClose, onCreated }: AddCollectorWizardPro
           {step === 'establishConnections' && (
             <>
               {sourcePlugin && sourceRequirement && sourceSessionChoice?.kind === 'new' && (
-                <SessionCreatePanel plugin={sourcePlugin} requirement={sourceRequirement} value={sourceEstablished} onChange={setSourceEstablished} />
+                <SessionCreatePanel
+                  plugin={sourcePlugin}
+                  requirement={sourceRequirement}
+                  value={sourceEstablished}
+                  onChange={setSourceEstablished}
+                  onValuesSuggested={(values) => setSourceValues((prev) => ({ ...prev, ...values }))}
+                />
               )}
               {destinationChoice?.kind === 'new' && destinationRequirement && destinationSessionChoice?.kind === 'new' && (
                 <SessionCreatePanel
@@ -560,6 +578,7 @@ export function AddCollectorWizard({ onClose, onCreated }: AddCollectorWizardPro
                   requirement={destinationRequirement}
                   value={destinationEstablished}
                   onChange={setDestinationEstablished}
+                  onValuesSuggested={(values) => setDestinationValues((prev) => ({ ...prev, ...values }))}
                 />
               )}
               {sourceSessionChoice?.kind !== 'new' && destinationSessionChoice?.kind !== 'new' && (

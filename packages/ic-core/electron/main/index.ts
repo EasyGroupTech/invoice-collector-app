@@ -34,6 +34,7 @@ import { resolveSessionCreateInput } from '../../src/session-create-input.js';
 import { suggestSessionLabel } from '../../src/session-label-suggest.js';
 import { createSessionsRegistry, type SessionsRegistry } from '../../src/sessions-registry.js';
 import { resolveWizardListData } from '../../src/wizard-data.js';
+import { suggestWizardValues } from '../../src/wizard-value-suggest.js';
 import { safeStorageEncryptor } from './safeStorageEncryptor.js';
 import {
   Channels,
@@ -50,6 +51,7 @@ import {
   type ResolveWizardListDataInput,
   type RunCollectInput,
   type SuggestSessionLabelInput,
+  type SuggestWizardValuesInput,
   type UpdateFlowInput,
 } from '../shared/ipcContracts.js';
 
@@ -382,6 +384,17 @@ ipcMain.handle(Channels.SessionsSuggestLabel, async (_event, input: SuggestSessi
   const stored = await sessionsRegistry.forPlugin(input.pluginId).get(input.sessionId);
   if (!stored) return undefined;
   return suggestSessionLabel(
+    { registry: pluginRegistry, createPluginServices, sessionsApiForPlugin: (pluginId) => sessionsRegistry.forPlugin(pluginId) },
+    input.pluginId,
+    stored.session,
+    new AbortController().signal,
+  );
+});
+
+ipcMain.handle(Channels.WizardSuggestValues, async (_event, input: SuggestWizardValuesInput) => {
+  const stored = await sessionsRegistry.forPlugin(input.pluginId).get(input.sessionId);
+  if (!stored) return undefined;
+  return suggestWizardValues(
     { registry: pluginRegistry, createPluginServices, sessionsApiForPlugin: (pluginId) => sessionsRegistry.forPlugin(pluginId) },
     input.pluginId,
     stored.session,
