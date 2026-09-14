@@ -38,6 +38,7 @@ import { suggestWizardValues } from '../../src/wizard-value-suggest.js';
 import { safeStorageEncryptor } from './safeStorageEncryptor.js';
 import {
   Channels,
+  type ActivatePluginInput,
   type AssignSessionInput,
   type CreateRecordInput,
   type CreateSessionInput,
@@ -442,6 +443,19 @@ ipcMain.handle(Channels.PluginsInstall, (_event, input: InstallPluginInput) =>
     confirmUnverified: input.confirmUnverified,
   }),
 );
+
+// §9.1/§15's one-time, package-scoped activation step — fired once, right after PluginsInstall
+// returns an activationRequirement, never again per source/destination. pluginId here is the
+// *implementation* id installPlugin() picked (the first bundled implementation that declared
+// activationRequirement), matching plugin-install.ts's own PluginInstallResult.activationRequirement.
+ipcMain.handle(Channels.PluginsActivate, async (_event, input: ActivatePluginInput) => {
+  const plugin = pluginRegistry.get(input.pluginId);
+  if (!plugin?.activationRequirement) {
+    throw new Error(`Plugin ${input.pluginId} has no activation requirement`);
+  }
+  const ctx = { ...createPluginServices(input.pluginId), sessions: sessionsRegistry.forPlugin(input.pluginId) };
+  return plugin.activationRequirement.activate(ctx, input.input, new AbortController().signal);
+});
 
 // pluginId here is a *package* id (§9.4) — uninstallPlugin() unregisters every implementation the
 // package bundles, together.

@@ -139,6 +139,62 @@ describe('installPlugin', () => {
     expect(installedFiles).toEqual(expect.arrayContaining(['manifest.json', 'sbom.cdx.json', 'index.js']));
   });
 
+  it('surfaces activationRequirement (§9.1/§15) in the result when the loaded implementation declares one, real dynamic import', async () => {
+    const moduleSourceWithActivation = `
+export default {
+  manifest: ${JSON.stringify(validImplementation)},
+  sessionRequirements: [{ sessionTypeId: 'microsoft-entra-delegated-device-code', confirmsBuiltIn: true, requiredScopesOrRoles: [] }],
+  wizard: [],
+  activationRequirement: {
+    fields: [{ kind: 'field', name: 'verificationEmail', label: 'Purchase email', type: 'text', required: true }],
+    activate: async () => ({ ok: true }),
+  },
+  discover: async function* () {},
+  fetchContent: async () => ({ fileName: 'a.pdf', mimeType: 'application/pdf', bytes: new Uint8Array() }),
+};
+`;
+    const zip = buildZip({
+      'manifest.json': JSON.stringify(validManifest),
+      'sbom.cdx.json': JSON.stringify(validSbom),
+      'index.js': moduleSourceWithActivation,
+    });
+
+    const result = await installPlugin('https://example.com/plugin.zip', {
+      pluginsDir,
+      coreSdkVersion: CORE_SDK_VERSION,
+      trustAckFilePath,
+      registry,
+      confirmUnverified: true,
+      fetchImpl: fetchReturningZip(zip),
+    });
+
+    expect(result.status).toBe('installed');
+    expect(result.status === 'installed' && result.activationRequirement).toEqual({
+      pluginId: validImplementation.id,
+      fields: [{ kind: 'field', name: 'verificationEmail', label: 'Purchase email', type: 'text', required: true }],
+    });
+  });
+
+  it('omits activationRequirement from the result when nothing declares one', async () => {
+    const zip = buildZip({
+      'manifest.json': JSON.stringify(validManifest),
+      'sbom.cdx.json': JSON.stringify(validSbom),
+      'index.js': fakeSourceModuleSource,
+    });
+
+    const result = await installPlugin('https://example.com/plugin.zip', {
+      pluginsDir,
+      coreSdkVersion: CORE_SDK_VERSION,
+      trustAckFilePath,
+      registry,
+      confirmUnverified: true,
+      fetchImpl: fetchReturningZip(zip),
+    });
+
+    expect(result.status).toBe('installed');
+    expect(result.status === 'installed' && result.activationRequirement).toBeUndefined();
+  });
+
   it('persists the resolved download URL (install-source.json) and exposes it via registry.getInstallUrl (§9.1, PluginContext.installUrl)', async () => {
     const zip = buildZip({
       'manifest.json': JSON.stringify(validManifest),

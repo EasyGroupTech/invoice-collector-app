@@ -59,6 +59,8 @@ export type {
   BuiltInSessionInputProvider,
   SessionLabelSuggester,
   WizardValueSuggester,
+  ActivationRequirement,
+  ActivationRequirer,
   SourcePlugin,
   DestinationPlugin,
 } from './plugin.js';

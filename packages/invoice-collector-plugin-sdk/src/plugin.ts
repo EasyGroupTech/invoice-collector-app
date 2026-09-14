@@ -1,7 +1,7 @@
 import type { PluginImplementationManifest } from './manifest.js';
 import type { Session, SessionPlugin, SessionRequirement } from './session.js';
 import type { PluginContext } from './context.js';
-import type { WizardStepDescriptor, SettingsPanelDescriptor } from './ui.js';
+import type { WizardStepDescriptor, SettingsPanelDescriptor, FieldDescriptor } from './ui.js';
 
 export interface PluginBackedRecord {
   id: string;
@@ -170,6 +170,27 @@ export interface SessionLabelSuggester {
 }
 
 /**
+ * A one-time setup step core runs right after a package's install succeeds — not per
+ * source/destination (§9.1, §15). Typical use: a commercial plugin verifying a purchaser's email
+ * against `ctx.installUrl`'s embedded license before any source/destination using it can be
+ * configured, instead of asking on every `wizard` run. Declared once per package — a package
+ * bundling more than one implementation (§9.4) only needs to declare this on one of them; core
+ * uses the first implementation in `manifest.implementations` order that has one and runs it
+ * exactly once, right after that install. What "activated" durably means, and where it's
+ * remembered, is entirely the plugin's own concern — `ctx.storage` (scoped to this plugin, already
+ * documented as suited for exactly this) is the natural place, not something core tracks itself.
+ */
+export interface ActivationRequirement {
+  fields: FieldDescriptor[];
+  activate(ctx: PluginContext, input: Record<string, unknown>, signal: AbortSignal): Promise<{ ok: true } | { ok: false; reason: string }>;
+}
+
+/** Optional — a plugin with nothing to collect at install time simply omits `activationRequirement`. */
+export interface ActivationRequirer {
+  activationRequirement?: ActivationRequirement;
+}
+
+/**
  * Symmetric to `SessionLabelSuggester` above — same trigger point (right after a session is
  * created), same best-effort semantics (nothing here blocks session creation; a thrown/rejected
  * call is treated as no suggestion, same as returning `undefined`) — but for this plugin's own
@@ -203,7 +224,7 @@ export interface PluginLifecycle {
   ): Promise<{ records: PluginBackedRecord[] }>;
 }
 
-export interface SourcePlugin extends PluginLifecycle, WizardDataSourceProvider, BuiltInSessionInputProvider, SessionLabelSuggester, WizardValueSuggester {
+export interface SourcePlugin extends PluginLifecycle, WizardDataSourceProvider, BuiltInSessionInputProvider, SessionLabelSuggester, WizardValueSuggester, ActivationRequirer {
   manifest: PluginImplementationManifest;
   /** Which session type(s) this plugin can use, and what it needs from each — required, must
    * list at least one entry. */
@@ -232,7 +253,7 @@ export interface SourcePlugin extends PluginLifecycle, WizardDataSourceProvider,
   ): Promise<InvoiceContent>;
 }
 
-export interface DestinationPlugin extends PluginLifecycle, WizardDataSourceProvider, BuiltInSessionInputProvider, SessionLabelSuggester, WizardValueSuggester {
+export interface DestinationPlugin extends PluginLifecycle, WizardDataSourceProvider, BuiltInSessionInputProvider, SessionLabelSuggester, WizardValueSuggester, ActivationRequirer {
   manifest: PluginImplementationManifest;
   sessionRequirements: SessionRequirement[];
   /** See `SourcePlugin.sessionPlugin` — same mechanism, same reason. */
