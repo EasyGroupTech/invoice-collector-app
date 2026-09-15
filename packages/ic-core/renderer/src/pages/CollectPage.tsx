@@ -219,24 +219,48 @@ export function CollectPage({ onOpenSettings }: CollectPageProps) {
     setCollecting(true);
     setProgressLog([]);
     wasCancelledRef.current = false;
+
+    // Subscribed *before* collectRun is even awaited, and buffered until its own jobId is known —
+    // mirrors useJob.ts's own fix (PR #38): a collect job that finishes before any real async work
+    // (e.g. a run with nothing actually selected) can broadcast its own done event before
+    // collectRun's own promise resolves, so subscribing only afterward (the previous code here)
+    // would silently miss it and hang this whole function — and the finally block below — forever.
+    const pending: { jobId: string | undefined; done: { jobId: string; ok: boolean; error?: string } | undefined } = {
+      jobId: undefined,
+      done: undefined,
+    };
+    let settleDone: ((event: { ok: boolean; error?: string }) => void) | undefined;
+    const donePromise = new Promise<void>((resolve, reject) => {
+      settleDone = (event) => (event.ok ? resolve() : reject(new Error(event.error)));
+    });
+    const unsubscribe = window.api.onJobDone((event) => {
+      if (pending.jobId === undefined) {
+        pending.done = event;
+        return;
+      }
+      if (event.jobId !== pending.jobId) return;
+      unsubscribe();
+      settleDone?.(event);
+    });
+
     try {
       const result = await window.api.collectRun({ sourceIds, period: periodForMonth(collectYear, collectMonth) });
       if ('error' in result) {
+        unsubscribe();
         toast.error(result.error);
         return;
       }
+      pending.jobId = result.jobId;
       setCurrentJobId(result.jobId);
-      await new Promise<void>((resolve, reject) => {
-        const unsubscribe = window.api.onJobDone((event) => {
-          if (event.jobId !== result.jobId) return;
-          unsubscribe();
-          if (event.ok) resolve();
-          else reject(new Error(event.error));
-        });
-      });
+      if (pending.done && pending.done.jobId === pending.jobId) {
+        unsubscribe();
+        settleDone?.(pending.done);
+      }
+      await donePromise;
       toast.success(sourceIds === 'all' ? 'Collect run finished' : `Collected ${sourceName(sourceIds[0])}`);
       await refreshInvoiceHistory();
     } catch (err) {
+      unsubscribe();
       if (wasCancelledRef.current) {
         toast('Collection cancelled');
       } else {
