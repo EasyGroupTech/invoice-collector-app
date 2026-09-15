@@ -367,6 +367,48 @@ describe('runCollectPipeline', () => {
     ).rejects.toThrow(/cancel/i);
   });
 
+  it('reports "Started X" up front and "downloading"/"uploading" before each slow step — not just the final outcome (phase 1.19)', async () => {
+    const invoice: DiscoveredInvoice = { id: 'inv-1', name: 'Invoice #1', issuedDate: '2026-01-15' };
+    const registry = createPluginRegistry();
+    registry.register(fakeSourcePlugin([invoice]), 'test-package');
+    registry.register(fakeDestinationPlugin(), 'test-package');
+    const messages: string[] = [];
+
+    await runCollectPipeline(
+      [record()],
+      [destinationRecord()],
+      { sourceIds: 'all', period: { start: '2026-01-01', end: '2026-01-31' } },
+      { registry, dedup: fakeDedup(), createPluginServices: pluginServices, sessionsApiForPlugin: fakeSessionsApi },
+      (update) => messages.push(update.message),
+      new AbortController().signal,
+    );
+
+    expect(messages).toEqual([
+      'Started Mailbox',
+      'Mailbox / Invoice #1: downloading...',
+      'Mailbox / Invoice #1: uploading to Downloads...',
+      'Mailbox: uploaded Invoice #1',
+    ]);
+  });
+
+  it('reports "Started X" even for a source that discovers nothing at all — still visible feedback, not silence', async () => {
+    const registry = createPluginRegistry();
+    registry.register(fakeSourcePlugin([]), 'test-package');
+    registry.register(fakeDestinationPlugin(), 'test-package');
+    const messages: string[] = [];
+
+    await runCollectPipeline(
+      [record()],
+      [destinationRecord()],
+      { sourceIds: 'all', period: { start: '2026-01-01', end: '2026-01-31' } },
+      { registry, dedup: fakeDedup(), createPluginServices: pluginServices, sessionsApiForPlugin: fakeSessionsApi },
+      (update) => messages.push(update.message),
+      new AbortController().signal,
+    );
+
+    expect(messages).toEqual(['Started Mailbox']);
+  });
+
   it('skips a source whose plugin is not installed, reporting why', async () => {
     const registry = createPluginRegistry();
     registry.register(fakeDestinationPlugin(), 'test-package');
