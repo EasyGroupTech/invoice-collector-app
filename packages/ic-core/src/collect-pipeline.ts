@@ -151,6 +151,13 @@ export async function runCollectPipeline(
       }
 
       const sourceCtx = buildContext(deps, source.pluginId, report, source.id);
+      // The renderer's own progress log only ever fills in from report() calls (§14.1) — without
+      // one here, a source whose discover()/fetchContent() genuinely takes a while (a real network
+      // call, or a browser-session provider's own PDF download escalating to a real hidden-browser
+      // navigation, §9.1) shows nothing at all until its first invoice finishes end to end, which
+      // reads as "stuck" rather than "working." Matches the reference app's own upload.ts, which
+      // reported this before doing anything else per source.
+      report({ message: `Started ${source.name}`, sourceId: source.id });
 
       try {
         for await (const discovered of sourcePlugin.discover(sourceCtx, source, selection.period, signal)) {
@@ -169,12 +176,17 @@ export async function runCollectPipeline(
           }
 
           try {
+            // Same reasoning as "Started" above — fetchContent() is the step most likely to be
+            // genuinely slow (a real download, occasionally a real browser navigation), so it's
+            // the one most worth announcing before it happens rather than only after.
+            report({ message: `${source.name} / ${discovered.name ?? discovered.id}: downloading...`, sourceId: source.id });
             const content = await sourcePlugin.fetchContent(sourceCtx, source, discovered, signal);
             // Its own ctx, scoped to destination.pluginId — not sourceCtx. A destination plugin's
             // sessions/storage must never be attributed to the source plugin that happened to
             // discover this particular invoice (§6's cross-plugin scoping cares about exactly
             // this: createdByPluginId has to be the plugin that actually created a session).
             const destinationCtx = buildContext(deps, destination.pluginId, report, source.id);
+            report({ message: `${source.name} / ${discovered.name ?? discovered.id}: uploading to ${destination.name}...`, sourceId: source.id });
             const uploadResult = await destinationPlugin.upload(
               destinationCtx,
               destination,
