@@ -12,6 +12,7 @@ import type {
   WizardStepDescriptor,
 } from 'invoice-collector-plugin-sdk';
 import type { AdvancedSettings } from '../../src/advanced-settings.js';
+import type { AuditLogEntry } from '../../src/audit-log.js';
 import type { CollectPeriod } from '../../src/collect-pipeline.js';
 import type { EncryptedConfigExportFile } from '../../src/config-export-crypto.js';
 import type { ConfigImportResult } from '../../src/config-export.js';
@@ -92,6 +93,9 @@ export const Channels = {
 
   LogsRead: 'logs:read',
   LogsDownload: 'logs:download',
+
+  AuditLogList: 'auditLog:list',
+  AuditLogClear: 'auditLog:clear',
 } as const;
 
 export interface CreateRecordInput {
@@ -299,6 +303,7 @@ export interface ExportInvoiceRowsInput {
 
 export type {
   AdvancedSettings,
+  AuditLogEntry,
   ConfigImportResult,
   EncryptedConfigExportFile,
   InvoiceHistoryRecord,

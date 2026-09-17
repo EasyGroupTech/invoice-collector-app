@@ -76,6 +76,77 @@ describe('createHttpApi', () => {
     expect(JSON.stringify(entry)).not.toContain('super secret body');
   });
 
+  describe("onAudit (§7's audit log, phase 1.22)", () => {
+    it('reports pluginId/method/sanitized url/status/duration, and redacted headers/body — never the real ones', async () => {
+      const fetchImpl = vi.fn(
+        async () => new Response(JSON.stringify({ access_token: 'real-secret' }), { status: 200, headers: { 'content-type': 'application/json' } }),
+      );
+      const onAudit = vi.fn();
+      const api = createHttpApi('tech.easygroup.source.azure-billing', {
+        sessionsRegistry: fakeSessionAuthResolver(),
+        fetchImpl: fetchImpl as unknown as typeof fetch,
+        onAudit,
+      });
+
+      await api.request({
+        url: 'https://management.azure.com/subscriptions/11111111-2222-3333-4444-555555555555/invoices?api-version=2024-04-01',
+        headers: { Authorization: 'Bearer request-secret', 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clientSecret: 'body-secret' }),
+      });
+
+      expect(onAudit).toHaveBeenCalledTimes(1);
+      const entry = onAudit.mock.calls[0][0];
+      expect(entry.pluginId).toBe('tech.easygroup.source.azure-billing');
+      expect(entry.method).toBe('GET');
+      // sanitizeUrlForAudit, not the more aggressive sanitizeUrlForLog — the full path shape and
+      // the non-secret api-version query param both survive, so "Copy as cURL" stays replayable.
+      expect(entry.url).toBe('https://management.azure.com/subscriptions/[id]/invoices?api-version=2024-04-01');
+      expect(entry.status).toBe(200);
+      expect(typeof entry.durationMs).toBe('number');
+      expect(JSON.stringify(entry)).not.toContain('request-secret');
+      expect(JSON.stringify(entry)).not.toContain('body-secret');
+      expect(JSON.stringify(entry)).not.toContain('real-secret');
+      expect(entry.requestHeaders.Authorization).toBe('[REDACTED]');
+      expect(entry.requestBody).toEqual({ kind: 'json', value: { clientSecret: '[REDACTED]' } });
+      expect(entry.responseBody).toEqual({ kind: 'json', value: { access_token: '[REDACTED]' } });
+    });
+
+    it('is never called when not supplied — onLog alone works exactly as before', async () => {
+      const fetchImpl = vi.fn(async () => fakeFetchResponse(200, { ok: true }));
+      const api = createHttpApi('ic-email-to-downloads', { sessionsRegistry: fakeSessionAuthResolver(), fetchImpl: fetchImpl as unknown as typeof fetch });
+
+      await expect(api.request({ url: 'https://example.com/data' })).resolves.toMatchObject({ status: 200 });
+    });
+
+    it('fires once per real attempt — a 401-recovery retry produces two audit entries, not one', async () => {
+      let call = 0;
+      const fetchImpl = vi.fn(async () => {
+        call += 1;
+        return call === 1 ? fakeFetchResponse(401, { error: 'unauthorized' }) : fakeFetchResponse(200, { ok: true });
+      });
+      const onAudit = vi.fn();
+      const api = createHttpApi('ic-email-to-downloads', { sessionsRegistry: fakeSessionAuthResolver(), fetchImpl: fetchImpl as unknown as typeof fetch, onAudit });
+
+      await api.request({ url: 'https://example.com/data', sessionId: 'session-1' });
+
+      expect(onAudit).toHaveBeenCalledTimes(2);
+      expect(onAudit.mock.calls[0][0].status).toBe(401);
+      expect(onAudit.mock.calls[1][0].status).toBe(200);
+    });
+
+    it('never touches a binary/PDF response body at all — omitted, not decoded', async () => {
+      const fetchImpl = vi.fn(
+        async () => new Response(new Uint8Array([0x25, 0x50, 0x44, 0x46]), { status: 200, headers: { 'content-type': 'application/pdf' } }),
+      );
+      const onAudit = vi.fn();
+      const api = createHttpApi('ic-email-to-downloads', { sessionsRegistry: fakeSessionAuthResolver(), fetchImpl: fetchImpl as unknown as typeof fetch, onAudit });
+
+      await api.request({ url: 'https://example.com/invoice.pdf' });
+
+      expect(onAudit.mock.calls[0][0].responseBody).toEqual({ kind: 'omitted', reason: 'binary' });
+    });
+  });
+
   describe('401 recovery', () => {
     it('recovers the session and retries exactly once on a 401', async () => {
       let call = 0;

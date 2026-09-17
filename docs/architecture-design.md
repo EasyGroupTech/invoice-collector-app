@@ -673,6 +673,23 @@ Advanced Settings knobs a user can override, not hardcoded floors. **No request/
 limit for now** — left unbounded rather than picking an arbitrary cap; revisit only if a real case
 for one shows up.
 
+**Phase 1.22's network audit log is a *separate* hook from the plain per-call logging above, not a
+loosening of it.** `HttpClientOptions.onLog`'s own "never receives headers or body" guarantee
+stays exactly as strict as it was; a new `onAudit` hook fires alongside it (same three call sites)
+with headers/body — but only ever the *already-redacted* form, computed inside `HttpApi` itself
+before the callback ever sees them. Redaction happens before an entry is ever persisted, not just
+before it's displayed — there is deliberately no "reveal the real value later" mechanism anywhere
+in this feature, since building one would mean persisting real secrets at rest just to support it.
+A response body is never even decoded unless its own content-type says it's actually text/JSON/
+XML — a real PDF response's bytes are never touched, not just capped in size. The persisted store
+(`audit-log.ts`) is a bounded ring buffer (oldest entries dropped first), one continuous app-wide
+file rather than per-profile — the same "a run's own sequence should read in order regardless of a
+profile switch mid-run" reasoning `paths.ts`'s own `appLogFile` doc comment already gives for the
+plain-text operational log. Settings'
+own "Network activity" section renders it with a "Copy as cURL" action built entirely from the
+stored (already-redacted) entry — a redacted field shows up as the literal `[REDACTED]`
+placeholder, safe to paste anywhere as-is.
+
 ## 8. UI extensibility & design consistency
 
 **Declarative descriptors only — no plugin-provided UI components, full stop.**

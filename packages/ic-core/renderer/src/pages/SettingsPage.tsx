@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { AdvancedSettingsSection } from './AdvancedSettingsSection';
+import { AuditLogSection } from './AuditLogSection';
 import { CollectionFlowsSection } from './CollectionFlowsSection';
 import { LogsSection } from './LogsSection';
 import { PluginsSection } from './PluginsSection';
@@ -16,7 +17,9 @@ interface SettingsPageProps {
 
 /** §6's Profile management (profiles + config Import/Export combined into one card — see
  * `ProfileManagementSection`'s own doc comment), §6's Sessions UI (`SessionStatusSection`, scoped
- * to the currently active profile — see its own doc comment), the operational Logs viewer,
+ * to the currently active profile — see its own doc comment), the operational Logs viewer, §7's
+ * network audit log (`AuditLogSection`, phase 1.22 — every real outbound call a plugin made,
+ * redacted before it was ever stored, distinct from the plain-text Logs viewer above it),
  * §14.1's Collection flows (replacing separate Sources/Destinations management — a user works with
  * the flow a collector runs through, not the two records behind it; see
  * `CollectionFlowsSection`'s own doc comment), §9's Plugins management (§13's "Third-Party
@@ -51,6 +54,7 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
       <ProfileManagementSection />
       <SessionStatusSection refreshKey={sessionsVersion} />
       <LogsSection />
+      <AuditLogSection />
       <CollectionFlowsSection onSessionsChanged={bumpSessionsVersion} />
       <PluginsSection />
       <AdvancedSettingsSection />
