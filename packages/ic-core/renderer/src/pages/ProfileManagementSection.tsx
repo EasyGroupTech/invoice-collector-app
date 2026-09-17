@@ -95,9 +95,13 @@ export function ProfileManagementSection() {
   async function createProfile() {
     setCreatingProfile(true);
     try {
-      await window.api.profilesCreate({ name: newProfileName, copyFromCurrent: newProfileCopyCurrent });
+      const created = await window.api.profilesCreate({ name: newProfileName, copyFromCurrent: newProfileCopyCurrent });
+      // A newly-created profile is what the user almost always wants to work in next — switching
+      // to it here matches switchProfile()'s own behavior below, rather than leaving them still on
+      // whichever profile was active before and having to find+click the new one separately.
+      await window.api.profilesSwitch(created.id);
       await refreshProfiles();
-      toast.success(`Created profile "${newProfileName}"`);
+      toast.success(`Created and switched to profile "${newProfileName}"`);
       setNewProfileOpen(false);
       setNewProfileName('');
       setNewProfileCopyCurrent(true);
