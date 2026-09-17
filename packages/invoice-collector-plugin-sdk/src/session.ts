@@ -206,4 +206,23 @@ export interface SessionsApi {
    * report.
    */
   reconnect(sessionId: string, signal?: AbortSignal, onProgress?: (message: string, data?: Record<string, unknown>) => void): Promise<Session>;
+  /**
+   * Phase 1.21's session secret rotation — re-runs `create()` against an *existing* session's id
+   * with fresh, user-supplied input. Unlike `reconnect()`, which only ever replays whatever input
+   * was originally stored at `create()` time (or tries a silent `refresh()` renewal first), this
+   * is for a session type whose `create()` takes real structured input that can go stale on its
+   * own terms — e.g. a secure line carrying a client secret with a fixed expiry (§6.1's Azure
+   * Billing secure-line session) — where the fix is a genuinely *new* credential, not a retry of
+   * the old one. Swaps the new secret into the *same* session record, so every Source/Destination
+   * already built on it keeps working; no remove-and-recreate. Never tries a silent refresh
+   * first — the caller already has a fresh credential in hand, so there's nothing worth trying to
+   * avoid first. The newly-supplied input replaces whatever was stored before, so a later plain
+   * `reconnect()` (if `create()` ever needs replaying again) uses the new one too.
+   */
+  rotate(
+    sessionId: string,
+    input: unknown,
+    signal?: AbortSignal,
+    onProgress?: (message: string, data?: Record<string, unknown>) => void,
+  ): Promise<Session>;
 }

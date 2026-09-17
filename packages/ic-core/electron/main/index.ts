@@ -53,6 +53,7 @@ import {
   type RemoveRecordInput,
   type RenameSessionInput,
   type ResolveWizardListDataInput,
+  type RotateSessionInput,
   type RunCollectInput,
   type SuggestSessionLabelInput,
   type SuggestSourceNameInput,
@@ -423,6 +424,17 @@ ipcMain.handle(Channels.SessionsReconnect, (_event, input: ReconnectSessionInput
 ipcMain.handle(Channels.SessionsRefresh, (_event, input: ReconnectSessionInput) =>
   sessionsRegistry.recoverSession(input.pluginId, input.sessionId),
 );
+
+// Phase 1.21 — always interactive (unlike SessionsRefresh, and unlike SessionsReconnect's own
+// silent-refresh-first behavior): the caller already has fresh input in hand, so job-wrapped the
+// same way SessionsCreate/SessionsReconnect are, for the same cancellable-with-progress reasons.
+ipcMain.handle(Channels.SessionsRotate, (_event, input: RotateSessionInput) => {
+  return jobRunner.runJob('session-rotate', async (report, signal) =>
+    sessionsRegistry
+      .forPlugin(input.pluginId)
+      .rotate(input.sessionId, input.input, signal, (message, data) => report({ message, data })),
+  );
+});
 
 // A user-facing Logout only clears stored credentials — it doesn't delete the session record
 // (FlowsDelete's own cascade is the only thing that does that, once nothing references it).

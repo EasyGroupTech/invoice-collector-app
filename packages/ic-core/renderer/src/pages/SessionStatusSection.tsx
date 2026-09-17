@@ -7,9 +7,12 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { DeviceCodeSignInPrompt, extractDeviceCodeInfo } from '@/components/DeviceCodeSignInPrompt';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import type { InstalledPluginSummary } from '../../../electron/shared/ipcContracts';
+import { validateWizardValues, type WizardFieldValues } from '../../../src/wizard-form-state.js';
+import { WizardSteps } from '../descriptors/WizardSteps';
 import { useJob } from '../hooks/useJob';
 
-type BusyAction = 'login' | 'refresh' | 'logout';
+type BusyAction = 'login' | 'refresh' | 'logout' | 'rotate';
 
 /**
  * Replaces the old `SessionsSection`'s single "Reconnect" button (silent-refresh-first,
@@ -30,6 +33,16 @@ type BusyAction = 'login' | 'refresh' | 'logout';
  *   a flow deletion's own cascade, once nothing references a session any more, actually removes
  *   one). Fully reversible with a Login click, so — unlike a real delete — no confirm dialog: same
  *   directness as Refresh.
+ * - **Rotate** (phase 1.21) — only shown for a session type whose owning plugin declared
+ *   `createInputFields` on its `SessionRequirement` (found by scanning `pluginsList()`, the same
+ *   way the Add-Collector wizard's own `ConnectPanel` renders that form at fresh-create time):
+ *   opens a dialog collecting fresh values through the exact same `WizardSteps` form, then calls
+ *   `SessionsRotate`/`SessionsApi.rotate` instead of `create()`ing a brand new session — the
+ *   point is swapping a new secret into the *same* session record (e.g. Azure Billing's
+ *   secure-line client secret, which has a real expiry `reconnect()` alone can't fix by itself,
+ *   since it only ever replays the *old*, now-expired input). Every session type without
+ *   `createInputFields` (a device-code sign-in, a captured browser session) has nothing for this
+ *   to collect, so no Rotate button shows at all — Login already covers those.
  *
  * Collapsed by default like `PluginsSection`; the card description is always a plain status
  * summary (active vs. needing attention), both collapsed and expanded — no per-row Type/Expires
@@ -49,10 +62,14 @@ interface SessionStatusSectionProps {
 
 export function SessionStatusSection({ refreshKey }: SessionStatusSectionProps) {
   const [sessions, setSessions] = useState<Session[]>([]);
+  const [allPlugins, setAllPlugins] = useState<InstalledPluginSummary[]>([]);
   const [collapsed, setCollapsed] = useState(true);
   const [busySessionId, setBusySessionId] = useState<string | undefined>(undefined);
   const [busyAction, setBusyAction] = useState<BusyAction | undefined>(undefined);
   const loginJob = useJob<Session>();
+  const rotateJob = useJob<Session>();
+  const [rotateTarget, setRotateTarget] = useState<Session | undefined>(undefined);
+  const [rotateValues, setRotateValues] = useState<WizardFieldValues>({});
 
   async function refresh() {
     setSessions(await window.api.sessionsList());
@@ -60,7 +77,20 @@ export function SessionStatusSection({ refreshKey }: SessionStatusSectionProps) 
 
   useEffect(() => {
     void refresh();
+    void window.api.pluginsList().then(setAllPlugins);
   }, [refreshKey]);
+
+  // The Add-Collector wizard's own ConnectPanel renders this exact form at fresh-create time —
+  // any installed plugin whose SessionRequirement names this session's type and declares
+  // createInputFields is what Rotate re-collects, since that's the only real structured input a
+  // custom session type's create() ever takes.
+  function createInputFieldsFor(session: Session) {
+    for (const plugin of allPlugins) {
+      const requirement = plugin.sessionRequirements.find((r) => r.sessionTypeId === session.sessionTypeId);
+      if (requirement?.createInputFields?.length) return requirement.createInputFields;
+    }
+    return undefined;
+  }
 
   async function login(session: Session) {
     setBusySessionId(session.id);
@@ -126,6 +156,42 @@ export function SessionStatusSection({ refreshKey }: SessionStatusSectionProps) 
     }
   }
 
+  function openRotate(session: Session) {
+    setRotateTarget(session);
+    setRotateValues({});
+  }
+
+  function cancelRotate() {
+    rotateJob.cancel();
+    setRotateTarget(undefined);
+    setRotateValues({});
+    setBusySessionId(undefined);
+    setBusyAction(undefined);
+  }
+
+  function submitRotate() {
+    if (!rotateTarget) return;
+    setBusySessionId(rotateTarget.id);
+    setBusyAction('rotate');
+    void rotateJob.start(window.api.sessionsRotate({ pluginId: rotateTarget.createdByPluginId, sessionId: rotateTarget.id, input: rotateValues }));
+  }
+
+  // Reacts to the rotate job's own terminal result, same pattern as the login job above.
+  useEffect(() => {
+    if (!rotateJob.result || !rotateTarget) return;
+    if (rotateJob.result.ok) {
+      toast.success(`${rotateTarget.label} rotated`);
+      setRotateTarget(undefined);
+      setRotateValues({});
+      void refresh();
+    } else {
+      toast.error(rotateJob.result.error);
+    }
+    setBusySessionId(undefined);
+    setBusyAction(undefined);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rotateJob.result]);
+
   const activeCount = sessions.filter((s) => s.status === 'active').length;
   const needsAttentionCount = sessions.length - activeCount;
   const statusSummary =
@@ -149,6 +215,7 @@ export function SessionStatusSection({ refreshKey }: SessionStatusSectionProps) 
           <CardContent className="flex flex-col gap-2 pb-4">
             {sessions.map((s) => {
               const rowBusy = busySessionId === s.id;
+              const rotateFields = createInputFieldsFor(s);
               return (
                 <div key={s.id} className="flex items-center justify-between gap-2 rounded-md border px-3 py-2">
                   <span className="flex items-center gap-2 truncate text-sm font-medium">
@@ -162,6 +229,11 @@ export function SessionStatusSection({ refreshKey }: SessionStatusSectionProps) 
                     <Button size="sm" variant="outline" disabled={busySessionId !== undefined} onClick={() => void doRefresh(s)}>
                       {rowBusy && busyAction === 'refresh' ? 'Refreshing…' : 'Refresh'}
                     </Button>
+                    {rotateFields && (
+                      <Button size="sm" variant="outline" disabled={busySessionId !== undefined} onClick={() => openRotate(s)}>
+                        Rotate
+                      </Button>
+                    )}
                     <Button size="sm" variant="ghost" disabled={busySessionId !== undefined} onClick={() => void logout(s)}>
                       {rowBusy && busyAction === 'logout' ? 'Logging out…' : 'Logout'}
                     </Button>
@@ -191,6 +263,37 @@ export function SessionStatusSection({ refreshKey }: SessionStatusSectionProps) 
           </DialogContent>
         </Dialog>
       ) : null}
+
+      {rotateTarget && (
+        <Dialog open onOpenChange={(open) => !open && cancelRotate()}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Rotate {rotateTarget.label}</DialogTitle>
+            </DialogHeader>
+            <fieldset disabled={busySessionId !== undefined} className="flex flex-col gap-3">
+              <WizardSteps
+                pluginId={rotateTarget.createdByPluginId}
+                steps={createInputFieldsFor(rotateTarget) ?? []}
+                values={rotateValues}
+                onChange={(name, value) => setRotateValues((prev) => ({ ...prev, [name]: value }))}
+              />
+              {rotateJob.result && !rotateJob.result.ok && <p className="text-sm text-destructive">{rotateJob.result.error}</p>}
+            </fieldset>
+            <DialogFooter>
+              <Button type="button" variant="ghost" onClick={cancelRotate}>
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                disabled={busySessionId !== undefined || !validateWizardValues(createInputFieldsFor(rotateTarget) ?? [], rotateValues).valid}
+                onClick={submitRotate}
+              >
+                {busyAction === 'rotate' ? 'Rotating…' : 'Rotate'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </>
   );
 }

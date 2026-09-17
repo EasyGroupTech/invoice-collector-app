@@ -52,6 +52,7 @@ export const Channels = {
   SessionsReconnect: 'sessions:reconnect',
   SessionsRefresh: 'sessions:refresh',
   SessionsLogout: 'sessions:logout',
+  SessionsRotate: 'sessions:rotate',
   SessionsSuggestLabel: 'sessions:suggestLabel',
   SessionsRename: 'sessions:rename',
 
@@ -154,6 +155,14 @@ export interface ResolveWizardListDataInput {
 export interface ReconnectSessionInput {
   pluginId: string;
   sessionId: string;
+}
+
+/** Phase 1.21's session secret rotation — `SessionsApi.rotate`'s own IPC shape: `ReconnectSessionInput`
+ * plus the fresh, user-supplied `input` `create()` gets re-run with. */
+export interface RotateSessionInput {
+  pluginId: string;
+  sessionId: string;
+  input: unknown;
 }
 
 /** §6's "friendly session name" follow-up — see `SessionLabelSuggester` in the SDK for what the

@@ -362,6 +362,40 @@ export function createSessionsRegistry(options: SessionsRegistryOptions): Sessio
         scheduleFor(updated);
         return toPublicSession(updated);
       },
+
+      async rotate(sessionId, input, signal, onProgress) {
+        const current = await state();
+        const stored = current.sessions.find((s) => s.id === sessionId);
+        if (!stored || !visibleTo(stored, pluginId)) {
+          throw new Error(`Session not found: ${sessionId}`);
+        }
+        const plugin = plugins.get(stored.sessionTypeId);
+        if (!plugin) {
+          throw new Error(`No SessionPlugin registered for session type "${stored.sessionTypeId}"`);
+        }
+
+        // Deliberately no silent-refresh attempt first (unlike reconnect()) — the caller already
+        // has a fresh credential in hand, so there's nothing worth trying to avoid using it for.
+        const ctx = buildContext(stored.createdByPluginId, onProgress);
+        const result = await plugin.create(ctx, input, signal ?? new AbortController().signal);
+
+        const updated: StoredSession = {
+          ...stored,
+          label: result.label,
+          status: 'active',
+          updatedAt: now().toISOString(),
+          expiresAt: result.expiresAt,
+          keepAliveIntervalMs: result.keepAliveIntervalMs,
+          secretCiphertext: encryptField(options.encryptor, JSON.stringify(result.secret)),
+          // The new input replaces what create() was originally called with — a later plain
+          // reconnect() (if create() ever needs replaying again) should use the fresh one, not
+          // the now-stale value that made rotation necessary in the first place.
+          createInputCiphertext: encryptField(options.encryptor, JSON.stringify(input)),
+        };
+        await persist({ ...current, sessions: upsert(current.sessions, updated) });
+        scheduleFor(updated);
+        return toPublicSession(updated);
+      },
     };
   }
 

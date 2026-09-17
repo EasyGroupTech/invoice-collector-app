@@ -28,6 +28,7 @@ import {
   type RemoveRecordInput,
   type RenameSessionInput,
   type ResolveWizardListDataInput,
+  type RotateSessionInput,
   type RunCollectInput,
   type RunCollectResult,
   type SbomEntry,
@@ -75,6 +76,7 @@ contextBridge.exposeInMainWorld('api', {
   sessionsReconnect: (input: ReconnectSessionInput): Promise<JobHandle> => ipcRenderer.invoke(Channels.SessionsReconnect, input),
   sessionsRefresh: (input: ReconnectSessionInput): Promise<Session> => ipcRenderer.invoke(Channels.SessionsRefresh, input),
   sessionsLogout: (sessionId: string): Promise<void> => ipcRenderer.invoke(Channels.SessionsLogout, sessionId),
+  sessionsRotate: (input: RotateSessionInput): Promise<JobHandle> => ipcRenderer.invoke(Channels.SessionsRotate, input),
   sessionsSuggestLabel: (input: SuggestSessionLabelInput): Promise<string | undefined> =>
     ipcRenderer.invoke(Channels.SessionsSuggestLabel, input),
   sessionsRename: (input: RenameSessionInput): Promise<Session> => ipcRenderer.invoke(Channels.SessionsRename, input),

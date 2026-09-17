@@ -33,6 +33,7 @@ import type {
   RemoveRecordInput,
   RenameSessionInput,
   ResolveWizardListDataInput,
+  RotateSessionInput,
   RunCollectInput,
   RunCollectResult,
   SbomEntry,
@@ -69,6 +70,7 @@ declare global {
       sessionsReconnect(input: ReconnectSessionInput): Promise<JobHandle>;
       sessionsRefresh(input: ReconnectSessionInput): Promise<Session>;
       sessionsLogout(sessionId: string): Promise<void>;
+      sessionsRotate(input: RotateSessionInput): Promise<JobHandle>;
       sessionsSuggestLabel(input: SuggestSessionLabelInput): Promise<string | undefined>;
       sessionsRename(input: RenameSessionInput): Promise<Session>;
 
