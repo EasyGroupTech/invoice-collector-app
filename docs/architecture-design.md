@@ -892,6 +892,32 @@ open-source tier's lack of a warning imply a stronger guarantee than it is.
   case — declares both under `implementations` in a single manifest.json; nothing stops a package
   from declaring just one either, the array only needs to be non-empty.
 
+### 9.5 Update-checking (phase 1.23) — deliberately scoped to what's actually discoverable
+
+`checkForPluginUpdate(manifest, options)` only ever has a real answer for an **open-source-tier**
+package: `manifest.repository` set is, per §9's own table, the *only* way a package lands in that
+tier in the first place, and that same field is exactly what makes GitHub's `/releases/latest` API
+resolvable — the same endpoint `resolveLatestReleaseZipAsset` (§9.1) already calls at install time,
+now reused to compare a `tag_name` against the installed `manifest.version` via `semver`. A
+commercial/unverified-tier package (no `repository`) has no equivalent feed yet — that's a real,
+still-open gap, but it belongs to the commercial pack's own roadmap (`invoice-collector-plugin-
+package`'s phase 2.16), not something this repo invents a placeholder for. Every case core can't
+actually resolve — no repository, an unparseable repo URL, a failed API call, no usable release tag
+— reports `status: 'unknown'`, deliberately never a false `'up-to-date'`: "we don't know" and "you're
+current" are not interchangeable here, and only one of them is true when nothing was actually
+checked.
+
+**An update reuses the exact same `installPlugin()` call the manual "Install" field already makes**
+(`rawInput: manifest.repository`) — there is no separate "apply update" pipeline. This answers a
+question that looked open going into this phase: does an auto-applied version bump need to
+re-prompt the unverified-tier trust acknowledgment every time, or only at first install? It's moot
+for update-checking's own actual scope — a package this mechanism can ever tell you has an update
+already has `manifest.repository` set, which by §9's own table makes it open-source tier, never
+unverified, so the warning dialog never applied to it in the first place and there's nothing to
+re-prompt. `trust-ack-store.ts`'s acknowledgment lookup already keys by id **and** version regardless,
+so if a genuinely unverified-tier update feed is ever built (§2.16), a new version there would
+already need a fresh acknowledgment with zero further code change here.
+
 ## 10. Development process: TDD, one feature per branch, PR review
 
 - Every feature/fix is written test-first: a failing test committed (or at minimum present in the

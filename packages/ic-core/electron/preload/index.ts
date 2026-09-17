@@ -24,6 +24,7 @@ import {
   type PluginBackedRecord,
   type PluginInstallNeedsConfirmation,
   type PluginInstallResult,
+  type PluginUpdateCheckResults,
   type ProfileCreateInput,
   type ProfileSummary,
   type ReconnectSessionInput,
@@ -93,6 +94,7 @@ contextBridge.exposeInMainWorld('api', {
   pluginsDisable: (packageId: string): Promise<void> => ipcRenderer.invoke(Channels.PluginsDisable, packageId),
   pluginsEnable: (packageId: string): Promise<void> => ipcRenderer.invoke(Channels.PluginsEnable, packageId),
   pluginsDownloadAsset: (input: DownloadPluginAssetInput): Promise<FileExportResult> => ipcRenderer.invoke(Channels.PluginsDownloadAsset, input),
+  pluginsCheckForUpdates: (): Promise<PluginUpdateCheckResults> => ipcRenderer.invoke(Channels.PluginsCheckForUpdates),
 
   wizardResolveListData: (input: ResolveWizardListDataInput): Promise<WizardListDataResult> =>
     ipcRenderer.invoke(Channels.WizardResolveListData, input),

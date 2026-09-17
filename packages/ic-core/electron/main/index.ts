@@ -22,6 +22,7 @@ import {
 } from '../../src/config-store.js';
 import { createHttpApi, type SessionAuthResolver } from '../../src/http-client.js';
 import { disablePlugin, enablePlugin, installPlugin, reloadInstalledPlugins, uninstallPlugin } from '../../src/plugin-install.js';
+import { checkForPluginUpdate } from '../../src/plugin-update-check.js';
 import { renderHtmlToPdf } from './htmlToPdf.js';
 import { createInvoiceHistory } from '../../src/invoice-history.js';
 import { createJobRunner } from '../../src/job-runner.js';
@@ -606,6 +607,20 @@ ipcMain.handle(Channels.PluginsDownloadAsset, async (_event, input: DownloadPlug
 
   await writeFile(result.filePath, content);
   return { exported: true, filePath: result.filePath };
+});
+
+// §9's update-check (phase 1.23) — manual only, never run automatically on mount (a background
+// poll would burn a real caller's GitHub API rate limit for no reason). Every installed package
+// is checked in one round-trip; a commercial/unverified-tier package (no manifest.repository) or
+// any GitHub API failure both come back 'unknown', never a false 'up-to-date'.
+ipcMain.handle(Channels.PluginsCheckForUpdates, async () => {
+  const results: Record<string, Awaited<ReturnType<typeof checkForPluginUpdate>>> = {};
+  await Promise.all(
+    pluginRegistry.listPackages().map(async (manifest) => {
+      results[manifest.id] = await checkForPluginUpdate(manifest);
+    }),
+  );
+  return results;
 });
 
 // --- Wizard ---

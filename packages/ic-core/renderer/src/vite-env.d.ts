@@ -29,6 +29,7 @@ import type {
   PluginBackedRecord,
   PluginInstallNeedsConfirmation,
   PluginInstallResult,
+  PluginUpdateCheckResults,
   ProfileCreateInput,
   ProfileSummary,
   ReconnectSessionInput,
@@ -84,6 +85,7 @@ declare global {
       pluginsDisable(packageId: string): Promise<void>;
       pluginsEnable(packageId: string): Promise<void>;
       pluginsDownloadAsset(input: DownloadPluginAssetInput): Promise<FileExportResult>;
+      pluginsCheckForUpdates(): Promise<PluginUpdateCheckResults>;
 
       wizardResolveListData(input: ResolveWizardListDataInput): Promise<WizardListDataResult>;
       wizardSuggestValues(input: SuggestWizardValuesInput): Promise<Record<string, unknown> | undefined>;

@@ -139,6 +139,42 @@ describe('installPlugin', () => {
     expect(installedFiles).toEqual(expect.arrayContaining(['manifest.json', 'sbom.cdx.json', 'index.js']));
   });
 
+  it('reinstalling the same package id picks up genuinely fresh code — the real ESM import-cache bug (phase 1.23), no importModule mock involved', async () => {
+    function zipWithMarker(marker: string): Uint8Array {
+      return buildZip({
+        'manifest.json': JSON.stringify(validManifest),
+        'sbom.cdx.json': JSON.stringify(validSbom),
+        'index.js': `
+export default {
+  manifest: ${JSON.stringify(validImplementation)},
+  sessionRequirements: [{ sessionTypeId: 'microsoft-entra-delegated-device-code', confirmsBuiltIn: true, requiredScopesOrRoles: [], collects: ${JSON.stringify(marker)}, connectHow: 'test', connectInstructions: 'test' }],
+  wizard: [],
+  discover: async function* () {},
+  fetchContent: async () => ({ fileName: 'a.pdf', mimeType: 'application/pdf', bytes: new Uint8Array() }),
+};
+`,
+      });
+    }
+
+    const install = (marker: string) =>
+      installPlugin('https://example.com/plugin.zip', {
+        pluginsDir,
+        coreSdkVersion: CORE_SDK_VERSION,
+        trustAckFilePath,
+        registry,
+        confirmUnverified: true,
+        fetchImpl: fetchReturningZip(zipWithMarker(marker)),
+        // Real dynamic import() both times, same as the test above — a mocked importModule
+        // would trivially "pass" this test without ever exercising Node's own ESM cache at all.
+      });
+
+    await install('version 1');
+    expect(registry.get(validImplementation.id)?.sessionRequirements[0].collects).toBe('version 1');
+
+    await install('version 2');
+    expect(registry.get(validImplementation.id)?.sessionRequirements[0].collects).toBe('version 2');
+  });
+
   it('surfaces activationRequirement (§9.1/§15) in the result when the loaded implementation declares one, real dynamic import', async () => {
     const moduleSourceWithActivation = `
 export default {

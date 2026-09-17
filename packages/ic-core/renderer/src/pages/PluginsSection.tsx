@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import type { InstalledPluginPackageSummary, SbomEntry } from '../../../electron/shared/ipcContracts';
+import type { InstalledPluginPackageSummary, PluginUpdateCheckResults, SbomEntry } from '../../../electron/shared/ipcContracts';
 import { validateWizardValues, type WizardFieldValues } from '../../../src/wizard-form-state.js';
 import { WizardSteps } from '../descriptors/WizardSteps';
 
@@ -52,6 +52,13 @@ export function PluginsSection() {
   const [activationValues, setActivationValues] = useState<WizardFieldValues>({});
   const [busy, setBusy] = useState(false);
   const [collapsed, setCollapsed] = useState(true);
+
+  // §9's update-check (phase 1.23) — deliberately never run on mount, only via the explicit
+  // "Check for updates" button below, so opening this section doesn't quietly burn a real
+  // caller's GitHub API rate limit. Keyed by packageId, matching pluginsCheckForUpdates()'s own
+  // return shape and `packages` above.
+  const [updateResults, setUpdateResults] = useState<PluginUpdateCheckResults>({});
+  const [checkingUpdates, setCheckingUpdates] = useState(false);
 
   const [sbomEntries, setSbomEntries] = useState<SbomEntry[]>([]);
   const [expandedSbomEntries, setExpandedSbomEntries] = useState<Record<string, boolean>>({});
@@ -154,6 +161,45 @@ export function PluginsSection() {
     }
   }
 
+  async function checkForUpdates() {
+    setCheckingUpdates(true);
+    try {
+      setUpdateResults(await window.api.pluginsCheckForUpdates());
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : String(err));
+    } finally {
+      setCheckingUpdates(false);
+    }
+  }
+
+  // Reuses the exact same pluginsInstall flow the manual "Install" field above calls — a
+  // checkable package (repository set) is, by installPlugin()'s own tier logic, always
+  // open-source tier, so confirmUnverified never actually matters here; the fallback branch is
+  // defensive only, not a path this phase's own design expects to hit.
+  async function updatePackage(pkg: InstalledPluginPackageSummary) {
+    if (!pkg.manifest.repository) return;
+    setBusy(true);
+    try {
+      const result = await window.api.pluginsInstall({ rawInput: pkg.manifest.repository, confirmUnverified: false });
+      if (result.status === 'needs-confirmation') {
+        toast.error(`${pkg.manifest.name} needs manual reinstall — install it again from the field above.`);
+        return;
+      }
+      toast.success(`${pkg.manifest.name} updated to ${result.manifest.version}`);
+      setUpdateResults((prev) => {
+        const next = { ...prev };
+        delete next[pkg.manifest.id];
+        return next;
+      });
+      await refreshPlugins();
+      await refreshSbom();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <Card className="py-0">
       <CardHeader className="cursor-pointer gap-1.5 py-4 select-none" onClick={() => setCollapsed((c) => !c)}>
@@ -229,28 +275,44 @@ export function PluginsSection() {
             </div>
 
             <div className="flex flex-col gap-2">
-              {packages.map((pkg) => (
-                <div
-                  key={pkg.manifest.id}
-                  className={`flex items-center justify-between gap-2 rounded-md border px-3 py-2 ${pkg.enabled ? '' : 'opacity-60'}`}
-                >
-                  <div className="flex flex-col gap-0.5 truncate">
-                    <span className="flex items-center gap-2 text-sm font-medium">
-                      {pkg.manifest.name}
-                      {!pkg.enabled && <span className="text-xs font-normal text-muted-foreground">(disabled)</span>}
-                    </span>
-                    <span className="text-xs text-muted-foreground">{pkg.manifest.repository ?? 'Unverified — no public repository'}</span>
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-medium">Installed plugins</h3>
+                <Button type="button" variant="outline" size="sm" disabled={packages.length === 0 || checkingUpdates} onClick={() => void checkForUpdates()}>
+                  {checkingUpdates ? 'Checking…' : 'Check for updates'}
+                </Button>
+              </div>
+              {packages.map((pkg) => {
+                const updateResult = updateResults[pkg.manifest.id];
+                const updateAvailable = updateResult?.status === 'update-available' ? updateResult.latestVersion : undefined;
+                return (
+                  <div
+                    key={pkg.manifest.id}
+                    className={`flex items-center justify-between gap-2 rounded-md border px-3 py-2 ${pkg.enabled ? '' : 'opacity-60'}`}
+                  >
+                    <div className="flex flex-col gap-0.5 truncate">
+                      <span className="flex items-center gap-2 text-sm font-medium">
+                        {pkg.manifest.name}
+                        {!pkg.enabled && <span className="text-xs font-normal text-muted-foreground">(disabled)</span>}
+                        {updateAvailable && <span className="text-xs font-normal text-emerald-600">Update available: v{updateAvailable}</span>}
+                      </span>
+                      <span className="text-xs text-muted-foreground">{pkg.manifest.repository ?? 'Unverified — no public repository'}</span>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-2">
+                      {updateAvailable && (
+                        <Button type="button" size="sm" onClick={() => void updatePackage(pkg)}>
+                          Update
+                        </Button>
+                      )}
+                      <Button type="button" variant="outline" size="sm" onClick={() => void toggleEnabled(pkg)}>
+                        {pkg.enabled ? 'Disable' : 'Enable'}
+                      </Button>
+                      <Button type="button" variant="outline" size="sm" onClick={() => void uninstall(pkg.manifest.id)}>
+                        Uninstall
+                      </Button>
+                    </div>
                   </div>
-                  <div className="flex shrink-0 items-center gap-2">
-                    <Button type="button" variant="outline" size="sm" onClick={() => void toggleEnabled(pkg)}>
-                      {pkg.enabled ? 'Disable' : 'Enable'}
-                    </Button>
-                    <Button type="button" variant="outline" size="sm" onClick={() => void uninstall(pkg.manifest.id)}>
-                      Uninstall
-                    </Button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
               {packages.length === 0 && <p className="text-sm text-muted-foreground">No plugins installed yet.</p>}
             </div>
           </fieldset>
