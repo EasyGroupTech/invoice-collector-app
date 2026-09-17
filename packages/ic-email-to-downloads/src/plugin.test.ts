@@ -21,6 +21,7 @@ function fakeContext(http: HttpApi): PluginContext {
   return {
     sessions: { list: vi.fn(), get: vi.fn(), create: vi.fn(), reconnect: vi.fn() } as never,
     storage: { get: vi.fn(), set: vi.fn(), delete: vi.fn() },
+    appStorage: { get: vi.fn(), set: vi.fn(), delete: vi.fn() },
     http,
     log: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
     progress: { report: vi.fn() },
@@ -73,6 +74,9 @@ describe('builtInSessionCreateInput', () => {
       sessionTypeId: 'microsoft-entra-delegated-device-code',
       confirmsBuiltIn: true,
       requiredScopesOrRoles: ['Mail.Read'],
+      collects: 'test',
+      connectHow: 'test',
+      connectInstructions: 'test',
     }) as Record<string, unknown>;
 
     expect(input).toEqual({
@@ -85,16 +89,14 @@ describe('builtInSessionCreateInput', () => {
   });
 });
 
-describe('suggestSessionLabel (§6 friendly session naming)', () => {
-  it('suggests the signed-in tenant\'s primary domain for a device-code session', async () => {
-    const http = dispatchingHttp([
-      { match: '/organization', response: fakeResponse(200, { value: [{ verifiedDomains: [{ name: 'contoso.com', isDefault: true }] }] }) },
-    ]);
+describe('suggestSessionLabel (§6/§14.1 friendly session naming — who logs in, where)', () => {
+  it('suggests the signed-in mailbox\'s own address for a device-code session', async () => {
+    const http = dispatchingHttp([{ match: '/me', response: fakeResponse(200, { mail: 'alice@contoso.com' }) }]);
     const ctx = fakeContext(http);
 
     const suggestion = await plugin.suggestSessionLabel!(ctx, fakeSession(), new AbortController().signal);
 
-    expect(suggestion).toBe('contoso.com');
+    expect(suggestion).toBe('alice@contoso.com');
   });
 
   it('returns undefined for a session type this plugin does not recognize', async () => {
@@ -103,6 +105,31 @@ describe('suggestSessionLabel (§6 friendly session naming)', () => {
     const suggestion = await plugin.suggestSessionLabel!(ctx, fakeSession({ sessionTypeId: 'some-other-session-type' }), new AbortController().signal);
 
     expect(suggestion).toBeUndefined();
+  });
+});
+
+describe('suggestSourceName (§14.1 source auto-naming)', () => {
+  const ctx = fakeContext(dispatchingHttp([]));
+  const session = fakeSession({ label: 'alice@contoso.com' });
+
+  it('combines the session label with a summary of the set filter fields', async () => {
+    const name = await plugin.suggestSourceName!(ctx, session, { subjectContains: 'Invoice' }, new AbortController().signal);
+    expect(name).toBe('alice@contoso.com (Subject contains "Invoice")');
+  });
+
+  it('joins more than one set filter field', async () => {
+    const name = await plugin.suggestSourceName!(
+      ctx,
+      session,
+      { subjectContains: 'Invoice', senderContains: 'billing@vendor.com', hasAttachmentsOnly: true },
+      new AbortController().signal,
+    );
+    expect(name).toBe('alice@contoso.com (Subject contains "Invoice", Sender contains "billing@vendor.com", has attachments)');
+  });
+
+  it('falls back to the session label alone when no filter field is set', async () => {
+    const name = await plugin.suggestSourceName!(ctx, session, {}, new AbortController().signal);
+    expect(name).toBe('alice@contoso.com');
   });
 });
 

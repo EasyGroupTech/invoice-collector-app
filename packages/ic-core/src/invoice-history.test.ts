@@ -11,6 +11,7 @@ import {
   invoicesForPeriod,
   loadInvoiceHistoryFile,
   pruneInvoiceHistory,
+  rewriteInvoiceLocations,
   saveInvoiceHistoryFile,
   upsertInvoiceHistoryRecord,
   type InvoiceHistoryRecord,
@@ -54,6 +55,36 @@ describe('upsertInvoiceHistoryRecord', () => {
     store = upsertInvoiceHistoryRecord(store, record({ invoiceId: 'inv-2' }));
     store = upsertInvoiceHistoryRecord(store, record({ sourceId: 'source-2', invoiceId: 'inv-1' }));
     expect(store.invoices).toHaveLength(3);
+  });
+});
+
+describe('rewriteInvoiceLocations', () => {
+  it("rewrites a matching source's own records that have a location, via the given function", () => {
+    const store = upsertInvoiceHistoryRecord(emptyInvoiceHistoryStore(), record({ location: '/data/Old Name/2026-01/a.pdf' }));
+
+    const rewritten = rewriteInvoiceLocations(store, 'source-1', (old) => old.replace('/Old Name/', '/New Name/'));
+
+    expect(rewritten.invoices[0].location).toBe('/data/New Name/2026-01/a.pdf');
+  });
+
+  it('leaves a different source untouched', () => {
+    let store = emptyInvoiceHistoryStore();
+    store = upsertInvoiceHistoryRecord(store, record({ sourceId: 'source-1', location: '/data/Old Name/a.pdf' }));
+    store = upsertInvoiceHistoryRecord(store, record({ sourceId: 'source-2', invoiceId: 'inv-2', location: '/data/Old Name/b.pdf' }));
+
+    const rewritten = rewriteInvoiceLocations(store, 'source-1', (old) => old.replace('/Old Name/', '/New Name/'));
+
+    expect(rewritten.invoices.find((r) => r.sourceId === 'source-2')?.location).toBe('/data/Old Name/b.pdf');
+  });
+
+  it('leaves a record with no location at all untouched, rather than calling rewrite on undefined', () => {
+    const store = upsertInvoiceHistoryRecord(emptyInvoiceHistoryStore(), record({ location: undefined }));
+
+    const rewritten = rewriteInvoiceLocations(store, 'source-1', () => {
+      throw new Error('should never be called');
+    });
+
+    expect(rewritten.invoices[0].location).toBeUndefined();
   });
 });
 
@@ -282,5 +313,34 @@ describe('createInvoiceHistory (DedupChecker)', () => {
 
     const reopened = createInvoiceHistory(filePath);
     expect(await reopened.has('source-1', 'a')).toBe(false);
+  });
+
+  it("rewriteLocations() persists the rewritten path for every one of this source's already-recorded invoices", async () => {
+    const history = createInvoiceHistory(filePath);
+    await history.record('source-1', 'dest-1', { id: 'a', issuedDate: '2026-01-15' }, { status: 'uploaded', location: '/data/Old Name/2026-01/a.pdf' });
+    await history.record('source-1', 'dest-1', { id: 'b', issuedDate: '2026-02-01' }, { status: 'uploaded', location: '/data/Old Name/2026-02/b.pdf' });
+    await history.record('source-2', 'dest-1', { id: 'c', issuedDate: '2026-01-15' }, { status: 'uploaded', location: '/data/Old Name/2026-01/c.pdf' });
+
+    await history.rewriteLocations('source-1', (old) => old.replace('/Old Name/', '/New Name/'));
+
+    const [a] = await history.listForMonth('2026-01');
+    const [b] = await history.listForMonth('2026-02');
+    expect(a.location).toBe('/data/New Name/2026-01/a.pdf');
+    expect(b.location).toBe('/data/New Name/2026-02/b.pdf');
+
+    const reopened = createInvoiceHistory(filePath);
+    const [reopenedA] = await reopened.listForMonth('2026-01');
+    expect(reopenedA.location).toBe('/data/New Name/2026-01/a.pdf');
+  });
+
+  it("rewriteLocations() leaves a different source's records untouched", async () => {
+    const history = createInvoiceHistory(filePath);
+    await history.record('source-1', 'dest-1', { id: 'a', issuedDate: '2026-01-15' }, { status: 'uploaded', location: '/data/Old Name/a.pdf' });
+    await history.record('source-2', 'dest-1', { id: 'c', issuedDate: '2026-01-15' }, { status: 'uploaded', location: '/data/Old Name/c.pdf' });
+
+    await history.rewriteLocations('source-1', (old) => old.replace('/Old Name/', '/New Name/'));
+
+    const records = await history.listForMonth('2026-01');
+    expect(records.find((r) => r.sourceId === 'source-2')?.location).toBe('/data/Old Name/c.pdf');
   });
 });

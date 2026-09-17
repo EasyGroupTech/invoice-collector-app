@@ -60,7 +60,7 @@ function fakeModuleSourceFor(implementation: PluginImplementationManifest): stri
   return `
 export default {
   manifest: ${JSON.stringify({ id: implementation.id, name: implementation.name, kind: implementation.kind, main: implementation.main })},
-  sessionRequirements: [{ sessionTypeId: 'microsoft-entra-delegated-device-code', confirmsBuiltIn: true, requiredScopesOrRoles: [] }],
+  sessionRequirements: [{ sessionTypeId: 'microsoft-entra-delegated-device-code', confirmsBuiltIn: true, requiredScopesOrRoles: [], collects: 'test', connectHow: 'test', connectInstructions: 'test' }],
   wizard: [],
   discover: async function* () {},
   fetchContent: async () => ({ fileName: 'a.pdf', mimeType: 'application/pdf', bytes: new Uint8Array() }),
@@ -73,7 +73,7 @@ const fakeSourceModuleSource = fakeModuleSourceFor(validImplementation);
 function fakeSourcePlugin(overrides: Partial<SourcePlugin['manifest']> = {}): SourcePlugin {
   return {
     manifest: { id: validImplementation.id, name: validImplementation.name, kind: validImplementation.kind, main: validImplementation.main, ...overrides },
-    sessionRequirements: [{ sessionTypeId: 'microsoft-entra-delegated-device-code', confirmsBuiltIn: true, requiredScopesOrRoles: [] }],
+    sessionRequirements: [{ sessionTypeId: 'microsoft-entra-delegated-device-code', confirmsBuiltIn: true, requiredScopesOrRoles: [], collects: 'test', connectHow: 'test', connectInstructions: 'test' }],
     wizard: [],
     discover: async function* () {},
     fetchContent: async () => ({ fileName: 'a.pdf', mimeType: 'application/pdf', bytes: new Uint8Array() }),
@@ -143,7 +143,7 @@ describe('installPlugin', () => {
     const moduleSourceWithActivation = `
 export default {
   manifest: ${JSON.stringify(validImplementation)},
-  sessionRequirements: [{ sessionTypeId: 'microsoft-entra-delegated-device-code', confirmsBuiltIn: true, requiredScopesOrRoles: [] }],
+  sessionRequirements: [{ sessionTypeId: 'microsoft-entra-delegated-device-code', confirmsBuiltIn: true, requiredScopesOrRoles: [], collects: 'test', connectHow: 'test', connectInstructions: 'test' }],
   wizard: [],
   activationRequirement: {
     fields: [{ kind: 'field', name: 'verificationEmail', label: 'Purchase email', type: 'text', required: true }],
@@ -214,6 +214,136 @@ export default {
     expect(registry.getInstallUrl(validImplementation.id)).toBe('https://cdn.example.com/plugin.zip?e=abc123');
     const installSource = JSON.parse(await readFile(path.join(pluginsDir, validManifest.id, 'install-source.json'), 'utf-8'));
     expect(installSource).toEqual({ downloadUrl: 'https://cdn.example.com/plugin.zip?e=abc123' });
+  });
+
+  describe('hoisting a vendored internal dependency (§9.4, shared across packages)', () => {
+    // Mirrors a real vendored package's own shape (license-check, browser-session-capture, …):
+    // ESM, a package.json "main" pointing into dist/.
+    function sharedDepFiles(exportedValue: string): Record<string, string> {
+      return {
+        'node_modules/shared-dep/package.json': JSON.stringify({ name: 'shared-dep', type: 'module', main: './dist/index.js' }),
+        'node_modules/shared-dep/dist/index.js': `export const value = ${JSON.stringify(exportedValue)};`,
+      };
+    }
+
+    function moduleImportingSharedDep(implementation: PluginImplementationManifest): string {
+      // manifest.name deliberately isn't baked in via JSON.stringify — it has to be the literal
+      // identifier `value`, referencing the binding actually imported at runtime from wherever
+      // Node's module resolution finds 'shared-dep', not a value computed while building this
+      // fixture string.
+      return `
+import { value } from 'shared-dep';
+export default {
+  manifest: { ...${JSON.stringify({ id: implementation.id, kind: implementation.kind, main: implementation.main })}, name: value },
+  sessionRequirements: [{ sessionTypeId: 'microsoft-entra-delegated-device-code', confirmsBuiltIn: true, requiredScopesOrRoles: [], collects: 'test', connectHow: 'test', connectInstructions: 'test' }],
+  wizard: [],
+  discover: async function* () {},
+  fetchContent: async () => ({ fileName: 'a.pdf', mimeType: 'application/pdf', bytes: new Uint8Array() }),
+};
+`;
+    }
+
+    it('moves a package\'s own vendored node_modules/<dep> up to a shared <pluginsDir>/node_modules/<dep>, real dynamic import resolving it from there', async () => {
+      const zip = buildZip({
+        'manifest.json': JSON.stringify(validManifest),
+        'sbom.cdx.json': JSON.stringify(validSbom),
+        'index.js': moduleImportingSharedDep(validImplementation),
+        ...sharedDepFiles('from shared-dep v1'),
+      });
+
+      const result = await installPlugin('https://example.com/plugin.zip', {
+        pluginsDir,
+        coreSdkVersion: CORE_SDK_VERSION,
+        trustAckFilePath,
+        registry,
+        confirmUnverified: true,
+        fetchImpl: fetchReturningZip(zip),
+        // No importModule override — proving Node's own module resolution really does walk up
+        // from the package's own directory to find the shared node_modules this hoists into.
+      });
+
+      expect(result.status).toBe('installed');
+      expect(registry.getPackage(validManifest.id)?.implementations[0]).toBeDefined();
+      expect(registry.get(validImplementation.id)?.manifest.name).toBe('from shared-dep v1');
+
+      // Hoisted out of the package's own directory...
+      await expect(readdir(path.join(pluginsDir, validManifest.id, 'node_modules')).catch((err) => err.code)).resolves.toBe('ENOENT');
+      // ...and into the shared location instead.
+      const shared = await readdir(path.join(pluginsDir, 'node_modules'));
+      expect(shared).toEqual(['shared-dep']);
+    });
+
+    it('overwrites the shared dependency\'s file on disk when a second package vendors a newer copy — last install wins, taking effect on the app\'s next restart', async () => {
+      const firstManifest: PluginManifest = { ...validManifest, id: 'app.easygroup.test-package-a' };
+      const firstImplementation = { ...validImplementation, id: 'app.easygroup.source.test-plugin-a' };
+      const zip1 = buildZip({
+        'manifest.json': JSON.stringify({ ...firstManifest, implementations: [firstImplementation] }),
+        'sbom.cdx.json': JSON.stringify(validSbom),
+        'index.js': moduleImportingSharedDep(firstImplementation),
+        ...sharedDepFiles('v1'),
+      });
+      await installPlugin('https://example.com/plugin-a.zip', {
+        pluginsDir,
+        coreSdkVersion: CORE_SDK_VERSION,
+        trustAckFilePath,
+        registry,
+        confirmUnverified: true,
+        fetchImpl: fetchReturningZip(zip1),
+      });
+
+      const secondManifest: PluginManifest = { ...validManifest, id: 'app.easygroup.test-package-b' };
+      const secondImplementation = { ...validImplementation, id: 'app.easygroup.source.test-plugin-b' };
+      const zip2 = buildZip({
+        'manifest.json': JSON.stringify({ ...secondManifest, implementations: [secondImplementation] }),
+        'sbom.cdx.json': JSON.stringify(validSbom),
+        'index.js': moduleImportingSharedDep(secondImplementation),
+        ...sharedDepFiles('v2'),
+      });
+      await installPlugin('https://example.com/plugin-b.zip', {
+        pluginsDir,
+        coreSdkVersion: CORE_SDK_VERSION,
+        trustAckFilePath,
+        registry,
+        confirmUnverified: true,
+        fetchImpl: fetchReturningZip(zip2),
+      });
+
+      // Both packages' own already-loaded modules resolve to the exact same absolute path for the
+      // shared dependency — Node's own module cache is keyed by resolved URL, not file content, so
+      // within this one still-running process every import of 'shared-dep' (package A's own,
+      // package B's own) returns whichever module namespace object was first cached there, v1.
+      // That's fine: it converges every plugin on one consistent in-memory version rather than
+      // risking a mismatch, and it's not the thing this test is actually proving.
+      expect(registry.get(firstImplementation.id)?.manifest.name).toBe('v1');
+      expect(registry.get(secondImplementation.id)?.manifest.name).toBe('v1');
+      // What actually proves "last install wins": the shared *file on disk* is now v2 — a fresh
+      // import from here on (e.g. reloadInstalledPlugins() on the app's next launch, a fresh
+      // process with no module-cache entry yet for this path) would see it.
+      const sharedIndexJs = await readFile(path.join(pluginsDir, 'node_modules', 'shared-dep', 'dist', 'index.js'), 'utf-8');
+      expect(sharedIndexJs).toContain('v2');
+    });
+
+    it('uninstalling one package leaves the shared dependency on disk for any other package still using it', async () => {
+      const zip = buildZip({
+        'manifest.json': JSON.stringify(validManifest),
+        'sbom.cdx.json': JSON.stringify(validSbom),
+        'index.js': moduleImportingSharedDep(validImplementation),
+        ...sharedDepFiles('v1'),
+      });
+      await installPlugin('https://example.com/plugin.zip', {
+        pluginsDir,
+        coreSdkVersion: CORE_SDK_VERSION,
+        trustAckFilePath,
+        registry,
+        confirmUnverified: true,
+        fetchImpl: fetchReturningZip(zip),
+      });
+
+      await uninstallPlugin(validManifest.id, { pluginsDir, registry });
+
+      const shared = await readdir(path.join(pluginsDir, 'node_modules'));
+      expect(shared).toEqual(['shared-dep']);
+    });
   });
 
   it('returns needs-confirmation for an unverified-tier package not previously acknowledged, without registering or leaving files behind', async () => {
@@ -503,7 +633,7 @@ describe('installPlugin (destination plugin)', () => {
       const registry = createPluginRegistry();
       const destinationPlugin: DestinationPlugin = {
         manifest: implementation,
-        sessionRequirements: [{ sessionTypeId: 'microsoft-entra-delegated-device-code', confirmsBuiltIn: true, requiredScopesOrRoles: [] }],
+        sessionRequirements: [{ sessionTypeId: 'microsoft-entra-delegated-device-code', confirmsBuiltIn: true, requiredScopesOrRoles: [], collects: 'test', connectHow: 'test', connectInstructions: 'test' }],
         wizard: [],
         upload: async () => ({ status: 'uploaded' }),
       };
@@ -540,7 +670,7 @@ describe('installPlugin (destination plugin)', () => {
       };
       const destinationPlugin: DestinationPlugin = {
         manifest: implementation,
-        sessionRequirements: [{ sessionTypeId: customSessionPlugin.sessionTypeId, confirmsBuiltIn: false, requiredScopesOrRoles: [] }],
+        sessionRequirements: [{ sessionTypeId: customSessionPlugin.sessionTypeId, confirmsBuiltIn: false, requiredScopesOrRoles: [], collects: 'test', connectHow: 'test', connectInstructions: 'test' }],
         sessionPlugin: customSessionPlugin,
         wizard: [],
         upload: async () => ({ status: 'uploaded' }),
@@ -599,7 +729,7 @@ describe('installPlugin (destination plugin)', () => {
       const registry = createPluginRegistry();
       const destinationPlugin: DestinationPlugin = {
         manifest: implementation,
-        sessionRequirements: [{ sessionTypeId: 'custom-type', confirmsBuiltIn: false, requiredScopesOrRoles: [] }],
+        sessionRequirements: [{ sessionTypeId: 'custom-type', confirmsBuiltIn: false, requiredScopesOrRoles: [], collects: 'test', connectHow: 'test', connectInstructions: 'test' }],
         sessionPlugin: {
           sessionTypeId: 'custom-type',
           create: async () => ({ label: 'test', secret: {} }),
@@ -741,7 +871,7 @@ describe('reloadInstalledPlugins', () => {
       `
 export default {
   manifest: ${JSON.stringify(implementation)},
-  sessionRequirements: [{ sessionTypeId: ${JSON.stringify(customSessionTypeId)}, confirmsBuiltIn: false, requiredScopesOrRoles: [] }],
+  sessionRequirements: [{ sessionTypeId: ${JSON.stringify(customSessionTypeId)}, confirmsBuiltIn: false, requiredScopesOrRoles: [], collects: 'test', connectHow: 'test', connectInstructions: 'test' }],
   sessionPlugin: {
     sessionTypeId: ${JSON.stringify(customSessionTypeId)},
     create: async () => ({ label: 'test', secret: {} }),
@@ -798,6 +928,19 @@ export default {
     await reloadInstalledPlugins({ pluginsDir, coreSdkVersion: CORE_SDK_VERSION, registry, onError });
 
     expect(onError).not.toHaveBeenCalled();
+  });
+
+  it('ignores the shared node_modules directory hoistVendoredDependencies() writes into — not a package, no manifest.json of its own', async () => {
+    await writePluginOnDisk('app.easygroup.reload-alongside-shared-deps');
+    await mkdir(path.join(pluginsDir, 'node_modules', 'shared-dep', 'dist'), { recursive: true });
+    await writeFile(path.join(pluginsDir, 'node_modules', 'shared-dep', 'package.json'), JSON.stringify({ name: 'shared-dep', type: 'module', main: './dist/index.js' }), 'utf-8');
+    await writeFile(path.join(pluginsDir, 'node_modules', 'shared-dep', 'dist', 'index.js'), 'export const value = 1;', 'utf-8');
+
+    const onError = vi.fn();
+    await reloadInstalledPlugins({ pluginsDir, coreSdkVersion: CORE_SDK_VERSION, registry, onError });
+
+    expect(onError).not.toHaveBeenCalled();
+    expect(registry.get('app.easygroup.reload-alongside-shared-deps')).toBeDefined();
   });
 
   it('is a no-op, not a throw, when pluginsDir does not exist yet (a fresh install with nothing installed)', async () => {

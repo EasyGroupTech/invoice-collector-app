@@ -75,6 +75,60 @@ describe('localFolderDestination.upload', () => {
   });
 });
 
+describe('localFolderDestination.onSourceRenamed', () => {
+  let dir: string;
+
+  beforeEach(async () => {
+    dir = await mkdtemp(path.join(tmpdir(), 'ic-email-to-downloads-rename-'));
+  });
+
+  afterEach(async () => {
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  it("renames the session's own folder's per-source subfolder from the old name to the new one, and returns a locationRewrite matching it", async () => {
+    const ctx = fakeContextWithFolder(dir);
+    const uploadResult = await localFolderDestination.upload(ctx, fakeRecord({ sessionId: 'session-1' }), fakeInvoice({ sourceName: 'Old Name' }), signal);
+
+    const result = await localFolderDestination.onSourceRenamed?.(ctx, fakeRecord({ sessionId: 'session-1' }), 'Old Name', 'New Name', signal);
+
+    const movedPath = path.join(dir, 'New Name', '2026-01', 'INV-1_invoice.pdf');
+    await expect(readFile(movedPath)).resolves.toEqual(Buffer.from([1, 2, 3]));
+    await expect(readFile(path.join(dir, 'Old Name', '2026-01', 'INV-1_invoice.pdf'))).rejects.toThrow();
+
+    expect(result?.locationRewrite?.(uploadResult.location!)).toBe(movedPath);
+  });
+
+  it('locationRewrite leaves an unrelated location untouched', async () => {
+    const ctx = fakeContextWithFolder(dir);
+    await localFolderDestination.upload(ctx, fakeRecord({ sessionId: 'session-1' }), fakeInvoice({ sourceName: 'Old Name' }), signal);
+
+    const result = await localFolderDestination.onSourceRenamed?.(ctx, fakeRecord({ sessionId: 'session-1' }), 'Old Name', 'New Name', signal);
+
+    expect(result?.locationRewrite?.('/some/unrelated/path.pdf')).toBe('/some/unrelated/path.pdf');
+  });
+
+  it('returns undefined (no locationRewrite) when nothing was actually moved — no invoice was ever written under the old name', async () => {
+    const ctx = fakeContextWithFolder(dir);
+
+    const result = await localFolderDestination.onSourceRenamed?.(ctx, fakeRecord({ sessionId: 'session-1' }), 'Old Name', 'New Name', signal);
+
+    expect(result).toBeUndefined();
+  });
+
+  it('does nothing when the record has no session assigned yet', async () => {
+    const ctx = fakeContextWithFolder(dir);
+    await expect(localFolderDestination.onSourceRenamed?.(ctx, fakeRecord({ sessionId: undefined }), 'Old Name', 'New Name', signal)).resolves.toBeUndefined();
+  });
+
+  it('does nothing when the session id does not resolve to a stored folder secret', async () => {
+    const ctx = fakeContextWithFolder(undefined);
+    await expect(
+      localFolderDestination.onSourceRenamed?.(ctx, fakeRecord({ sessionId: 'session-1' }), 'Old Name', 'New Name', signal),
+    ).resolves.toBeUndefined();
+  });
+});
+
 describe('localFolderDestination manifest/session declaration', () => {
   it('declares a real, custom session requirement rather than an empty/no-session shortcut', () => {
     expect(localFolderDestination.sessionRequirements).toHaveLength(1);

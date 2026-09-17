@@ -1,5 +1,5 @@
 import type { PluginImplementationManifest } from './manifest.js';
-import type { Session, SessionPlugin, SessionRequirement } from './session.js';
+import type { Session, SessionPlugin, SessionRequirement, SourceNameSuggester } from './session.js';
 import type { PluginContext } from './context.js';
 import type { WizardStepDescriptor, SettingsPanelDescriptor, FieldDescriptor } from './ui.js';
 
@@ -23,10 +23,18 @@ export interface PluginBackedRecord {
   collectFromDate?: string;
   /**
    * Sources only. A free-text label the user optionally assigns when creating the source (§14.1's
-   * Add Collector wizard), shown alongside its own invoices in the Collect page's history table.
-   * Empty/unset by default — purely a user organizational label (e.g. distinguishing two Graph
-   * Mail collectors against the same mailbox with different filters), never derived automatically
-   * the way a multi-scope billing provider might set one per discovered invoice.
+   * Add Collector wizard), shown alongside its own invoices in the Collect page's history table —
+   * distinguishing two Graph Mail collectors against the same mailbox with different filters, say.
+   *
+   * For a plugin that implements the optional `ScopeDescriber.describeCollectionScope()` below
+   * (a multi-account/billing-scope provider — Azure Billing, AWS, Cloudflare), this string is two
+   * parts folded into one: whatever the user actually typed (the real, user-owned "prefix"), plus
+   * — appended after a ` · ` separator core inserts, recomputed fresh on every collect run — the
+   * account/profile labels that run actually discovered. `scope-format.ts` (ic-core) is the only
+   * code that ever splits/joins the two back apart (the Edit Flow dialog shows and edits only the
+   * prefix half); a plugin itself never sees or sets the appended half directly. Empty/unset by
+   * default for a plugin with no `ScopeDescriber` at all — nothing here is derived automatically
+   * for those.
    */
   scope?: string;
   /** Plugin-owned JSON, non-secret, non-session config only. */
@@ -207,6 +215,54 @@ export interface WizardValueSuggester {
   suggestWizardValues?(ctx: PluginContext, session: Session, signal: AbortSignal): Promise<Record<string, unknown> | undefined>;
 }
 
+/**
+ * Fired once, right after a source's own display name changes (the Add-Collector wizard's
+ * editable "Collection name" field on a later rename, or the Edit Flow dialog) — an opportunity
+ * for a destination that organizes what it stores by that name (e.g. the local-folder
+ * destination's own per-source subfolder, §14.1 US7) to rename whatever it already created under
+ * the old name, so a source's history stays unified under its new name instead of silently
+ * splitting into an old-named folder and a new one. Optional — a destination with nothing keyed
+ * by the source's own name (SharePoint's fixed site/library/folder, say) simply omits this.
+ * Best-effort, same contract as `SessionLabelSuggester`/`WizardValueSuggester`: a thrown/rejected
+ * call is swallowed, never surfaced as an error — `record`'s own name change is already committed
+ * by the time this runs, and nothing here should roll that back or block on this succeeding.
+ *
+ * The optional `locationRewrite` in the result is how an already-collected invoice's own recorded
+ * `InvoiceHistoryRecord.location` (core's own concern — the plugin has no access to invoice
+ * history itself, only to what it just renamed) stays in sync with wherever this rename actually
+ * moved it: a pure function mapping an old `UploadResult.location` string to its new equivalent,
+ * using whichever path/URL convention this destination itself owns. Core applies it to every
+ * matching record and otherwise leaves history alone — omit it (or return `undefined` overall)
+ * when this destination's own physical rename left every already-recorded location still valid,
+ * or when it has no location convention to update in the first place.
+ */
+export interface SourceRenameHandler {
+  onSourceRenamed?(
+    ctx: PluginContext,
+    record: PluginDestinationRecord,
+    oldSourceName: string,
+    newSourceName: string,
+    signal: AbortSignal,
+  ): Promise<{ locationRewrite?: (oldLocation: string) => string } | undefined>;
+}
+
+/**
+ * Optional — only a source whose own `discover()` fans out across more than one account/billing
+ * scope under a single session (Azure Billing's billing accounts/subscriptions, AWS's
+ * organization accounts, Cloudflare's token-visible accounts) implements this; a source with one
+ * implicit scope (Graph Mail's own mailbox, say) has nothing useful to report and simply omits
+ * it. Called once per source, right before `discover()`, with human-readable labels for whichever
+ * accounts/profiles/scopes this run will actually touch — core folds these into the record's own
+ * `scope` field (`PluginBackedRecord.scope`'s own doc comment has the exact split/join
+ * convention), so a user's typed prefix there always keeps whatever accounts are actually visible
+ * appended after it, refreshed every run rather than going stale the moment access changes.
+ * Best-effort: a thrown/rejected call, or an empty array, just means `scope` keeps whatever it
+ * already had — never surfaced as a run error, and never blocks `discover()` itself.
+ */
+export interface ScopeDescriber {
+  describeCollectionScope?(ctx: PluginContext, record: PluginSourceRecord, signal: AbortSignal): Promise<string[]>;
+}
+
 export interface PluginLifecycle {
   /**
    * Called once, automatically, when core detects the *package* this implementation belongs to
@@ -224,7 +280,15 @@ export interface PluginLifecycle {
   ): Promise<{ records: PluginBackedRecord[] }>;
 }
 
-export interface SourcePlugin extends PluginLifecycle, WizardDataSourceProvider, BuiltInSessionInputProvider, SessionLabelSuggester, WizardValueSuggester, ActivationRequirer {
+export interface SourcePlugin
+  extends PluginLifecycle,
+    WizardDataSourceProvider,
+    BuiltInSessionInputProvider,
+    SessionLabelSuggester,
+    WizardValueSuggester,
+    ActivationRequirer,
+    SourceNameSuggester,
+    ScopeDescriber {
   manifest: PluginImplementationManifest;
   /** Which session type(s) this plugin can use, and what it needs from each — required, must
    * list at least one entry. */
@@ -253,7 +317,15 @@ export interface SourcePlugin extends PluginLifecycle, WizardDataSourceProvider,
   ): Promise<InvoiceContent>;
 }
 
-export interface DestinationPlugin extends PluginLifecycle, WizardDataSourceProvider, BuiltInSessionInputProvider, SessionLabelSuggester, WizardValueSuggester, ActivationRequirer {
+export interface DestinationPlugin
+  extends PluginLifecycle,
+    WizardDataSourceProvider,
+    BuiltInSessionInputProvider,
+    SessionLabelSuggester,
+    WizardValueSuggester,
+    ActivationRequirer,
+    SourceNameSuggester,
+    SourceRenameHandler {
   manifest: PluginImplementationManifest;
   sessionRequirements: SessionRequirement[];
   /** See `SourcePlugin.sessionPlugin` — same mechanism, same reason. */

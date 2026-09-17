@@ -1,3 +1,4 @@
+import { useCallback, useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { AdvancedSettingsSection } from './AdvancedSettingsSection';
@@ -29,6 +30,13 @@ interface SettingsPageProps {
  * more likely to actually need to act on — Advanced Settings last, since it (and the "set once"
  * settings folded into it) is closer to "set once" than "check regularly." */
 export function SettingsPage({ onBack }: SettingsPageProps) {
+  // Bumped whenever CollectionFlowsSection's own add/edit/delete could have changed which
+  // sessions exist (most notably a delete's cascade, §14.1 deleteFlow()) — SessionStatusSection
+  // fetches its own session list independently and has no other way to learn that happened. See
+  // both sections' own doc comments.
+  const [sessionsVersion, setSessionsVersion] = useState(0);
+  const bumpSessionsVersion = useCallback(() => setSessionsVersion((v) => v + 1), []);
+
   return (
     <div className="flex flex-col gap-8">
       <div className="flex items-center justify-between">
@@ -41,9 +49,9 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
         </Button>
       </div>
       <ProfileManagementSection />
-      <SessionStatusSection />
+      <SessionStatusSection refreshKey={sessionsVersion} />
       <LogsSection />
-      <CollectionFlowsSection />
+      <CollectionFlowsSection onSessionsChanged={bumpSessionsVersion} />
       <PluginsSection />
       <AdvancedSettingsSection />
     </div>

@@ -478,6 +478,31 @@ export interface SessionRequirement {
                                     // names, or a plain permission name for a custom/API-key
                                     // session type
   permissionsNote?: string; // human-readable explanation of *why*, shown alongside the raw list
+
+  // §14.1's "what and how do you want me to collect/save" Add-Collector wizard (below) reads
+  // these three to generate one button per requirement — all required, not optional, so a plugin
+  // author can't ship a requirement the wizard would have nothing to put on its own button:
+  collects: string;      // short phrase completing "Collect {collects}, ..." (a source) or "Save
+                          // invoices {collects}, ..." (a destination) — e.g. "Azure billing
+                          // invoices", "to a folder on this device"
+  connectHow: string;    // completes the same sentence's "how" half for a *fresh* connection,
+                          // e.g. "I'll authenticate this device." or "I'll paste a Cloudflare API
+                          // token." A *reuse* button's own "how" is never this — it's always a
+                          // fixed, core-generated "reusing existing authentication.", shown only
+                          // when at least one compatible session already exists.
+  connectInstructions: string; // the real how-to, shown once the button is actually clicked,
+                                 // regardless of mechanism (device-code, browser-captured session,
+                                 // or the createInputFields form below) — always shown, since even
+                                 // a device-code flow benefits from a line of context before the
+                                 // code appears.
+
+  // Only meaningful when confirmsBuiltIn is false and this session type genuinely needs real,
+  // user-typed input before create() can run (a pasted API key/token, say) — not the trivial
+  // custom case (e.g. local-folder's OS-native picker), which needs none and simply omits this.
+  // Deliberately FieldDescriptor[], not the full WizardStepDescriptor[] — a list/detail/
+  // textSelect step needs a session to resolve its own dataSource, which doesn't exist yet at
+  // this point in the flow. Closes the "custom session create() input" gap §8 used to leave open.
+  createInputFields?: FieldDescriptor[];
 }
 ```
 
@@ -496,16 +521,39 @@ exactly the lifecycle `Session`/`SessionPlugin` already exists to model, not som
 around with an empty array.
 
 **UI**: a Sessions section (Settings, or its own page) lists established sessions, their status, a
-Reconnect action, and which Source/Destination records currently use each — and any wizard step
-that needs a connection offers "use an existing session" (pick from compatible ones) alongside
-"create a new one," instead of always forcing a fresh sign-in. Before creating (or reusing) a
-session for a given plugin, the wizard shows that plugin's declared
-`requiredScopesOrRoles`/`permissionsNote` — the same way an OAuth consent screen lists requested
-scopes, so the user knows what they're granting before they grant it, not after something silently
-fails for lack of access. This also gives the cross-plugin sharing rule above a concrete mechanism
-to check, beyond just "is this a built-in session type": whether an existing session actually
-satisfies a *different* plugin's `requiredScopesOrRoles` before offering to reuse it, rather than
-assuming a matching `sessionTypeId` alone is sufficient.
+Reconnect action, and which Source/Destination records currently use each.
+
+**The Add-Collector wizard's own connection step is a flat list of buttons, not a plugin picker
+followed by a session-mode dropdown** (§14.1's UX redesign, superseding the original per-plugin
+"pick a type, then use-existing-or-create-new" dropdown flow) — one button pair per
+`SessionRequirement`, generated straight from `collects`/`connectHow` above: a "Collect
+{collects}, {connectHow}" button always shown, plus a "Collect {collects}, reusing existing
+authentication." button shown only when at least one compatible session already exists (silently
+auto-picked if there's exactly one candidate, else a small picker). A plugin declaring more than
+one `SessionRequirement` — Azure Billing's device-code and enterprise-app options, say — gets one
+independent button pair *per requirement*, not a dropdown between them; each requirement's own
+`collects`/`connectHow` text is what actually distinguishes the buttons on screen. Clicking a
+fresh-connect button opens a panel showing `connectInstructions` plus, for a `createInputFields`
+requirement, that form; anything else (device-code, browser-captured) starts signing in
+immediately, since there's nothing left to collect first. Before creating (or reusing) a session,
+that same panel also carries the plugin's declared `requiredScopesOrRoles`/`permissionsNote` — the
+same way an OAuth consent screen lists requested scopes, so the user knows what they're granting
+before they grant it, not after something silently fails for lack of access. This also gives the
+cross-plugin sharing rule above a concrete mechanism to check, beyond just "is this a built-in
+session type": whether an existing session actually satisfies a *different* plugin's
+`requiredScopesOrRoles` before offering to reuse it, rather than assuming a matching
+`sessionTypeId` alone is sufficient.
+
+**Naming a freshly-created session is never an editable field.** The SDK's optional
+`SessionLabelSuggester.suggestSessionLabel(ctx, session, signal)` — implemented today by, e.g.,
+Graph Mail (the signed-in mailbox address) and Claude Team/API (the org id resolved from the
+captured sign-in URL) — gets one chance, right after `create()` succeeds, to propose a friendlier
+name than whatever the session type's own generic default is; core renames the session to that
+suggestion immediately (`SessionsApi` rename, no user-facing "here's a name, edit it if you like"
+step) and simply keeps the default when the plugin has none or the hook throws. A pasted-credential
+plugin (AWS, Cloudflare) instead collects the name as one of its own `createInputFields` — there's
+no fixed value to derive a suggestion from, so it's real, required, user-typed input, not a
+suggestion at all.
 
 ### 6.1 Extracted session types — starting scope
 
@@ -653,12 +701,49 @@ built-in session type that shape is entirely the built-in's own** (e.g. the devi
 `{ deviceAuthorizationEndpoint, tokenEndpoint, clientId, scope, label }`) — no generic form could
 collect it. The SDK's optional `BuiltInSessionInputProvider.builtInSessionCreateInput(requirement)`
 closes this for the one case that matters today (`confirmsBuiltIn: true`): core calls it itself
-when the renderer's own supplied input is absent. **Left open, deliberately**: the same problem for
-a *custom* (`confirmsBuiltIn: false`) session type's own `create()` input — collecting whatever a
-third-party `SessionPlugin` expects still has no generic UI mechanism, deferred until a real plugin
-needs one rather than guessing the shape now. Relatedly, `PluginBackedRecord.sessionId` (below) is
-only ever set at record-creation time, from whichever session the wizard's session step resolved —
-there's no separate "reassign a record's session" action yet.
+when the renderer's own supplied input is absent. **The custom (`confirmsBuiltIn: false`) case —
+left open above — is now closed too**: `SessionRequirement.createInputFields?: FieldDescriptor[]`
+(§6) lets a custom session type declare the real, structured, user-typed input its own `create()`
+needs (a pasted API key/token, say); the Add-Collector wizard's connect panel renders it via the
+same `FieldDescriptor` machinery a flat wizard step already uses, gating its "Connect" button on
+`validateWizardValues`. Deliberately `FieldDescriptor[]`, not the full `WizardStepDescriptor[]` — a
+list/detail/textSelect step needs a session to resolve its own `dataSource`, which doesn't exist
+yet at this point in the flow. Still left open: a custom session type needing something
+`FieldDescriptor` itself can't express (a live list/detail step, say) — no real plugin has needed
+that yet. Relatedly, `PluginBackedRecord.sessionId` (below) is only ever set at record-creation
+time, from whichever session the wizard's session step resolved — there's no separate "reassign a
+record's session" action yet.
+
+**A small family of optional "suggest, never force" hooks fill in wizard values a user would
+otherwise have to type or look up themselves** — each takes the same shape (a scoped
+`PluginContext`, the relevant data, an `AbortSignal`), returns `undefined` on anything from "no
+opinion" to a thrown error (never surfaced as a failure — a suggestion is a nicety, not a
+requirement), and is invoked by core via its own IPC round-trip (`SessionsSuggestLabel`/
+`WizardSuggestValues`/`WizardSuggestSourceName`), never called by the renderer directly:
+
+- **`SessionLabelSuggester.suggestSessionLabel(ctx, session, signal)`** — §6's "name a session
+  without an editable field" mechanism.
+- **`WizardValueSuggester.suggestWizardValues(ctx, session, signal)`** — fired right alongside the
+  label suggestion above, once a session is freshly created: pre-fills the record's own `wizard`
+  step values with anything the plugin could already derive from that session (e.g. a browser-
+  captured session's own stored `capturedUrl` already carrying an organization id) — so a field
+  like "Organization UUID" can already be filled in by the time the user reaches the configure
+  step, instead of asking them to go dig it up.
+- **`SourceNameSuggester.suggestSourceName(ctx, session, configValues, signal)`** — fired once,
+  right before a record is actually created (the configure step's own values are known by then,
+  unlike the two hooks above, which fire at session-creation time): combines the session's own
+  label with a short summary of that specific config (e.g. Graph Mail: the mailbox address plus
+  which subject/sender filter is set) into the record's name. The wizard never shows an editable
+  "Source/Destination name" field at all any more — when a plugin has nothing to suggest (no hook,
+  a throw, or genuinely nothing config-specific to add), core falls back to the session's own label
+  alone, never to an empty or placeholder name.
+
+All three live on `SourcePlugin`/`DestinationPlugin` (`SourceNameSuggester` on both;
+`SessionLabelSuggester`/`WizardValueSuggester` wherever a plugin establishes its own session)
+rather than on `SessionPlugin` itself — naming and value-suggestion are inherently about how a
+*specific source/destination* plugin wants to present itself, not something a shared built-in
+session type (used by several unrelated plugins, per §6's cross-plugin sharing rule) could ever
+answer generically.
 
 **Rendering stack: shadcn/ui's component set on Tailwind CSS v4 + Radix UI primitives.** This is
 the concrete choice behind "only core's own React components ever render" above — a small, fixed

@@ -105,6 +105,9 @@ const validRequirement = {
   sessionTypeId: 'microsoft-entra-delegated-device-code',
   confirmsBuiltIn: true,
   requiredScopesOrRoles: ['Mail.Read'],
+  collects: 'invoices from my Microsoft Email',
+  connectHow: "I'll authenticate this device.",
+  connectInstructions: "You'll get a one-time code and a Microsoft sign-in link.",
 };
 
 describe('validateSessionRequirements', () => {
@@ -114,7 +117,14 @@ describe('validateSessionRequirements', () => {
 
   it('accepts a custom (non-built-in) session type', () => {
     const result = validateSessionRequirements([
-      { sessionTypeId: 'aws-sigv4-keypair', confirmsBuiltIn: false, requiredScopesOrRoles: [] },
+      {
+        sessionTypeId: 'aws-sigv4-keypair',
+        confirmsBuiltIn: false,
+        requiredScopesOrRoles: [],
+        collects: 'AWS invoicing data',
+        connectHow: "I'll paste my AWS access keys.",
+        connectInstructions: 'In the AWS Console: IAM → Users → your user → Security credentials → Create access key.',
+      },
     ]);
     expect(result).toEqual({ valid: true, errors: [] });
   });
@@ -162,6 +172,24 @@ describe('validateSessionRequirements', () => {
     ]);
     expect(result.valid).toBe(false);
     expect(result.errors).toContain('sessionRequirements[0].requiredScopesOrRoles must be an array of strings');
+  });
+
+  it('rejects a missing collects', () => {
+    const result = validateSessionRequirements([{ ...validRequirement, collects: undefined }]);
+    expect(result.valid).toBe(false);
+    expect(result.errors).toContain('sessionRequirements[0].collects must be a non-empty string');
+  });
+
+  it('rejects an empty-string connectHow', () => {
+    const result = validateSessionRequirements([{ ...validRequirement, connectHow: '' }]);
+    expect(result.valid).toBe(false);
+    expect(result.errors).toContain('sessionRequirements[0].connectHow must be a non-empty string');
+  });
+
+  it('rejects a missing connectInstructions', () => {
+    const result = validateSessionRequirements([{ ...validRequirement, connectInstructions: undefined }]);
+    expect(result.valid).toBe(false);
+    expect(result.errors).toContain('sessionRequirements[0].connectInstructions must be a non-empty string');
   });
 
   it('reports errors with the correct index across multiple requirements', () => {

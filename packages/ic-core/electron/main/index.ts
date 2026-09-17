@@ -15,6 +15,7 @@ import {
   loadConfigFile,
   removeRecord,
   saveConfigFile,
+  sweepOrphans,
   upsertRecord,
   type CreateRecordInput as ConfigCreateRecordInput,
 } from '../../src/config-store.js';
@@ -23,7 +24,7 @@ import { installPlugin, reloadInstalledPlugins, uninstallPlugin } from '../../sr
 import { renderHtmlToPdf } from './htmlToPdf.js';
 import { createInvoiceHistory } from '../../src/invoice-history.js';
 import { createJobRunner } from '../../src/job-runner.js';
-import { advancedSettingsFile, appLogFile, pluginsDir, profilePaths } from '../../src/paths.js';
+import { advancedSettingsFile, appLogFile, pluginActivationFile, pluginsDir, profilePaths } from '../../src/paths.js';
 import { createPluginLog } from '../../src/plugin-log.js';
 import { createPluginRegistry } from '../../src/plugin-registry.js';
 import { createPackageWideStorage, createPluginStorage } from '../../src/plugin-storage.js';
@@ -32,6 +33,8 @@ import { buildExcelReport, buildHtmlReport, buildReportRows } from '../../src/re
 import { loadSboms, type SbomSource } from '../../src/sbom-registry.js';
 import { resolveSessionCreateInput } from '../../src/session-create-input.js';
 import { suggestSessionLabel } from '../../src/session-label-suggest.js';
+import { suggestSourceName } from '../../src/source-name-suggest.js';
+import { notifySourceRenamed } from '../../src/source-rename-notify.js';
 import { createSessionsRegistry, type SessionsRegistry } from '../../src/sessions-registry.js';
 import { resolveWizardListData } from '../../src/wizard-data.js';
 import { suggestWizardValues } from '../../src/wizard-value-suggest.js';
@@ -52,6 +55,7 @@ import {
   type ResolveWizardListDataInput,
   type RunCollectInput,
   type SuggestSessionLabelInput,
+  type SuggestSourceNameInput,
   type SuggestWizardValuesInput,
   type UpdateFlowInput,
 } from '../shared/ipcContracts.js';
@@ -144,6 +148,7 @@ function createPluginServices(pluginId: string) {
   const log = createPluginLog(appLogFile(app.getPath('userData')), pluginId);
   return {
     storage: createPluginStorage(paths.pluginStorageFile(pluginId)),
+    appStorage: createPluginStorage(pluginActivationFile(app.getPath('userData'), pluginId)),
     http: createHttpApi(pluginId, { sessionsRegistry: sessionAuthResolver, retryPolicy: () => currentAdvancedSettings.retryPolicy }),
     installUrl: pluginRegistry.getInstallUrl(pluginId),
     log,
@@ -284,7 +289,49 @@ ipcMain.handle(Channels.FlowsUpdate, async (_event, input: UpdateFlowInput) => {
     updatedAt: new Date().toISOString(),
   };
   await saveConfigFile(filePath, { ...store, sources: upsertRecord(store.sources, updated) });
+
+  // §14.1's "renaming a flow should rename its destination folder too" follow-up — the rename
+  // above is already committed by this point, so this is purely best-effort: notifySourceRenamed
+  // itself swallows anything the destination's own hook throws, and stays pointed at whichever
+  // destination the flow is paired with *after* this update (input.destinationId, when the edit
+  // also repointed it), not the one it used to be paired with.
+  if (existing.name !== updated.name) {
+    const destination = updated.destinationId ? store.destinations.find((d) => d.id === updated.destinationId) : undefined;
+    if (destination) {
+      const result = await notifySourceRenamed(
+        { registry: pluginRegistry, createPluginServices, sessionsApiForPlugin: (pluginId) => sessionsRegistry.forPlugin(pluginId) },
+        destination.pluginId,
+        destination,
+        existing.name,
+        updated.name,
+        new AbortController().signal,
+      );
+      // Keeps every already-collected invoice's own recorded location pointing at wherever the
+      // destination's hook above actually moved it — see rewriteInvoiceLocations' own doc comment.
+      if (result?.locationRewrite) {
+        await invoiceHistory.rewriteLocations(input.sourceId, result.locationRewrite);
+      }
+    }
+  }
+
   return updated;
+});
+
+// §14.1's generic cleanup counterpart to FlowsDelete's own cascade — called after anything that
+// isn't itself a deliberate, completed delete but could still have left a destination or session
+// referenced by nothing: the Add Collector wizard being cancelled (or a later step failing) after
+// it already created a new destination and/or signed a new session in, but before the source that
+// would actually reference either one ever got created; editing a flow's own destinationId,
+// pointing it at a different destination and leaving the old one (and its session) unreferenced.
+ipcMain.handle(Channels.FlowsSweepOrphans, async () => {
+  const filePath = await currentConfigFilePath();
+  const store = await loadConfigFile(filePath);
+  const allSessionIds = (await sessionsRegistry.listAll()).map((s) => s.id);
+  const result = sweepOrphans(store, allSessionIds);
+  await saveConfigFile(filePath, { ...store, destinations: result.destinations });
+  for (const sessionId of result.orphanedSessionIds) {
+    await sessionsRegistry.removeSession(sessionId);
+  }
 });
 
 ipcMain.handle(Channels.ConfigAssignSession, async (_event, input: AssignSessionInput) => {
@@ -403,6 +450,18 @@ ipcMain.handle(Channels.WizardSuggestValues, async (_event, input: SuggestWizard
   );
 });
 
+ipcMain.handle(Channels.WizardSuggestSourceName, async (_event, input: SuggestSourceNameInput) => {
+  const stored = await sessionsRegistry.forPlugin(input.pluginId).get(input.sessionId);
+  if (!stored) return undefined;
+  return suggestSourceName(
+    { registry: pluginRegistry, createPluginServices, sessionsApiForPlugin: (pluginId) => sessionsRegistry.forPlugin(pluginId) },
+    input.pluginId,
+    stored.session,
+    input.configValues,
+    new AbortController().signal,
+  );
+});
+
 ipcMain.handle(Channels.SessionsRename, (_event, input: RenameSessionInput) =>
   sessionsRegistry.renameSession(input.pluginId, input.sessionId, input.label),
 );
@@ -448,22 +507,27 @@ ipcMain.handle(Channels.PluginsInstall, (_event, input: InstallPluginInput) =>
 // returns an activationRequirement, never again per source/destination. pluginId here is the
 // *implementation* id installPlugin() picked (the first bundled implementation that declared
 // activationRequirement), matching plugin-install.ts's own PluginInstallResult.activationRequirement.
-// `storage` is fanned out (plugin-storage.ts's createPackageWideStorage) across every sibling
-// implementation the same package bundles — a real gap found live (Claude API failing "hasn't
-// been activated yet" right after Claude Team's own activation succeeded): ctx.storage is
+// Both `storage` and `appStorage` are fanned out (plugin-storage.ts's createPackageWideStorage)
+// across every sibling implementation the same package bundles — a real gap found live (Claude API
+// failing "hasn't been activated yet" right after Claude Team's own activation succeeded): each is
 // otherwise scoped per *implementation* id, so a package bundling more than one (Claude Team +
 // Claude API/Console) only ever actually activated the single implementation core happened to run
 // activate() against, leaving every sibling permanently stuck unactivated with no way for the user
 // to fix it (activation isn't a repeatable per-record step). A single-implementation package's own
-// fan-out is just itself — no behavior change, no storage-path migration for anyone.
+// fan-out is just itself — no behavior change, no storage-path migration for anyone. `appStorage`
+// (install-scoped, not profile-scoped — see PluginContext's own doc comment) is what
+// license-check's activation record actually lives in now: activating once should stick across
+// every profile, not just the one that happened to be active at activation time.
 ipcMain.handle(Channels.PluginsActivate, async (_event, input: ActivatePluginInput) => {
   const plugin = pluginRegistry.get(input.pluginId);
   if (!plugin?.activationRequirement) {
     throw new Error(`Plugin ${input.pluginId} has no activation requirement`);
   }
   const paths = profilePaths(profileManager.getActiveProfileDir());
-  const storage = createPackageWideStorage(pluginRegistry.siblingImplementationIds(input.pluginId).map((id) => createPluginStorage(paths.pluginStorageFile(id))));
-  const ctx = { ...createPluginServices(input.pluginId), storage, sessions: sessionsRegistry.forPlugin(input.pluginId) };
+  const siblingIds = pluginRegistry.siblingImplementationIds(input.pluginId);
+  const storage = createPackageWideStorage(siblingIds.map((id) => createPluginStorage(paths.pluginStorageFile(id))));
+  const appStorage = createPackageWideStorage(siblingIds.map((id) => createPluginStorage(pluginActivationFile(app.getPath('userData'), id))));
+  const ctx = { ...createPluginServices(input.pluginId), storage, appStorage, sessions: sessionsRegistry.forPlugin(input.pluginId) };
   return plugin.activationRequirement.activate(ctx, input.input, new AbortController().signal);
 });
 
@@ -506,6 +570,10 @@ ipcMain.handle(Channels.CollectRun, async (_event, input: RunCollectInput) => {
         onDestinationCutoffLowered: async (destination) => {
           const current = await loadConfigFile(filePath);
           await saveConfigFile(filePath, { ...current, destinations: upsertRecord(current.destinations, destination) });
+        },
+        onSourceScopeDiscovered: async (source) => {
+          const current = await loadConfigFile(filePath);
+          await saveConfigFile(filePath, { ...current, sources: upsertRecord(current.sources, source) });
         },
       },
       report,

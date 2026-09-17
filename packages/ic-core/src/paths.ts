@@ -31,6 +31,13 @@ export function pluginsDir(baseDir: string): string {
   return path.join(baseDir, 'plugins');
 }
 
+/** Backs `PluginContext.appStorage` — install-scoped, not profile-scoped, so a commercial
+ * plugin's own one-time license activation (§9.1/§15) survives a profile switch instead of
+ * demanding re-activation for every profile that happens to use it. */
+export function pluginActivationFile(baseDir: string, pluginId: string): string {
+  return path.join(baseDir, 'plugin-activation', `${pluginId}.json`);
+}
+
 /** One continuous operational log, not per-profile — a user's click and the activity it triggered
  * should read in the order they actually happened even across a profile switch. */
 export function appLogFile(baseDir: string): string {

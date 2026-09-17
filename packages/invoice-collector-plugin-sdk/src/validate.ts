@@ -95,6 +95,18 @@ export function validateSessionRequirements(requirements: unknown): ValidationRe
       errors.push(`sessionRequirements[${index}].requiredScopesOrRoles must be an array of strings`);
     }
 
+    if (typeof r.collects !== 'string' || r.collects === '') {
+      errors.push(`sessionRequirements[${index}].collects must be a non-empty string`);
+    }
+
+    if (typeof r.connectHow !== 'string' || r.connectHow === '') {
+      errors.push(`sessionRequirements[${index}].connectHow must be a non-empty string`);
+    }
+
+    if (typeof r.connectInstructions !== 'string' || r.connectInstructions === '') {
+      errors.push(`sessionRequirements[${index}].connectInstructions must be a non-empty string`);
+    }
+
     if (
       r.confirmsBuiltIn === true &&
       typeof r.sessionTypeId === 'string' &&

@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { InstalledPluginSummary } from '../../../electron/shared/ipcContracts';
+import { joinScope, splitScope } from '../../../src/scope-format.js';
 import { validateWizardValues, type WizardFieldValues } from '../../../src/wizard-form-state.js';
 import { WizardSteps } from '../descriptors/WizardSteps';
 import { AddCollectorWizard } from './AddCollectorWizard';
@@ -44,7 +45,12 @@ interface EditFlowDialogProps {
 function EditFlowDialog({ source, destinations, onClose, onSaved }: EditFlowDialogProps) {
   const [plugin, setPlugin] = useState<InstalledPluginSummary | undefined>(undefined);
   const [name, setName] = useState(source.name);
-  const [scope, setScope] = useState(source.scope ?? '');
+  // Only the user's own typed half is ever shown/edited here — whatever a ScopeDescriber-backed
+  // plugin last appended (scope-format.ts's ` · accounts...` half) stays out of this field
+  // entirely, carried forward as-is until the next real collect run recomputes it fresh.
+  const initialScope = splitScope(source.scope);
+  const [scope, setScope] = useState(initialScope.prefix);
+  const [discoveredScope] = useState(initialScope.discovered);
   const [destinationId, setDestinationId] = useState<string | undefined>(source.destinationId ?? undefined);
   const [values, setValues] = useState<WizardFieldValues>((source.config as WizardFieldValues) ?? {});
   const [error, setError] = useState<string | undefined>(undefined);
@@ -67,10 +73,14 @@ function EditFlowDialog({ source, destinations, onClose, onSaved }: EditFlowDial
       await window.api.flowsUpdate({
         sourceId: source.id,
         name: name || plugin.manifest.name,
-        scope: scope || undefined,
+        scope: joinScope(scope, discoveredScope) || undefined,
         config: values,
         destinationId: destinationId ?? null,
       });
+      // Pointing the flow at a different destination (or at none) can leave the old one — and its
+      // own session, if nothing else uses it either — referenced by nothing. Best-effort: a failed
+      // sweep here should never block the edit itself from being considered saved.
+      await window.api.flowsSweepOrphans().catch(() => {});
       toast.success(`"${name || plugin.manifest.name}" saved`);
       onSaved();
     } catch (err) {
@@ -162,7 +172,19 @@ function EditFlowDialog({ source, destinations, onClose, onSaved }: EditFlowDial
  *
  * Collapsed by default, matching every other Settings section.
  */
-export function CollectionFlowsSection() {
+interface CollectionFlowsSectionProps {
+  /**
+   * Called every time this section's own `refresh()` runs (mount, or after add/edit/delete) —
+   * `SessionStatusSection` renders its own, separately-fetched session list right above this card
+   * on the same Settings page, with no way to know a delete's cascade (§14.1, `deleteFlow()`) just
+   * removed a session out from under it. Without this, that section keeps showing an
+   * already-deleted session as still present until something else happens to remount it (e.g.
+   * navigating away from Settings and back).
+   */
+  onSessionsChanged?: () => void;
+}
+
+export function CollectionFlowsSection({ onSessionsChanged }: CollectionFlowsSectionProps) {
   const [sources, setSources] = useState<PluginBackedRecord[]>([]);
   const [destinations, setDestinations] = useState<PluginBackedRecord[]>([]);
   const [sessions, setSessions] = useState<Session[]>([]);
@@ -181,10 +203,12 @@ export function CollectionFlowsSection() {
     setSources(nextSources);
     setDestinations(nextDestinations);
     setSessions(nextSessions);
+    onSessionsChanged?.();
   }
 
   useEffect(() => {
     void refresh();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function confirmDelete() {

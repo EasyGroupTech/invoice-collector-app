@@ -44,7 +44,7 @@ function destinationRecord(overrides: Partial<PluginDestinationRecord> = {}): Pl
 function fakeSourcePlugin(invoices: DiscoveredInvoice[], overrides: Partial<SourcePlugin> = {}): SourcePlugin {
   return {
     manifest: { id: 'ic-email-to-downloads', name: 'Mail', kind: 'source', main: 'i.js' },
-    sessionRequirements: [{ sessionTypeId: 'microsoft-entra-delegated-device-code', confirmsBuiltIn: true, requiredScopesOrRoles: [] }],
+    sessionRequirements: [{ sessionTypeId: 'microsoft-entra-delegated-device-code', confirmsBuiltIn: true, requiredScopesOrRoles: [], collects: 'test', connectHow: 'test', connectInstructions: 'test' }],
     wizard: [],
     discover: async function* () {
       for (const inv of invoices) yield inv;
@@ -57,7 +57,7 @@ function fakeSourcePlugin(invoices: DiscoveredInvoice[], overrides: Partial<Sour
 function fakeDestinationPlugin(overrides: Partial<DestinationPlugin> = {}): DestinationPlugin {
   return {
     manifest: { id: 'ic-local-downloads', name: 'Local Downloads', kind: 'destination', main: 'i.js' },
-    sessionRequirements: [{ sessionTypeId: 'microsoft-entra-delegated-device-code', confirmsBuiltIn: true, requiredScopesOrRoles: [] }],
+    sessionRequirements: [{ sessionTypeId: 'microsoft-entra-delegated-device-code', confirmsBuiltIn: true, requiredScopesOrRoles: [], collects: 'test', connectHow: 'test', connectInstructions: 'test' }],
     wizard: [],
     upload: vi.fn(async (): Promise<UploadResult> => ({ status: 'uploaded' })),
     ...overrides,
@@ -75,6 +75,7 @@ function fakeDedup(overrides: Partial<DedupChecker> = {}): DedupChecker {
 function pluginServices(): Omit<PluginContext, 'sessions'> {
   return {
     storage: { get: vi.fn(), set: vi.fn(), delete: vi.fn() },
+    appStorage: { get: vi.fn(), set: vi.fn(), delete: vi.fn() },
     http: { request: vi.fn() },
     log: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
     progress: { report: vi.fn() },
@@ -211,7 +212,42 @@ describe('runCollectPipeline', () => {
       new AbortController().signal,
     );
 
-    expect(dedup.record).toHaveBeenCalledWith('source-1', 'dest-1', invoice, { status: 'uploaded' });
+    expect(dedup.record).toHaveBeenCalledWith('source-1', 'dest-1', { ...invoice, name: 'a' }, { status: 'uploaded' });
+  });
+
+  it('prefers the fetched content\'s own filename over an opaque discover()-time name once fetchContent resolves it', async () => {
+    // A Stripe-backed browser-session provider commonly has no invoice-number field at discover()
+    // time, only an id-like composite key — the real, recognizable name only becomes known once
+    // fetchContent() reads it off the provider's own Content-Disposition header. That nicer name
+    // should win for both the history record and the final report line, not the composite key.
+    const invoice: DiscoveredInvoice = { id: '1749945600:4250', name: '1749945600:4250', issuedDate: '2026-01-15' };
+    const registry = createPluginRegistry();
+    registry.register(
+      fakeSourcePlugin([invoice], {
+        fetchContent: vi.fn(async () => ({ fileName: 'Invoice-ABC-0037.pdf', mimeType: 'application/pdf', bytes: new Uint8Array([1]) })),
+      }),
+      'test-package',
+    );
+    registry.register(fakeDestinationPlugin(), 'test-package');
+    const dedup = fakeDedup();
+    const messages: string[] = [];
+
+    await runCollectPipeline(
+      [record()],
+      [destinationRecord()],
+      { sourceIds: 'all', period: { start: '2026-01-01', end: '2026-01-31' } },
+      { registry, dedup, createPluginServices: pluginServices, sessionsApiForPlugin: fakeSessionsApi },
+      (update) => messages.push(update.message),
+      new AbortController().signal,
+    );
+
+    expect(dedup.record).toHaveBeenCalledWith('source-1', 'dest-1', { ...invoice, name: 'Invoice-ABC-0037' }, { status: 'uploaded' });
+    expect(messages).toEqual([
+      'Started Mailbox',
+      'Mailbox / 1749945600:4250: downloading...',
+      'Mailbox / Invoice-ABC-0037: uploading to Downloads...',
+      'Mailbox: uploaded Invoice-ABC-0037',
+    ]);
   });
 
   it('records a per-invoice error outcome when fetchContent throws, without recording it in dedup', async () => {
@@ -370,7 +406,12 @@ describe('runCollectPipeline', () => {
   it('reports "Started X" up front and "downloading"/"uploading" before each slow step — not just the final outcome (phase 1.19)', async () => {
     const invoice: DiscoveredInvoice = { id: 'inv-1', name: 'Invoice #1', issuedDate: '2026-01-15' };
     const registry = createPluginRegistry();
-    registry.register(fakeSourcePlugin([invoice]), 'test-package');
+    registry.register(
+      fakeSourcePlugin([invoice], {
+        fetchContent: vi.fn(async () => ({ fileName: 'Invoice #1.pdf', mimeType: 'application/pdf', bytes: new Uint8Array([1]) })),
+      }),
+      'test-package',
+    );
     registry.register(fakeDestinationPlugin(), 'test-package');
     const messages: string[] = [];
 
@@ -425,5 +466,100 @@ describe('runCollectPipeline', () => {
 
     expect(result.outcomes).toEqual([]);
     expect(messages.some((m) => m.includes('not installed'))).toBe(true);
+  });
+
+  describe('ScopeDescriber (§14.1 — scope = user prefix + discovered accounts)', () => {
+    it("calls describeCollectionScope and persists the appended scope via onSourceScopeDiscovered, before discover() itself runs", async () => {
+      const registry = createPluginRegistry();
+      const callOrder: string[] = [];
+      registry.register(
+        fakeSourcePlugin([], {
+          describeCollectionScope: vi.fn(async () => {
+            callOrder.push('describeCollectionScope');
+            return ['acct-1', 'acct-2'];
+          }),
+          // eslint-disable-next-line require-yield -- intentionally discovers nothing, only records call order
+          discover: async function* () {
+            callOrder.push('discover');
+          },
+        }),
+        'test-package',
+      );
+      registry.register(fakeDestinationPlugin(), 'test-package');
+      const onSourceScopeDiscovered = vi.fn(async () => {});
+
+      await runCollectPipeline(
+        [record({ scope: 'Finance' })],
+        [destinationRecord()],
+        { sourceIds: 'all', period: { start: '2026-01-01', end: '2026-01-31' } },
+        { registry, dedup: fakeDedup(), createPluginServices: pluginServices, sessionsApiForPlugin: fakeSessionsApi, onSourceScopeDiscovered },
+        noopReport,
+        new AbortController().signal,
+      );
+
+      expect(callOrder).toEqual(['describeCollectionScope', 'discover']);
+      expect(onSourceScopeDiscovered).toHaveBeenCalledWith(expect.objectContaining({ id: 'source-1', scope: 'Finance · acct-1, acct-2' }));
+    });
+
+    it('does not call onSourceScopeDiscovered when the computed scope is unchanged', async () => {
+      const registry = createPluginRegistry();
+      registry.register(fakeSourcePlugin([], { describeCollectionScope: vi.fn(async () => ['acct-1']) }), 'test-package');
+      registry.register(fakeDestinationPlugin(), 'test-package');
+      const onSourceScopeDiscovered = vi.fn(async () => {});
+
+      await runCollectPipeline(
+        [record({ scope: 'Finance · acct-1' })],
+        [destinationRecord()],
+        { sourceIds: 'all', period: { start: '2026-01-01', end: '2026-01-31' } },
+        { registry, dedup: fakeDedup(), createPluginServices: pluginServices, sessionsApiForPlugin: fakeSessionsApi, onSourceScopeDiscovered },
+        noopReport,
+        new AbortController().signal,
+      );
+
+      expect(onSourceScopeDiscovered).not.toHaveBeenCalled();
+    });
+
+    it('never calls onSourceScopeDiscovered for a plugin with no ScopeDescriber at all', async () => {
+      const registry = createPluginRegistry();
+      registry.register(fakeSourcePlugin([]), 'test-package');
+      registry.register(fakeDestinationPlugin(), 'test-package');
+      const onSourceScopeDiscovered = vi.fn(async () => {});
+
+      await runCollectPipeline(
+        [record()],
+        [destinationRecord()],
+        { sourceIds: 'all', period: { start: '2026-01-01', end: '2026-01-31' } },
+        { registry, dedup: fakeDedup(), createPluginServices: pluginServices, sessionsApiForPlugin: fakeSessionsApi, onSourceScopeDiscovered },
+        noopReport,
+        new AbortController().signal,
+      );
+
+      expect(onSourceScopeDiscovered).not.toHaveBeenCalled();
+    });
+
+    it('still runs discover() normally when describeCollectionScope itself throws — best-effort, never blocks the actual collection', async () => {
+      const invoice: DiscoveredInvoice = { id: 'inv-1', issuedDate: '2026-01-15' };
+      const registry = createPluginRegistry();
+      registry.register(
+        fakeSourcePlugin([invoice], {
+          describeCollectionScope: vi.fn(async () => {
+            throw new Error('permission denied');
+          }),
+        }),
+        'test-package',
+      );
+      registry.register(fakeDestinationPlugin(), 'test-package');
+
+      const result = await runCollectPipeline(
+        [record()],
+        [destinationRecord()],
+        { sourceIds: 'all', period: { start: '2026-01-01', end: '2026-01-31' } },
+        { registry, dedup: fakeDedup(), createPluginServices: pluginServices, sessionsApiForPlugin: fakeSessionsApi },
+        noopReport,
+        new AbortController().signal,
+      );
+
+      expect(result.outcomes).toEqual([{ sourceId: 'source-1', destinationId: 'dest-1', invoiceId: 'inv-1', issuedDate: '2026-01-15', status: 'uploaded' }]);
+    });
   });
 });

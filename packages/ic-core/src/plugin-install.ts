@@ -1,4 +1,4 @@
-import { readdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
+import { mkdir, readdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import {
@@ -169,6 +169,11 @@ export async function installPlugin(
     await rename(stagingDir, finalDir);
     installDir = finalDir;
 
+    // Must run before the implementations are imported below — see hoistVendoredDependencies's
+    // own doc comment for why this makes a shared dependency's fix apply to every already-
+    // installed plugin using it, not just whichever one happens to be reinstalled.
+    await hoistVendoredDependencies(options.pluginsDir, finalDir);
+
     // Persisted alongside manifest.json so reloadInstalledPlugins() can restore it on the next
     // boot too — PluginRegistry's own installUrl tracking is in-memory only, and a commercial
     // plugin reading its own license/purchase query params off this URL (§15, PluginContext.
@@ -195,6 +200,51 @@ export async function installPlugin(
     await rm(installDir, { recursive: true, force: true });
     throw err;
   }
+}
+
+/**
+ * Hoists a freshly-installed package's own vendored `node_modules/<dep>` directories up to a
+ * single shared `<pluginsDir>/node_modules/<dep>`, the same way an npm workspace hoists a shared
+ * dependency to its root instead of duplicating it under every package that needs it — Node's own
+ * module resolution already walks up through every ancestor directory's `node_modules` looking for
+ * a bare specifier, so a plugin's `import 'license-check'` keeps resolving with no change to the
+ * plugin's own code, just to *where* the file it resolves to actually lives.
+ *
+ * Real bug this closes: a commercial plugin package (§9.4) vendors internal dependencies it needs
+ * at runtime (`license-check`, `browser-session-capture`, …) into its own zip at package time
+ * (`tools/package-plugin.mjs`, private repo) — confirmed live that fixing a real bug in one of
+ * those shared dependencies (license-check's activation storage moving from profile- to
+ * install-scoped) only ever took effect for whichever *specific* plugin package happened to be
+ * reinstalled afterward; every other already-installed package kept running its own frozen,
+ * now-stale vendored copy indefinitely, with no way to fix it short of individually reinstalling
+ * every single one. Hoisting to one shared location means the *next* install of *any* plugin that
+ * bundles a newer copy of a given dependency upgrades it for every plugin that uses it, not just
+ * itself.
+ *
+ * Deliberately "last install wins" with no version reconciliation: every commercial plugin in this
+ * ecosystem is built from the same private monorepo and released in lockstep in practice, so two
+ * packages vendoring genuinely different versions of the same shared dependency isn't a real
+ * scenario worth the complexity of solving here — an accepted, deliberate trade-off, not an
+ * oversight.
+ */
+async function hoistVendoredDependencies(pluginsDir: string, finalDir: string): Promise<void> {
+  const vendoredDir = path.join(finalDir, 'node_modules');
+  let depNames: string[];
+  try {
+    depNames = await readdir(vendoredDir);
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') return;
+    throw err;
+  }
+
+  const sharedNodeModules = path.join(pluginsDir, 'node_modules');
+  await mkdir(sharedNodeModules, { recursive: true });
+  for (const depName of depNames) {
+    const target = path.join(sharedNodeModules, depName);
+    await rm(target, { recursive: true, force: true });
+    await rename(path.join(vendoredDir, depName), target);
+  }
+  await rm(vendoredDir, { recursive: true, force: true });
 }
 
 /** Shared by `installPlugin()` and `reloadInstalledPlugins()` — the part of the pipeline that
@@ -263,7 +313,11 @@ export async function reloadInstalledPlugins(options: ReloadInstalledPluginsOpti
   }
 
   for (const entryName of entries) {
-    if (entryName.startsWith('.staging-')) continue;
+    // '.staging-' is installPlugin()'s own anonymous in-progress extraction dir; 'node_modules' is
+    // hoistVendoredDependencies()'s shared location for vendored internal dependencies — neither
+    // is a package directory (no manifest.json), so trying to reload either as one is a guaranteed,
+    // harmless-but-noisy ENOENT on every single boot, not a real per-package failure worth onError().
+    if (entryName.startsWith('.staging-') || entryName === 'node_modules') continue;
     const packageDir = path.join(options.pluginsDir, entryName);
 
     try {
@@ -315,7 +369,10 @@ export interface UninstallPluginOptions {
  * resolveListData() calls have nowhere to route to for any of them) and removes its own installed
  * package files. It never touches PluginBackedRecords, invoice history, or Sessions — those stay
  * put, inactive, and come back with no data loss if the same package (or a different version of
- * it, via migrate()) is installed again later.
+ * it, via migrate()) is installed again later. Also, deliberately, never touches the shared
+ * `<pluginsDir>/node_modules` a plugin's own dependencies were hoisted into at install time
+ * (`hoistVendoredDependencies`) — another still-installed package may depend on the exact same
+ * shared dependency, and there's no cheap way from here to know whether it's the last one using it.
  */
 export async function uninstallPlugin(packageId: string, options: UninstallPluginOptions): Promise<void> {
   const manifest = options.registry.getPackage(packageId);

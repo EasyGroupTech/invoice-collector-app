@@ -38,6 +38,7 @@ import type {
   SbomEntry,
   Session,
   SuggestSessionLabelInput,
+  SuggestSourceNameInput,
   SuggestWizardValuesInput,
   UpdateFlowInput,
   WizardListDataResult,
@@ -52,6 +53,7 @@ declare global {
       configRemoveRecord(input: RemoveRecordInput): Promise<void>;
       flowsDelete(sourceId: string): Promise<void>;
       flowsUpdate(input: UpdateFlowInput): Promise<PluginBackedRecord>;
+      flowsSweepOrphans(): Promise<void>;
       configAssignSession(input: AssignSessionInput): Promise<PluginBackedRecord>;
       configExportAll(password: string): Promise<FileExportResult>;
       configPickImportFile(): Promise<EncryptedConfigExportFile | undefined>;
@@ -78,6 +80,7 @@ declare global {
 
       wizardResolveListData(input: ResolveWizardListDataInput): Promise<WizardListDataResult>;
       wizardSuggestValues(input: SuggestWizardValuesInput): Promise<Record<string, unknown> | undefined>;
+      wizardSuggestSourceName(input: SuggestSourceNameInput): Promise<string | undefined>;
 
       collectRun(input: RunCollectInput): Promise<RunCollectResult>;
       jobsCancel(jobId: string): Promise<void>;

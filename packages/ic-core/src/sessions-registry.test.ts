@@ -20,6 +20,7 @@ const fakeEncryptor: Encryptor = {
 function stubPluginServices(_pluginId: string): Omit<PluginContext, 'sessions'> {
   return {
     storage: { get: vi.fn(), set: vi.fn(), delete: vi.fn() },
+    appStorage: { get: vi.fn(), set: vi.fn(), delete: vi.fn() },
     http: { request: vi.fn() },
     log: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
     progress: { report: vi.fn() },
@@ -702,6 +703,7 @@ describe('SessionsRegistry', () => {
         encryptor: fakeEncryptor,
         createPluginServices: () => ({
           storage: { get: vi.fn(), set: vi.fn(), delete: vi.fn() },
+          appStorage: { get: vi.fn(), set: vi.fn(), delete: vi.fn() },
           http: { request: httpRequest },
           log: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
           progress: { report: vi.fn() },

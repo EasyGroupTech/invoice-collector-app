@@ -116,3 +116,35 @@ export function deleteFlow(store: ConfigStore, sourceId: string): DeleteFlowResu
 
   return { sources: remainingSources, destinations: remainingDestinations, orphanedSessionIds };
 }
+
+export interface SweepOrphansResult {
+  destinations: PluginBackedRecord[];
+  orphanedSessionIds: string[];
+}
+
+/**
+ * The generic cleanup counterpart to `deleteFlow()` — removes any destination no remaining
+ * source points to any more, then any session (out of `allSessionIds`, every session that
+ * currently exists — sessions live in a separate registry this module has no access to, so the
+ * caller supplies the full list) that neither a remaining source nor a remaining destination
+ * references any more. Sources are never swept themselves — a source *is* a flow (`deleteFlow`'s
+ * own doc comment) — only ever a destination, or a session hanging off of one.
+ *
+ * Used wherever something could have been left dangling by an action that wasn't itself a
+ * deliberate, completed delete: the Add Collector wizard signs a session in (or creates a new
+ * destination) as it walks through its own steps, before the source that would actually reference
+ * either one even exists — cancelling (or a later step failing) at that point leaves them
+ * referenced by nothing; editing a flow's own `destinationId` can point it at a different
+ * destination, leaving the old one (and its session) with nothing referencing it either.
+ */
+export function sweepOrphans(store: ConfigStore, allSessionIds: string[]): SweepOrphansResult {
+  const referencedDestinationIds = new Set(store.sources.map((s) => s.destinationId).filter((id): id is string => Boolean(id)));
+  const destinations = store.destinations.filter((d) => referencedDestinationIds.has(d.id));
+
+  const stillReferencedSessionIds = new Set(
+    [...store.sources, ...destinations].map((r) => r.sessionId).filter((id): id is string => Boolean(id)),
+  );
+  const orphanedSessionIds = allSessionIds.filter((id) => !stillReferencedSessionIds.has(id));
+
+  return { destinations, orphanedSessionIds };
+}

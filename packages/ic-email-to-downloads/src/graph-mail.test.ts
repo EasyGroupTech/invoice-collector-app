@@ -1,6 +1,6 @@
 import type { HttpApi, HttpResponse } from 'invoice-collector-plugin-sdk';
 import { describe, expect, it, vi } from 'vitest';
-import { getAttachmentBytes, getMessageDetail, getPrimaryDomain, listAttachments, listMessages } from './graph-mail.js';
+import { getAttachmentBytes, getMessageDetail, getPrimaryDomain, getSignedInMailboxAddress, listAttachments, listMessages } from './graph-mail.js';
 
 function fakeResponse(status: number, body: unknown): HttpResponse {
   return {
@@ -166,5 +166,37 @@ describe('getPrimaryDomain (used by suggestSessionLabel, §6)', () => {
     const http = fakeHttp([fakeResponse(403, { error: 'Forbidden' })]);
 
     await expect(getPrimaryDomain(http, 'session-1', new AbortController().signal)).resolves.toBeUndefined();
+  });
+});
+
+describe('getSignedInMailboxAddress (used by suggestSessionLabel/suggestSourceName, §14.1)', () => {
+  it("prefers /me's own mail field", async () => {
+    const http = fakeHttp([fakeResponse(200, { mail: 'alice@contoso.com', userPrincipalName: 'alice@contoso.onmicrosoft.com' })]);
+
+    await expect(getSignedInMailboxAddress(http, 'session-1', new AbortController().signal)).resolves.toBe('alice@contoso.com');
+  });
+
+  it('falls back to userPrincipalName when mail is not set', async () => {
+    const http = fakeHttp([fakeResponse(200, { userPrincipalName: 'alice@contoso.com' })]);
+
+    await expect(getSignedInMailboxAddress(http, 'session-1', new AbortController().signal)).resolves.toBe('alice@contoso.com');
+  });
+
+  it('falls back to the tenant primary domain when /me has neither field', async () => {
+    const http = fakeHttp([
+      fakeResponse(200, {}),
+      fakeResponse(200, { value: [{ verifiedDomains: [{ name: 'contoso.com', isDefault: true }] }] }),
+    ]);
+
+    await expect(getSignedInMailboxAddress(http, 'session-1', new AbortController().signal)).resolves.toBe('contoso.com');
+  });
+
+  it('falls back to the tenant primary domain on a non-200 /me response', async () => {
+    const http = fakeHttp([
+      fakeResponse(403, { error: 'Forbidden' }),
+      fakeResponse(200, { value: [{ verifiedDomains: [{ name: 'contoso.com', isDefault: true }] }] }),
+    ]);
+
+    await expect(getSignedInMailboxAddress(http, 'session-1', new AbortController().signal)).resolves.toBe('contoso.com');
   });
 });

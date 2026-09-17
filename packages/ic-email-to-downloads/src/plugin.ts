@@ -10,7 +10,7 @@ import type {
   WizardListDataResult,
 } from 'invoice-collector-plugin-sdk';
 import { buildInvoiceFileName } from './file-naming.js';
-import { getAttachmentBytes, getMessageDetail, getPrimaryDomain, listAttachments, listMessages } from './graph-mail.js';
+import { getAttachmentBytes, getMessageDetail, getSignedInMailboxAddress, listAttachments, listMessages } from './graph-mail.js';
 import { htmlToText, parseInvoiceFields, type ParsedInvoiceFields } from './invoice-text-parsing.js';
 import { extractFieldsWithRules } from './mail-field-rules.js';
 import { matchesMailFilter, type MailSourceConfig } from './mail-filter.js';
@@ -271,14 +271,26 @@ function builtInSessionCreateInput(requirement: SessionRequirement): unknown {
   };
 }
 
-/** The wizard's own friendly-name follow-up (§6): once a device-code session is established, its
- * signed-in tenant's primary verified domain reads far better as a session name than the generic
- * built-in label — the shared `microsoftEntraDelegatedDeviceCodeSessionPlugin` doesn't know this
- * (it also serves ARM consumers, which have no "mailbox tenant domain" concept), so it lives here,
- * in the one plugin that actually wants it. */
+/** The wizard's own friendly-name follow-up (§6): once a device-code session is established, the
+ * signed-in mailbox's own address (§14.1: "who logs in, where") reads far better as a session
+ * name than the generic built-in label — the shared `microsoftEntraDelegatedDeviceCodeSessionPlugin`
+ * doesn't know this (it also serves ARM consumers, which have no mailbox concept at all), so it
+ * lives here, in the one plugin that actually wants it. */
 async function suggestSessionLabel(ctx: PluginContext, session: Session, signal: AbortSignal): Promise<string | undefined> {
   if (session.sessionTypeId !== SESSION_TYPE_ID) return undefined;
-  return getPrimaryDomain(ctx.http, session.id, signal);
+  return getSignedInMailboxAddress(ctx.http, session.id, signal);
+}
+
+/** §14.1's source auto-naming: the session's own address plus a short summary of whichever
+ * filter fields the user actually set — a source with no filter at all still gets a real,
+ * distinguishing name (just the mailbox address alone) rather than nothing. */
+function suggestSourceName(_ctx: PluginContext, session: Session, configValues: unknown, _signal: AbortSignal): Promise<string | undefined> {
+  const config = configValues as Partial<MailSourceConfig> | undefined;
+  const parts: string[] = [];
+  if (config?.subjectContains) parts.push(`Subject contains "${config.subjectContains}"`);
+  if (config?.senderContains) parts.push(`Sender contains "${config.senderContains}"`);
+  if (config?.hasAttachmentsOnly) parts.push('has attachments');
+  return Promise.resolve(parts.length > 0 ? `${session.label} (${parts.join(', ')})` : session.label);
 }
 
 const graphMailSource: SourcePlugin = {
@@ -299,6 +311,10 @@ const graphMailSource: SourcePlugin = {
       confirmsBuiltIn: true,
       requiredScopesOrRoles: REQUIRED_SCOPES,
       permissionsNote: 'Needed to list mailbox messages and download invoice attachments. Read-only — this plugin never sends, deletes, or modifies anything in the mailbox.',
+      collects: 'invoices from my Microsoft Email',
+      connectHow: "I'll authenticate this device.",
+      connectInstructions:
+        "You'll get a one-time code and a Microsoft sign-in link — open the link, enter the code, and sign in with the mailbox's own account.",
     },
   ],
   wizard: [
@@ -334,6 +350,7 @@ const graphMailSource: SourcePlugin = {
   resolveListData,
   builtInSessionCreateInput,
   suggestSessionLabel,
+  suggestSourceName,
   discover,
   fetchContent,
 };

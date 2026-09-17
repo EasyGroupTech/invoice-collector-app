@@ -1,5 +1,6 @@
 import type {
   DiscoveredInvoice,
+  InvoiceContent,
   PluginContext,
   PluginDestinationRecord,
   PluginSourceRecord,
@@ -8,6 +9,7 @@ import type {
 } from 'invoice-collector-plugin-sdk';
 import type { ProgressReporter } from './job-runner.js';
 import type { PluginRegistry } from './plugin-registry.js';
+import { appendDiscoveredScope } from './scope-format.js';
 
 export interface CollectPeriod {
   start: string;
@@ -59,6 +61,10 @@ export interface CollectPipelineDeps {
   /** Called when a destination's collectFromDate is lowered by an explicit backfill request
    * (§14.1 US11) — the caller persists it (config-store.ts's upsertRecord + saveConfigFile). */
   onDestinationCutoffLowered?: (destination: PluginDestinationRecord) => Promise<void>;
+  /** Called when a source's own `ScopeDescriber.describeCollectionScope()` result changes what
+   * `scope` should read (`scope-format.ts`'s `appendDiscoveredScope`) — the caller persists it
+   * the same way `onDestinationCutoffLowered` does for a destination. */
+  onSourceScopeDiscovered?: (source: PluginSourceRecord) => Promise<void>;
 }
 
 const CANCELLED_MESSAGE = 'Collect run was cancelled';
@@ -83,6 +89,20 @@ function buildContext(
 
 function errorMessage(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
+}
+
+/**
+ * `DiscoveredInvoice.name` is fixed at discover() time, before fetchContent() has run — for a
+ * plugin with no real invoice-number field (e.g. the Stripe-backed browser-session providers),
+ * that's only ever an opaque id-like composite key (e.g. "2026-08-30T21:47:12Z:10265"), never the
+ * actual document name. `InvoiceContent.fileName` is often far more recognizable (a provider's own
+ * Content-Disposition-suggested filename), but only becomes known after fetchContent() succeeds —
+ * so it's preferred here, once available, for anything that displays the invoice afterward
+ * (history record, the final per-invoice report line), matching the reference app's own
+ * displayName() convention (browserSessionUpload.ts).
+ */
+function bestDisplayName(discovered: DiscoveredInvoice, content: InvoiceContent): string {
+  return content.fileName.replace(/\.pdf$/i, '') || discovered.name || discovered.id;
 }
 
 /**
@@ -159,6 +179,21 @@ export async function runCollectPipeline(
       // reported this before doing anything else per source.
       report({ message: `Started ${source.name}`, sourceId: source.id });
 
+      if (sourcePlugin.describeCollectionScope) {
+        try {
+          const labels = await sourcePlugin.describeCollectionScope(sourceCtx, source, signal);
+          const nextScope = appendDiscoveredScope(source.scope, labels);
+          if (nextScope !== (source.scope ?? '')) {
+            await deps.onSourceScopeDiscovered?.({ ...source, scope: nextScope, updatedAt: new Date().toISOString() });
+          }
+        } catch (err) {
+          // Best-effort, same contract as the SDK's own ScopeDescriber doc comment — a failed
+          // scope lookup (a permissions edge case, a transient network blip) never blocks the
+          // actual collection below; scope simply keeps whatever it already had.
+          sourceCtx.log.warn(`${source.name}: couldn't refresh scope`, { error: err instanceof Error ? err.message : String(err) });
+        }
+      }
+
       try {
         for await (const discovered of sourcePlugin.discover(sourceCtx, source, selection.period, signal)) {
           if (signal.aborted) throw new Error(CANCELLED_MESSAGE);
@@ -186,14 +221,15 @@ export async function runCollectPipeline(
             // discover this particular invoice (§6's cross-plugin scoping cares about exactly
             // this: createdByPluginId has to be the plugin that actually created a session).
             const destinationCtx = buildContext(deps, destination.pluginId, report, source.id);
-            report({ message: `${source.name} / ${discovered.name ?? discovered.id}: uploading to ${destination.name}...`, sourceId: source.id });
+            report({ message: `${source.name} / ${bestDisplayName(discovered, content)}: uploading to ${destination.name}...`, sourceId: source.id });
             const uploadResult = await destinationPlugin.upload(
               destinationCtx,
               destination,
               { ...discovered, ...content, sourceName: source.name },
               signal,
             );
-            await deps.dedup.record(source.id, destinationId, discovered, uploadResult);
+            const displayName = bestDisplayName(discovered, content);
+            await deps.dedup.record(source.id, destinationId, { ...discovered, name: displayName }, uploadResult);
             outcomes.push({
               sourceId: source.id,
               destinationId,
@@ -201,7 +237,7 @@ export async function runCollectPipeline(
               issuedDate: discovered.issuedDate,
               status: uploadResult.status,
             });
-            report({ message: `${source.name}: ${uploadResult.status} ${discovered.name ?? discovered.id}`, sourceId: source.id });
+            report({ message: `${source.name}: ${uploadResult.status} ${displayName}`, sourceId: source.id });
           } catch (err) {
             if (signal.aborted) throw err;
             const message = errorMessage(err);
