@@ -64,10 +64,22 @@ reason. Anything still genuinely undecided is tracked in §15, not marked inline
   builds). `safeStorage`'s OS-keychain identity is tied to this signed identity, so changing it
   later means a fresh keychain identity for users — a real, if one-time, transition cost worth
   weighing before ever changing it.
-- **macOS signing**: the maintainer's personal Apple Developer Program membership — the signed
-  identity reads as the maintainer's personal name in Gatekeeper, not a company name. Revisit
-  moving to an org-owned membership later, only if/when the project grows enough to justify the
-  switch (and the keychain-identity transition cost above).
+- **macOS signing and notarization**: the maintainer's personal Apple Developer Program
+  membership — the signed identity reads as the maintainer's personal name in Gatekeeper, not a
+  company name. Revisit moving to an org-owned membership later, only if/when the project grows
+  enough to justify the switch (and the keychain-identity transition cost above). Both are wired
+  through plain `electron-builder` defaults (phase 1.17), not custom scripting:
+  `CSC_IDENTITY_AUTO_DISCOVERY` picks up the login keychain's own `Developer ID Application`
+  certificate automatically, and its default `afterSign` hook (`@electron/notarize`) submits to
+  Apple's real notarization service automatically whenever `APPLE_ID`/
+  `APPLE_APP_SPECIFIC_PASSWORD`/`APPLE_TEAM_ID` are present in the environment — confirmed
+  genuinely working end to end (a real submission, a real stapled ticket, independently verified
+  via `codesign`/`stapler`/`spctl`, not just trusted from a build log line). **Worth knowing if
+  this environment is ever reused for another Apple-signed project**: an app-specific password
+  authenticates the Apple ID *account*, not any one app — Apple's own notarization service has no
+  per-app scoping on it at all, so which of the account's several app-specific passwords happens
+  to be in `APPLE_APP_SPECIFIC_PASSWORD` doesn't affect which app gets notarized; that's determined
+  entirely by the actual bundle id being submitted.
 - **Windows signing: SignPath Foundation**, under an account created specifically for this
   project. **Provider comparison (researched):**
 
@@ -950,11 +962,23 @@ Three distinct outputs come out of this monorepo's release pipeline:
    way any plugin is) for two purposes: (a) so it can be updated without a full app release, and
    (b) so it can be manually installed into an `ic-core` build that doesn't already have it.
    **Not published to npm** — nothing ever imports it as a library.
-3. **Windows and macOS app bundles**, built via `electron-builder`, with `ic-email-to-downloads`'s
-   build output copied into the packaged app's plugin directory at package time — so a fresh
-   install works out of the box with zero plugin-install steps, while `ic-email-to-downloads`
-   remains, logically, just an installed plugin like any other (removable/updatable independently,
-   not special-cased in `ic-core`'s code).
+3. **Windows and macOS app bundles**, built via `electron-builder` (phase 1.17), with
+   `ic-email-to-downloads`'s build output copied into the packaged app's plugin directory at
+   package time — so a fresh install works out of the box with zero plugin-install steps, while
+   `ic-email-to-downloads` remains, logically, just an installed plugin like any other
+   (removable/updatable independently, not special-cased in `ic-core`'s code). Concretely a
+   two-step handoff: `scripts/stage-bundled-plugin.mjs` builds a real, self-contained copy under
+   `packages/ic-core/resources/bundled-plugins/<packageId>/` — compiled `dist/*.js`, a serialized
+   `manifest.json`, `sbom.cdx.json`, and (the one part that can't just be a file copy) a genuine
+   `npm install` of the plugin's own runtime dependencies straight into that directory, since a
+   native binding (`pdf-parse`'s own transitive `@napi-rs/canvas`) has to be resolved by npm itself
+   for the actual build platform, not hand-copied from this monorepo's own, differently-resolved
+   `node_modules` — then `electron-builder`'s `extraResources` copies that whole directory verbatim
+   into the packaged app's own resources. At runtime, `bundled-plugins.ts`'s `seedBundledPlugins()`
+   copies it once more, from there into the real `pluginsDir`, the first time it's missing — after
+   that it's ordinary installed state, exactly like anything installed through the normal
+   `pluginsInstall` flow, and `reloadInstalledPlugins()` (which already re-validates every
+   on-disk package's manifest regardless of how it got there) takes over from every boot after.
 
 Each of the three above **includes a third-party-dependency-license scan as a build step** (§13) —
 `ic-core`'s own build produces its CycloneDX SBOM, `ic-email-to-downloads`'s build (whether

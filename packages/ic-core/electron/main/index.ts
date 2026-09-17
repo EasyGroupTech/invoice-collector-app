@@ -21,6 +21,7 @@ import {
   type CreateRecordInput as ConfigCreateRecordInput,
 } from '../../src/config-store.js';
 import { createHttpApi, type SessionAuthResolver } from '../../src/http-client.js';
+import { seedBundledPlugins } from '../../src/bundled-plugins.js';
 import { disablePlugin, enablePlugin, installPlugin, reloadInstalledPlugins, uninstallPlugin } from '../../src/plugin-install.js';
 import { checkForPluginUpdate } from '../../src/plugin-update-check.js';
 import { renderHtmlToPdf } from './htmlToPdf.js';
@@ -808,6 +809,12 @@ ipcMain.handle(Channels.AppOpenExternal, (_event, url: string) => {
 app.whenReady().then(async () => {
   await profileManager.init();
   currentAdvancedSettings = await loadAdvancedSettings(advancedSettingsFile(app.getPath('userData')));
+  // §11's bundled-plugin seeding (phase 1.17) — a no-op unless a real packaged build's
+  // extraResources actually staged one (see bundled-plugins.ts's own doc comment); must run
+  // before reloadInstalledPlugins() below so a fresh install's first boot actually finds it on
+  // disk already.
+  await seedBundledPlugins({ resourcesPath: process.resourcesPath, pluginsDir: pluginsDir(app.getPath('userData')) });
+
   // §5's "plugins aren't reloaded from disk at boot yet" gap — a plugin installed in an earlier
   // run left real files under pluginsDir, but nothing re-registered them into this fresh launch's
   // registry until now. Runs before rebuildProfileScopedServices() so its own sessionPlugin
