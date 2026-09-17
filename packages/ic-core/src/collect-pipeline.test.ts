@@ -173,27 +173,34 @@ describe('runCollectPipeline', () => {
     expect(uploadCtx?.storage).not.toBe(servicesByPluginId.get('ic-email-to-downloads')?.storage);
   });
 
-  it('skips fetchContent/upload for an invoice the dedup checker already has', async () => {
-    const invoice: DiscoveredInvoice = { id: 'inv-1', issuedDate: '2026-01-15' };
+  it('skips fetchContent/upload for an invoice the dedup checker already has, but still reports it (not silently dropped)', async () => {
+    const invoice: DiscoveredInvoice = { id: 'inv-1', name: 'Invoice #1', issuedDate: '2026-01-15' };
     const registry = createPluginRegistry();
     const sourcePlugin = fakeSourcePlugin([invoice]);
     const destinationPlugin = fakeDestinationPlugin();
     registry.register(sourcePlugin, 'test-package');
     registry.register(destinationPlugin, 'test-package');
     const dedup = fakeDedup({ has: vi.fn(async () => true) });
+    const messages: string[] = [];
 
     const result = await runCollectPipeline(
       [record()],
       [destinationRecord()],
       { sourceIds: 'all', period: { start: '2026-01-01', end: '2026-01-31' } },
       { registry, dedup, createPluginServices: pluginServices, sessionsApiForPlugin: fakeSessionsApi },
-      noopReport,
+      (update) => messages.push(update.message),
       new AbortController().signal,
     );
 
     expect(result.outcomes).toEqual([{ sourceId: 'source-1', destinationId: 'dest-1', invoiceId: 'inv-1', issuedDate: '2026-01-15', status: 'skipped-dedup' }]);
     expect(sourcePlugin.fetchContent).not.toHaveBeenCalled();
     expect(destinationPlugin.upload).not.toHaveBeenCalled();
+    expect(messages).toEqual([
+      'Mailbox started',
+      'Mailbox: discovered 1 for 2026-01',
+      'Mailbox: skipping 1 of 1 "Invoice #1" — already collected',
+      'Mailbox finished',
+    ]);
   });
 
   it('records a successful upload in the dedup checker', async () => {
@@ -243,10 +250,12 @@ describe('runCollectPipeline', () => {
 
     expect(dedup.record).toHaveBeenCalledWith('source-1', 'dest-1', { ...invoice, name: 'Invoice-ABC-0037' }, { status: 'uploaded' });
     expect(messages).toEqual([
-      'Started Mailbox',
-      'Mailbox / 1749945600:4250: downloading...',
-      'Mailbox / Invoice-ABC-0037: uploading to Downloads...',
-      'Mailbox: uploaded Invoice-ABC-0037',
+      'Mailbox started',
+      'Mailbox: discovered 1 for 2026-01',
+      'Mailbox: downloading 1 of 1 "1749945600:4250"',
+      'Mailbox: uploading 1 of 1 "Invoice-ABC-0037"',
+      'Mailbox: uploaded "Invoice-ABC-0037"',
+      'Mailbox finished',
     ]);
   });
 
@@ -425,14 +434,16 @@ describe('runCollectPipeline', () => {
     );
 
     expect(messages).toEqual([
-      'Started Mailbox',
-      'Mailbox / Invoice #1: downloading...',
-      'Mailbox / Invoice #1: uploading to Downloads...',
-      'Mailbox: uploaded Invoice #1',
+      'Mailbox started',
+      'Mailbox: discovered 1 for 2026-01',
+      'Mailbox: downloading 1 of 1 "Invoice #1"',
+      'Mailbox: uploading 1 of 1 "Invoice #1"',
+      'Mailbox: uploaded "Invoice #1"',
+      'Mailbox finished',
     ]);
   });
 
-  it('reports "Started X" even for a source that discovers nothing at all — still visible feedback, not silence', async () => {
+  it('reports "X started"/"discovered 0"/"X finished" even for a source that discovers nothing at all — still visible feedback, not silence', async () => {
     const registry = createPluginRegistry();
     registry.register(fakeSourcePlugin([]), 'test-package');
     registry.register(fakeDestinationPlugin(), 'test-package');
@@ -447,7 +458,7 @@ describe('runCollectPipeline', () => {
       new AbortController().signal,
     );
 
-    expect(messages).toEqual(['Started Mailbox']);
+    expect(messages).toEqual(['Mailbox started', 'Mailbox: discovered 0 for 2026-01', 'Mailbox finished']);
   });
 
   it('skips a source whose plugin is not installed, reporting why', async () => {

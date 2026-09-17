@@ -181,7 +181,17 @@ export function CollectPage({ onOpenSettings }: CollectPageProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [collectMonth, collectYear]);
 
-  useEffect(() => window.api.onJobProgress((event) => setProgressLog((prev) => [...prev, event.message])), []);
+  useEffect(
+    () =>
+      window.api.onJobProgress((event) => {
+        setProgressLog((prev) => [...prev, event.message]);
+        // Live updates during a run, not just once it finishes — tagged by collect-pipeline.ts
+        // rather than inferred from the message text, so it fires exactly once per real upload.
+        if (event.data?.kind === 'uploaded') void refreshInvoiceHistory();
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [collectYear, collectMonth],
+  );
 
   function pluginFor(record: PluginBackedRecord): InstalledPluginSummary | undefined {
     return allPlugins.find((p) => p.manifest.id === record.pluginId);
@@ -641,7 +651,7 @@ function ProgressLog({ lines }: { lines: string[] }) {
         ) : (
           // A plain progress transcript, appended in arrival order — no id to key by.
           lines.map((line, index) => (
-            <div key={index} className={line.includes('FAILED') ? 'text-destructive' : undefined}>
+            <div key={index} className={/error/i.test(line) ? 'text-destructive' : undefined}>
               {line}
             </div>
           ))
