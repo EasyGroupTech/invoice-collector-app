@@ -17,6 +17,7 @@ import type {
   ExportReportInput,
   FileExportResult,
   InstallPluginInput,
+  InstalledPluginPackageSummary,
   InstalledPluginSummary,
   InvoiceHistoryRecord,
   JobDoneEvent,
@@ -26,7 +27,6 @@ import type {
   PluginBackedRecord,
   PluginInstallNeedsConfirmation,
   PluginInstallResult,
-  PluginManifest,
   ProfileCreateInput,
   ProfileSummary,
   ReconnectSessionInput,
@@ -73,10 +73,12 @@ declare global {
       sessionsRename(input: RenameSessionInput): Promise<Session>;
 
       pluginsList(): Promise<InstalledPluginSummary[]>;
-      pluginsListPackages(): Promise<PluginManifest[]>;
+      pluginsListPackages(): Promise<InstalledPluginPackageSummary[]>;
       pluginsInstall(input: InstallPluginInput): Promise<PluginInstallResult | PluginInstallNeedsConfirmation>;
       pluginsActivate(input: ActivatePluginInput): Promise<{ ok: true } | { ok: false; reason: string }>;
       pluginsUninstall(pluginId: string): Promise<void>;
+      pluginsDisable(packageId: string): Promise<void>;
+      pluginsEnable(packageId: string): Promise<void>;
 
       wizardResolveListData(input: ResolveWizardListDataInput): Promise<WizardListDataResult>;
       wizardSuggestValues(input: SuggestWizardValuesInput): Promise<Record<string, unknown> | undefined>;

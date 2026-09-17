@@ -54,6 +54,17 @@ export interface PluginRegistry {
    * only ever runs `activate()` once, against whichever implementation the install flow picked,
    * but every sibling implementation needs to see the *same* activation record, not just that one. */
   siblingImplementationIds(pluginId: string): string[];
+
+  /** §9's enable/disable (phase 1.20) — deliberately tracked separately from `packages`/`plugins`
+   * rather than folded into either: a disabled package stays in `packages` (so `listPackages()`
+   * still shows it, with something to re-enable) while every implementation it bundles is
+   * unregistered from the flat `plugins` map (so a real discover()/upload()/wizard call has
+   * nowhere to route to, exactly as if it were uninstalled) — this flag is the only place that
+   * distinction is recorded at all. Defaults to enabled for a package `registerPackage()` has
+   * never been told otherwise about, so every existing caller (a fresh install, a normal reload)
+   * needs no change. */
+  setPackageEnabled(packageId: string, enabled: boolean): void;
+  isPackageEnabled(packageId: string): boolean;
 }
 
 export function createPluginRegistry(): PluginRegistry {
@@ -61,6 +72,7 @@ export function createPluginRegistry(): PluginRegistry {
   const packages = new Map<string, PluginManifest>();
   const packageIdByImplementationId = new Map<string, string>();
   const installUrlByPackageId = new Map<string, string>();
+  const disabledPackageIds = new Set<string>();
 
   return {
     register(plugin, packageId) {
@@ -98,6 +110,7 @@ export function createPluginRegistry(): PluginRegistry {
     unregisterPackage(packageId) {
       packages.delete(packageId);
       installUrlByPackageId.delete(packageId);
+      disabledPackageIds.delete(packageId);
     },
 
     getPackage(packageId) {
@@ -118,6 +131,15 @@ export function createPluginRegistry(): PluginRegistry {
       const packageId = packageIdByImplementationId.get(pluginId);
       if (!packageId) return [pluginId];
       return [...packageIdByImplementationId.entries()].filter(([, pkg]) => pkg === packageId).map(([id]) => id);
+    },
+
+    setPackageEnabled(packageId, enabled) {
+      if (enabled) disabledPackageIds.delete(packageId);
+      else disabledPackageIds.add(packageId);
+    },
+
+    isPackageEnabled(packageId) {
+      return !disabledPackageIds.has(packageId);
     },
   };
 }

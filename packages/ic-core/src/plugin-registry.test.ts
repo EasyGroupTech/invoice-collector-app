@@ -245,4 +245,46 @@ describe('PluginRegistry', () => {
       expect(registry.siblingImplementationIds('does-not-exist')).toEqual(['does-not-exist']);
     });
   });
+
+  describe('setPackageEnabled/isPackageEnabled (phase 1.20)', () => {
+    it('defaults to enabled for a package that was never told otherwise', () => {
+      const registry = createPluginRegistry();
+      registry.registerPackage(fakePackageManifest('plugin-azure-billing'));
+
+      expect(registry.isPackageEnabled('plugin-azure-billing')).toBe(true);
+    });
+
+    it('reports disabled after setPackageEnabled(id, false), and enabled again after setPackageEnabled(id, true)', () => {
+      const registry = createPluginRegistry();
+      registry.registerPackage(fakePackageManifest('plugin-azure-billing'));
+
+      registry.setPackageEnabled('plugin-azure-billing', false);
+      expect(registry.isPackageEnabled('plugin-azure-billing')).toBe(false);
+
+      registry.setPackageEnabled('plugin-azure-billing', true);
+      expect(registry.isPackageEnabled('plugin-azure-billing')).toBe(true);
+    });
+
+    it('disabling one package never affects another', () => {
+      const registry = createPluginRegistry();
+      registry.registerPackage(fakePackageManifest('plugin-azure-billing'));
+      registry.registerPackage(fakePackageManifest('plugin-sharepoint-destination'));
+
+      registry.setPackageEnabled('plugin-azure-billing', false);
+
+      expect(registry.isPackageEnabled('plugin-azure-billing')).toBe(false);
+      expect(registry.isPackageEnabled('plugin-sharepoint-destination')).toBe(true);
+    });
+
+    it('unregisterPackage clears the disabled flag too, so a later reinstall of the same id starts enabled', () => {
+      const registry = createPluginRegistry();
+      registry.registerPackage(fakePackageManifest('plugin-azure-billing'));
+      registry.setPackageEnabled('plugin-azure-billing', false);
+
+      registry.unregisterPackage('plugin-azure-billing');
+      registry.registerPackage(fakePackageManifest('plugin-azure-billing'));
+
+      expect(registry.isPackageEnabled('plugin-azure-billing')).toBe(true);
+    });
+  });
 });
