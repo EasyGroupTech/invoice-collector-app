@@ -1,4 +1,4 @@
-import { mkdir, readdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
+import { access, mkdir, readdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import {
@@ -25,6 +25,11 @@ import {
 import { extractZipSafely } from './zip-extract.js';
 
 export type TrustTier = 'open-source' | 'unverified';
+
+/** A package directory's own disabled marker (§9, phase 1.20) — sits next to `manifest.json`/
+ * `install-source.json`, same sibling-file convention. Presence alone is the signal; content is
+ * never read, so an empty file is enough. */
+const DISABLED_MARKER_FILENAME = 'disabled.marker';
 
 export interface PluginInstallResult {
   status: 'installed';
@@ -345,13 +350,24 @@ export async function reloadInstalledPlugins(options: ReloadInstalledPluginsOpti
         // Missing or unparsable — leave installUrl undefined rather than failing the whole reload.
       }
 
-      for (const implementation of manifest.implementations) {
-        const moduleUrl = pathToFileURL(path.join(packageDir, implementation.main)).href;
-        const loaded = await importModule(moduleUrl);
-        const plugin = loaded.default as SourcePlugin | DestinationPlugin;
-        validateAndRegisterPlugin(implementation, plugin, options.registry, manifest.id, options.sessionsRegistry);
-      }
+      const disabled = await access(path.join(packageDir, DISABLED_MARKER_FILENAME))
+        .then(() => true)
+        .catch(() => false);
+
+      // The package itself is always registered, disabled or not, so it keeps showing up in
+      // listPackages() (Settings' own Plugins card needs something to offer Enable on) — only a
+      // *disabled* package's implementations are left unloaded entirely, never even imported, not
+      // just unregistered afterward.
       options.registry.registerPackage(manifest, installUrl);
+      options.registry.setPackageEnabled(manifest.id, !disabled);
+      if (!disabled) {
+        for (const implementation of manifest.implementations) {
+          const moduleUrl = pathToFileURL(path.join(packageDir, implementation.main)).href;
+          const loaded = await importModule(moduleUrl);
+          const plugin = loaded.default as SourcePlugin | DestinationPlugin;
+          validateAndRegisterPlugin(implementation, plugin, options.registry, manifest.id, options.sessionsRegistry);
+        }
+      }
     } catch (err) {
       options.onError?.(entryName, err);
     }
@@ -381,4 +397,67 @@ export async function uninstallPlugin(packageId: string, options: UninstallPlugi
   }
   options.registry.unregisterPackage(packageId);
   await rm(path.join(options.pluginsDir, packageId), { recursive: true, force: true });
+}
+
+export interface DisablePluginOptions {
+  pluginsDir: string;
+  registry: PluginRegistry;
+}
+
+/**
+ * Phase 1.20's enable/disable — the "one underlying persistence problem neither 1.11 nor
+ * 1.12a/b/c solved" flagged since. Unregisters every implementation the package bundles (the same
+ * effect `uninstallPlugin()` has on the flat registry — nothing routes discover()/fetchContent()/
+ * upload()/resolveListData() to any of them anymore), but unlike uninstall: never touches the
+ * package's files on disk, and leaves the package itself registered (`registry.getPackage()`
+ * still finds it, `listPackages()` still lists it) so Settings' Plugins card has something to
+ * offer an Enable action on instead of only "reinstall from scratch." A durable marker file next
+ * to `manifest.json` is what makes `reloadInstalledPlugins()` honor this across a restart too —
+ * `PluginRegistry`'s own enabled-tracking is in-memory only, same as everything else it tracks.
+ */
+export async function disablePlugin(packageId: string, options: DisablePluginOptions): Promise<void> {
+  const manifest = options.registry.getPackage(packageId);
+  for (const implementation of manifest?.implementations ?? []) {
+    options.registry.unregister(implementation.id);
+  }
+  options.registry.setPackageEnabled(packageId, false);
+  await writeFile(path.join(options.pluginsDir, packageId, DISABLED_MARKER_FILENAME), '');
+}
+
+export interface EnablePluginOptions {
+  pluginsDir: string;
+  coreSdkVersion: string;
+  registry: PluginRegistry;
+  sessionsRegistry?: SessionsRegistry;
+  importModule?: (fileUrl: string) => Promise<{ default: unknown }>;
+}
+
+/**
+ * The reverse of `disablePlugin()` — re-loads every implementation straight from disk and
+ * re-registers them, the same per-implementation step `reloadInstalledPlugins()` runs for a
+ * package that was never disabled at all. Deliberately re-runs no download, no GitHub Artifact
+ * Attestation, and no unverified-tier trust-ack prompt — this package was already vetted once, at
+ * install time, same reasoning `reloadInstalledPlugins()`'s own doc comment already gives for
+ * skipping those on every boot. `pluginApiVersion` is still re-checked, since a core upgrade since
+ * this package was last loaded could have moved it outside the supported window.
+ */
+export async function enablePlugin(packageId: string, options: EnablePluginOptions): Promise<void> {
+  const importModule = options.importModule ?? ((url: string) => import(url));
+  const packageDir = path.join(options.pluginsDir, packageId);
+  const manifest = JSON.parse(await readFile(path.join(packageDir, 'manifest.json'), 'utf-8')) as PluginManifest;
+
+  if (!isPluginApiVersionSupported(manifest.pluginApiVersion, options.coreSdkVersion)) {
+    throw new Error(
+      `Package ${manifest.id}'s pluginApiVersion (${manifest.pluginApiVersion}) is outside the supported window for core ${options.coreSdkVersion}`,
+    );
+  }
+
+  for (const implementation of manifest.implementations) {
+    const moduleUrl = pathToFileURL(path.join(packageDir, implementation.main)).href;
+    const loaded = await importModule(moduleUrl);
+    const plugin = loaded.default as SourcePlugin | DestinationPlugin;
+    validateAndRegisterPlugin(implementation, plugin, options.registry, manifest.id, options.sessionsRegistry);
+  }
+  options.registry.setPackageEnabled(packageId, true);
+  await rm(path.join(packageDir, DISABLED_MARKER_FILENAME), { force: true });
 }

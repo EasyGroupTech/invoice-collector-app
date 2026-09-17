@@ -62,6 +62,8 @@ export const Channels = {
   PluginsInstall: 'plugins:install',
   PluginsActivate: 'plugins:activate',
   PluginsUninstall: 'plugins:uninstall',
+  PluginsEnable: 'plugins:enable',
+  PluginsDisable: 'plugins:disable',
 
   WizardResolveListData: 'wizard:resolveListData',
   WizardSuggestValues: 'wizard:suggestValues',
@@ -221,7 +223,9 @@ export interface RunCollectInput {
  * `packageVersion` are denormalized from the owning package for the few things that still need
  * them (`PluginBackedRecord.pluginVersion`, e.g.) without a second round-trip. Settings' own
  * Plugins management card reads `PluginsListPackages` instead, for the actual install/uninstall/
- * trust/SBOM unit.
+ * enable-disable/trust/SBOM unit. **A disabled package's implementations never appear here at
+ * all** (phase 1.20) — the wizard/Collect flow has nothing to route a call to a disabled plugin
+ * with, same as if it were uninstalled.
  */
 export interface InstalledPluginSummary {
   manifest: PluginImplementationManifest;
@@ -230,6 +234,14 @@ export interface InstalledPluginSummary {
   sessionRequirements: SessionRequirement[];
   wizard: WizardStepDescriptor[];
   settingsPanel?: SettingsPanelDescriptor;
+}
+
+/** `PluginsListPackages`'s real return shape (phase 1.20) — unlike `InstalledPluginSummary`
+ * above, this one *does* include a disabled package, so Settings' Plugins card has something to
+ * offer Enable on instead of only "reinstall from scratch." */
+export interface InstalledPluginPackageSummary {
+  manifest: PluginManifest;
+  enabled: boolean;
 }
 
 export type RunCollectResult = JobHandle | { error: string };

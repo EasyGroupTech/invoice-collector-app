@@ -5,7 +5,7 @@ import path from 'node:path';
 import { zipSync } from 'fflate';
 import type { DestinationPlugin, PluginImplementationManifest, PluginManifest, SessionPlugin, SourcePlugin } from 'invoice-collector-plugin-sdk';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { installPlugin, reloadInstalledPlugins, uninstallPlugin } from './plugin-install.js';
+import { disablePlugin, enablePlugin, installPlugin, reloadInstalledPlugins, uninstallPlugin } from './plugin-install.js';
 import { createPluginRegistry, type PluginRegistry } from './plugin-registry.js';
 import type { SessionsRegistry } from './sessions-registry.js';
 
@@ -946,5 +946,195 @@ export default {
   it('is a no-op, not a throw, when pluginsDir does not exist yet (a fresh install with nothing installed)', async () => {
     await expect(reloadInstalledPlugins({ pluginsDir, coreSdkVersion: CORE_SDK_VERSION, registry })).resolves.toBeUndefined();
     expect(registry.list()).toHaveLength(0);
+  });
+
+  describe('honoring a disabled marker (phase 1.20)', () => {
+    it('registers the package but never loads its implementations when a disabled marker is present', async () => {
+      const id = 'app.easygroup.reload-disabled-test';
+      await writePluginOnDisk(id);
+      await writeFile(path.join(pluginsDir, id, 'disabled.marker'), '', 'utf-8');
+
+      await reloadInstalledPlugins({ pluginsDir, coreSdkVersion: CORE_SDK_VERSION, registry });
+
+      expect(registry.getPackage(id)).toBeDefined();
+      expect(registry.get(id)).toBeUndefined();
+      expect(registry.isPackageEnabled(id)).toBe(false);
+    });
+
+    it('loads implementations and reports enabled when no marker is present, same as before this phase', async () => {
+      const id = 'app.easygroup.reload-enabled-test';
+      await writePluginOnDisk(id);
+
+      await reloadInstalledPlugins({ pluginsDir, coreSdkVersion: CORE_SDK_VERSION, registry });
+
+      expect(registry.get(id)).toBeDefined();
+      expect(registry.isPackageEnabled(id)).toBe(true);
+    });
+  });
+});
+
+describe('disablePlugin', () => {
+  let dir: string;
+  let pluginsDir: string;
+  let registry: PluginRegistry;
+
+  beforeEach(async () => {
+    dir = await mkdtemp(path.join(tmpdir(), 'ic-core-plugin-disable-'));
+    pluginsDir = path.join(dir, 'plugins');
+    registry = createPluginRegistry();
+  });
+
+  afterEach(async () => {
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  async function installFixture(): Promise<void> {
+    const zip = buildZip({
+      'manifest.json': JSON.stringify(validManifest),
+      'sbom.cdx.json': JSON.stringify(validSbom),
+      'index.js': fakeSourceModuleSource,
+    });
+    await installPlugin('https://example.com/plugin.zip', {
+      pluginsDir,
+      coreSdkVersion: CORE_SDK_VERSION,
+      trustAckFilePath: path.join(dir, 'trust-ack.json'),
+      registry,
+      confirmUnverified: true,
+      fetchImpl: fetchReturningZip(zip),
+    });
+  }
+
+  it('unregisters the implementation but leaves the package registered, unlike uninstall', async () => {
+    await installFixture();
+
+    await disablePlugin(validManifest.id, { pluginsDir, registry });
+
+    expect(registry.get(validImplementation.id)).toBeUndefined();
+    expect(registry.getPackage(validManifest.id)).toBeDefined();
+    expect(registry.isPackageEnabled(validManifest.id)).toBe(false);
+  });
+
+  it('never touches the package files on disk, unlike uninstall', async () => {
+    await installFixture();
+
+    await disablePlugin(validManifest.id, { pluginsDir, registry });
+
+    await expect(readdir(path.join(pluginsDir, validManifest.id))).resolves.toEqual(expect.arrayContaining(['manifest.json']));
+  });
+
+  it('writes a durable marker that reloadInstalledPlugins() honors on a later boot', async () => {
+    await installFixture();
+    await disablePlugin(validManifest.id, { pluginsDir, registry });
+
+    const freshRegistry = createPluginRegistry();
+    await reloadInstalledPlugins({ pluginsDir, coreSdkVersion: CORE_SDK_VERSION, registry: freshRegistry });
+
+    expect(freshRegistry.getPackage(validManifest.id)).toBeDefined();
+    expect(freshRegistry.get(validImplementation.id)).toBeUndefined();
+    expect(freshRegistry.isPackageEnabled(validManifest.id)).toBe(false);
+  });
+});
+
+describe('enablePlugin', () => {
+  let dir: string;
+  let pluginsDir: string;
+  let registry: PluginRegistry;
+
+  beforeEach(async () => {
+    dir = await mkdtemp(path.join(tmpdir(), 'ic-core-plugin-enable-'));
+    pluginsDir = path.join(dir, 'plugins');
+    registry = createPluginRegistry();
+  });
+
+  afterEach(async () => {
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  async function installAndDisableFixture(): Promise<void> {
+    const zip = buildZip({
+      'manifest.json': JSON.stringify(validManifest),
+      'sbom.cdx.json': JSON.stringify(validSbom),
+      'index.js': fakeSourceModuleSource,
+    });
+    await installPlugin('https://example.com/plugin.zip', {
+      pluginsDir,
+      coreSdkVersion: CORE_SDK_VERSION,
+      trustAckFilePath: path.join(dir, 'trust-ack.json'),
+      registry,
+      confirmUnverified: true,
+      fetchImpl: fetchReturningZip(zip),
+    });
+    await disablePlugin(validManifest.id, { pluginsDir, registry });
+  }
+
+  it('re-loads and re-registers every implementation, straight from disk, no download', async () => {
+    await installAndDisableFixture();
+    expect(registry.get(validImplementation.id)).toBeUndefined();
+
+    await enablePlugin(validManifest.id, { pluginsDir, coreSdkVersion: CORE_SDK_VERSION, registry });
+
+    expect(registry.get(validImplementation.id)).toBeDefined();
+    expect(registry.isPackageEnabled(validManifest.id)).toBe(true);
+  });
+
+  it('removes the durable marker, so a later reloadInstalledPlugins() also loads it', async () => {
+    await installAndDisableFixture();
+
+    await enablePlugin(validManifest.id, { pluginsDir, coreSdkVersion: CORE_SDK_VERSION, registry });
+
+    const freshRegistry = createPluginRegistry();
+    await reloadInstalledPlugins({ pluginsDir, coreSdkVersion: CORE_SDK_VERSION, registry: freshRegistry });
+
+    expect(freshRegistry.get(validImplementation.id)).toBeDefined();
+    expect(freshRegistry.isPackageEnabled(validManifest.id)).toBe(true);
+  });
+
+  it("registers a re-enabled implementation's own sessionPlugin, same as install/reload", async () => {
+    const id = 'app.easygroup.enable-session-test';
+    const implementation = { ...validImplementation, id: 'app.easygroup.destination.enable-session-test', kind: 'destination' as const };
+    const customSessionTypeId = `${id}/custom`;
+    const zip = buildZip({
+      'manifest.json': JSON.stringify({ ...validManifest, id, implementations: [implementation] }),
+      'sbom.cdx.json': JSON.stringify(validSbom),
+      'index.js': `
+export default {
+  manifest: ${JSON.stringify(implementation)},
+  sessionRequirements: [{ sessionTypeId: ${JSON.stringify(customSessionTypeId)}, confirmsBuiltIn: false, requiredScopesOrRoles: [], collects: 'test', connectHow: 'test', connectInstructions: 'test' }],
+  sessionPlugin: {
+    sessionTypeId: ${JSON.stringify(customSessionTypeId)},
+    create: async () => ({ label: 'test', secret: {} }),
+    test: async () => 'ok',
+    applyAuth: (_secret, request) => request,
+  },
+  wizard: [],
+  upload: async () => ({ status: 'uploaded' }),
+};
+`,
+    });
+    await installPlugin('https://example.com/plugin.zip', {
+      pluginsDir,
+      coreSdkVersion: CORE_SDK_VERSION,
+      trustAckFilePath: path.join(dir, 'trust-ack.json'),
+      registry,
+      confirmUnverified: true,
+      fetchImpl: fetchReturningZip(zip),
+    });
+    await disablePlugin(id, { pluginsDir, registry });
+
+    const registerSessionPlugin = vi.fn();
+    await enablePlugin(id, {
+      pluginsDir,
+      coreSdkVersion: CORE_SDK_VERSION,
+      registry,
+      sessionsRegistry: { registerSessionPlugin } as unknown as SessionsRegistry,
+    });
+
+    expect(registerSessionPlugin).toHaveBeenCalledWith(expect.objectContaining({ sessionTypeId: customSessionTypeId }));
+  });
+
+  it('re-checks pluginApiVersion and throws if a core upgrade since disabling moved it outside the supported window', async () => {
+    await installAndDisableFixture();
+
+    await expect(enablePlugin(validManifest.id, { pluginsDir, coreSdkVersion: '99.0.0', registry })).rejects.toThrow(/pluginApiVersion/);
   });
 });

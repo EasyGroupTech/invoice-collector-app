@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import type { PluginManifest, SbomEntry } from '../../../electron/shared/ipcContracts';
+import type { InstalledPluginPackageSummary, SbomEntry } from '../../../electron/shared/ipcContracts';
 import { validateWizardValues, type WizardFieldValues } from '../../../src/wizard-form-state.js';
 import { WizardSteps } from '../descriptors/WizardSteps';
 
@@ -24,9 +24,9 @@ import { WizardSteps } from '../descriptors/WizardSteps';
  *
  * §9.1's one Install Plugin entry point + §9's two-tier trust warning, plus uninstall (§5's
  * "preserve, don't delete" — ic-core's uninstallPlugin() already only touches the package's own
- * files). Enable/disable isn't here — same known, deliberately-deferred gap
- * docs/implementation-plan.md's phase 1.11/1.12 notes track (no installed-plugin persistence
- * across a restart yet, so "disable" has nothing durable to attach to today).
+ * files) and enable/disable (phase 1.20 — a disabled package stays installed and still shows up
+ * here, just inert: `pluginsListPackages()` now returns `{ manifest, enabled }`, not a bare
+ * manifest, specifically so this list can render that state and offer the opposite action).
  *
  * Install comes first (plain URL input + button, not its own nested Card — this whole section is
  * already "Plugins," a second layer of Card chrome around one field added nothing), then the
@@ -45,7 +45,7 @@ import { WizardSteps } from '../descriptors/WizardSteps';
  * `SourcesPage` collapses its list — this can grow long and isn't something most sessions need
  * open at a glance the way Collect is. */
 export function PluginsSection() {
-  const [packages, setPackages] = useState<PluginManifest[]>([]);
+  const [packages, setPackages] = useState<InstalledPluginPackageSummary[]>([]);
   const [rawInput, setRawInput] = useState('');
   const [pendingConfirmation, setPendingConfirmation] = useState<{ manifestId: string; manifestName: string } | undefined>(undefined);
   const [pendingActivation, setPendingActivation] = useState<{ pluginId: string; packageName: string; fields: FieldDescriptor[] } | undefined>(undefined);
@@ -134,6 +134,26 @@ export function PluginsSection() {
     }
   }
 
+  // Phase 1.20 — the package's own files/SBOM entry are untouched either way, only refreshPlugins()
+  // is needed (never refreshSbom()), unlike uninstall above.
+  async function toggleEnabled(pkg: InstalledPluginPackageSummary) {
+    setBusy(true);
+    try {
+      if (pkg.enabled) {
+        await window.api.pluginsDisable(pkg.manifest.id);
+        toast.success(`${pkg.manifest.name} disabled`);
+      } else {
+        await window.api.pluginsEnable(pkg.manifest.id);
+        toast.success(`${pkg.manifest.name} enabled`);
+      }
+      await refreshPlugins();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <Card className="py-0">
       <CardHeader className="cursor-pointer gap-1.5 py-4 select-none" onClick={() => setCollapsed((c) => !c)}>
@@ -210,14 +230,25 @@ export function PluginsSection() {
 
             <div className="flex flex-col gap-2">
               {packages.map((pkg) => (
-                <div key={pkg.id} className="flex items-center justify-between gap-2 rounded-md border px-3 py-2">
+                <div
+                  key={pkg.manifest.id}
+                  className={`flex items-center justify-between gap-2 rounded-md border px-3 py-2 ${pkg.enabled ? '' : 'opacity-60'}`}
+                >
                   <div className="flex flex-col gap-0.5 truncate">
-                    <span className="text-sm font-medium">{pkg.name}</span>
-                    <span className="text-xs text-muted-foreground">{pkg.repository ?? 'Unverified — no public repository'}</span>
+                    <span className="flex items-center gap-2 text-sm font-medium">
+                      {pkg.manifest.name}
+                      {!pkg.enabled && <span className="text-xs font-normal text-muted-foreground">(disabled)</span>}
+                    </span>
+                    <span className="text-xs text-muted-foreground">{pkg.manifest.repository ?? 'Unverified — no public repository'}</span>
                   </div>
-                  <Button type="button" variant="outline" size="sm" className="shrink-0" onClick={() => void uninstall(pkg.id)}>
-                    Uninstall
-                  </Button>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <Button type="button" variant="outline" size="sm" onClick={() => void toggleEnabled(pkg)}>
+                      {pkg.enabled ? 'Disable' : 'Enable'}
+                    </Button>
+                    <Button type="button" variant="outline" size="sm" onClick={() => void uninstall(pkg.manifest.id)}>
+                      Uninstall
+                    </Button>
+                  </div>
                 </div>
               ))}
               {packages.length === 0 && <p className="text-sm text-muted-foreground">No plugins installed yet.</p>}

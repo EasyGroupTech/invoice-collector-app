@@ -20,7 +20,7 @@ import {
   type CreateRecordInput as ConfigCreateRecordInput,
 } from '../../src/config-store.js';
 import { createHttpApi, type SessionAuthResolver } from '../../src/http-client.js';
-import { installPlugin, reloadInstalledPlugins, uninstallPlugin } from '../../src/plugin-install.js';
+import { disablePlugin, enablePlugin, installPlugin, reloadInstalledPlugins, uninstallPlugin } from '../../src/plugin-install.js';
 import { renderHtmlToPdf } from './htmlToPdf.js';
 import { createInvoiceHistory } from '../../src/invoice-history.js';
 import { createJobRunner } from '../../src/job-runner.js';
@@ -476,21 +476,27 @@ ipcMain.handle(Channels.SessionsRename, (_event, input: RenameSessionInput) =>
 // instead, below.
 ipcMain.handle(Channels.PluginsList, () =>
   pluginRegistry.listPackages().flatMap((packageManifest) =>
-    packageManifest.implementations.map((implementationManifest) => {
-      const loaded = pluginRegistry.get(implementationManifest.id)!;
-      return {
+    packageManifest.implementations
+      // A disabled package (phase 1.20) stays in listPackages() but has every implementation
+      // unregistered from the flat registry — get() returns undefined for each one, not "the
+      // same plugin, just inert." Filtered out here rather than asserted non-null, since this is
+      // now a real, expected case, not a should-never-happen one.
+      .map((implementationManifest) => pluginRegistry.get(implementationManifest.id))
+      .filter((loaded): loaded is NonNullable<typeof loaded> => loaded !== undefined)
+      .map((loaded) => ({
         manifest: loaded.manifest,
         packageId: packageManifest.id,
         packageVersion: packageManifest.version,
         sessionRequirements: loaded.sessionRequirements,
         wizard: loaded.wizard,
         settingsPanel: loaded.settingsPanel,
-      };
-    }),
+      })),
   ),
 );
 
-ipcMain.handle(Channels.PluginsListPackages, () => pluginRegistry.listPackages());
+ipcMain.handle(Channels.PluginsListPackages, () =>
+  pluginRegistry.listPackages().map((manifest) => ({ manifest, enabled: pluginRegistry.isPackageEnabled(manifest.id) })),
+);
 
 ipcMain.handle(Channels.PluginsInstall, (_event, input: InstallPluginInput) =>
   installPlugin(input.rawInput, {
@@ -535,6 +541,20 @@ ipcMain.handle(Channels.PluginsActivate, async (_event, input: ActivatePluginInp
 // package bundles, together.
 ipcMain.handle(Channels.PluginsUninstall, (_event, pluginId: string) =>
   uninstallPlugin(pluginId, { pluginsDir: pluginsDir(app.getPath('userData')), registry: pluginRegistry }),
+);
+
+// Phase 1.20 — packageId, same as PluginsUninstall above.
+ipcMain.handle(Channels.PluginsDisable, (_event, packageId: string) =>
+  disablePlugin(packageId, { pluginsDir: pluginsDir(app.getPath('userData')), registry: pluginRegistry }),
+);
+
+ipcMain.handle(Channels.PluginsEnable, (_event, packageId: string) =>
+  enablePlugin(packageId, {
+    pluginsDir: pluginsDir(app.getPath('userData')),
+    coreSdkVersion: CORE_SDK_VERSION,
+    registry: pluginRegistry,
+    sessionsRegistry,
+  }),
 );
 
 // --- Wizard ---

@@ -12,6 +12,7 @@ import {
   type ExportReportInput,
   type FileExportResult,
   type InstallPluginInput,
+  type InstalledPluginPackageSummary,
   type InstalledPluginSummary,
   type InvoiceHistoryRecord,
   type JobDoneEvent,
@@ -21,7 +22,6 @@ import {
   type PluginBackedRecord,
   type PluginInstallNeedsConfirmation,
   type PluginInstallResult,
-  type PluginManifest,
   type ProfileCreateInput,
   type ProfileSummary,
   type ReconnectSessionInput,
@@ -80,12 +80,14 @@ contextBridge.exposeInMainWorld('api', {
   sessionsRename: (input: RenameSessionInput): Promise<Session> => ipcRenderer.invoke(Channels.SessionsRename, input),
 
   pluginsList: (): Promise<InstalledPluginSummary[]> => ipcRenderer.invoke(Channels.PluginsList),
-  pluginsListPackages: (): Promise<PluginManifest[]> => ipcRenderer.invoke(Channels.PluginsListPackages),
+  pluginsListPackages: (): Promise<InstalledPluginPackageSummary[]> => ipcRenderer.invoke(Channels.PluginsListPackages),
   pluginsInstall: (input: InstallPluginInput): Promise<PluginInstallResult | PluginInstallNeedsConfirmation> =>
     ipcRenderer.invoke(Channels.PluginsInstall, input),
   pluginsActivate: (input: ActivatePluginInput): Promise<{ ok: true } | { ok: false; reason: string }> =>
     ipcRenderer.invoke(Channels.PluginsActivate, input),
   pluginsUninstall: (pluginId: string): Promise<void> => ipcRenderer.invoke(Channels.PluginsUninstall, pluginId),
+  pluginsDisable: (packageId: string): Promise<void> => ipcRenderer.invoke(Channels.PluginsDisable, packageId),
+  pluginsEnable: (packageId: string): Promise<void> => ipcRenderer.invoke(Channels.PluginsEnable, packageId),
 
   wizardResolveListData: (input: ResolveWizardListDataInput): Promise<WizardListDataResult> =>
     ipcRenderer.invoke(Channels.WizardResolveListData, input),
