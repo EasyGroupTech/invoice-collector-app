@@ -121,6 +121,12 @@ export function AuditLogSection() {
                           </Button>
                         </div>
                         <div>
+                          <p className="mb-1 font-medium">URL</p>
+                          <pre className="overflow-x-auto rounded bg-muted/30 p-2 font-mono">
+                            {entry.method} {entry.url}
+                          </pre>
+                        </div>
+                        <div>
                           <p className="mb-1 font-medium">Request headers</p>
                           <pre className="overflow-x-auto rounded bg-muted/30 p-2 font-mono">{JSON.stringify(entry.requestHeaders, null, 2)}</pre>
                         </div>
