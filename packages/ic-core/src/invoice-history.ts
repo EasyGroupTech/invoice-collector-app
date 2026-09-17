@@ -91,6 +91,21 @@ export function invoicesForMonth(store: InvoiceHistoryStore, issuedMonth: string
   return store.invoices.filter((r) => r.issuedDate.slice(0, 7) === issuedMonth);
 }
 
+/**
+ * §14.1's "a destination-renamed invoice's already-recorded location should move with it"
+ * follow-up (`SourceRenameHandler.onSourceRenamed`'s own `locationRewrite`, SDK) — applies it to
+ * every already-collected record for `sourceId` that has a `location` at all; a record from a
+ * destination type that never reported one (`UploadResult.location` optional) is left untouched,
+ * same as a record for any other source. `rewrite` is the destination's own path convention, not
+ * core's — this just fans it out across every matching record.
+ */
+export function rewriteInvoiceLocations(store: InvoiceHistoryStore, sourceId: string, rewrite: (oldLocation: string) => string): InvoiceHistoryStore {
+  return {
+    ...store,
+    invoices: store.invoices.map((r) => (r.sourceId === sourceId && r.location ? { ...r, location: rewrite(r.location) } : r)),
+  };
+}
+
 /** §14.1 US20's reporting query — a Collect run's own `period` is an arbitrary ISO date range,
  * not necessarily aligned to calendar months, so `invoicesForMonth`'s month-bucket filter doesn't
  * fit; this filters the same in-memory `store.invoices` directly by `issuedDate`, inclusive on
@@ -112,6 +127,8 @@ export interface InvoiceHistory extends DedupChecker {
   /** Wipes every collected-invoice record (e.g. to clear out test data) — keeps the
    * retention-months setting intact, only clears the invoices list. */
   clear(): Promise<void>;
+  /** See `rewriteInvoiceLocations`. */
+  rewriteLocations(sourceId: string, rewrite: (oldLocation: string) => string): Promise<void>;
 }
 
 export function createInvoiceHistory(filePath: string): InvoiceHistory {
@@ -179,6 +196,11 @@ export function createInvoiceHistory(filePath: string): InvoiceHistory {
     async clear() {
       const store = await state();
       await persist({ ...store, invoices: [] });
+    },
+
+    async rewriteLocations(sourceId, rewrite) {
+      const store = await state();
+      await persist(rewriteInvoiceLocations(store, sourceId, rewrite));
     },
   };
 }

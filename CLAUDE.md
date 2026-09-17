@@ -159,6 +159,17 @@ platform-specific optional-dependency resolution). Not yet resolved for real pac
 - **Collect pipeline** (`packages/ic-core/src/collect-pipeline.ts`, §14): `discover()` → per-item
   dedup check → `fetchContent()` → `upload()`, grouped by destination. A whole source failing is
   logged and skipped ("log and continue"); only cancellation aborts the whole run.
+- **Concurrency constraint — real, enforced, not just a UI convention.** `collect-job-guard.ts`'s
+  `createCollectJobGuard()` wraps `job-runner.ts`'s `JobRunner.runJob()` for the `'collect'` kind
+  specifically and rejects a second `CollectRun` IPC call outright (`{ error: 'A collect run is
+  already in progress' }`) while one is still running, rather than starting a concurrent second
+  job. Ported from the private predecessor repo's own real constraint there (a `process.env`-based
+  period filter that made two concurrent collects genuinely unsafe) — that specific cause doesn't
+  exist in this architecture (`discover()` takes `period` as a plain argument), but the constraint
+  itself was kept anyway as a deliberate v1 scope decision, not lifted just because its original
+  cause is gone. Confirmed live: a second `collectRun()` call while one was in flight came back with
+  that `error` field instead of racing — check for `.error` on the result, don't assume a successful
+  return means a job actually started.
 - **Renderer** (`packages/ic-core/renderer/src`): currently four tabs (`Collect`, `Sessions`,
   `Plugins`, `Settings`) in `App.tsx` — `Collect` is the daily-use view (source/destination records,
   Add wizard with inline session creation, run Collect, export a report); `Sessions`/`Plugins` are

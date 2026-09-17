@@ -3,9 +3,10 @@ import type { HttpApi } from './http.js';
 
 /**
  * Generic per-plugin key/value store, separate from session secrets, for whatever non-secret
- * state a plugin needs to persist — invoice-parsing rule defaults, UI preferences, or (for a
- * commercial plugin, though the SDK has no idea that's what it's being used for) a
- * license-activation record.
+ * state a plugin needs to persist — invoice-parsing rule defaults, UI preferences, and the like.
+ * Scoped to the active profile; see `PluginContext.appStorage` for state scoped to the install
+ * instead (e.g. a commercial plugin's own license-activation record, though the SDK has no idea
+ * that's what it's being used for).
  */
 export interface PluginStorageApi {
   get(key: string): Promise<unknown>;
@@ -33,6 +34,16 @@ export interface PluginProgressApi {
 export interface PluginContext {
   sessions: SessionsApi;
   storage: PluginStorageApi;
+  /**
+   * Same shape as `storage`, but scoped to the install (shared across every profile) instead of
+   * the active profile — a plugin is installed once for the whole app (`paths.ts`'s `pluginsDir`),
+   * so state that's about *the install itself* rather than profile data (e.g. a commercial
+   * plugin's own one-time license activation, §9.1/§15) belongs here. Using `storage` for that
+   * meant switching profiles re-triggered "hasn't been activated yet" for an install that was
+   * already activated — confirmed live, and the UI had no way to re-activate an already-installed
+   * plugin short of pasting its original licensed install URL back into the Install field.
+   */
+  appStorage: PluginStorageApi;
   http: HttpApi;
   log: PluginLogApi;
   progress: PluginProgressApi;

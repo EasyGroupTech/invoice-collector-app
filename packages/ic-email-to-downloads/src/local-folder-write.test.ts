@@ -1,8 +1,8 @@
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { access, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { checkFolderAccess, writeInvoiceToFolder } from './local-folder-write.js';
+import { checkFolderAccess, renameSourceFolder, writeInvoiceToFolder } from './local-folder-write.js';
 
 describe('writeInvoiceToFolder', () => {
   let dir: string;
@@ -86,6 +86,56 @@ describe('writeInvoiceToFolder', () => {
     });
 
     expect(result.location).toBe(path.join(dir, 'Sales _ Support_ _Team_', '2026-01', 'a.pdf'));
+  });
+});
+
+describe('renameSourceFolder', () => {
+  let dir: string;
+
+  beforeEach(async () => {
+    dir = await mkdtemp(path.join(tmpdir(), 'ic-email-to-downloads-local-folder-rename-'));
+  });
+
+  afterEach(async () => {
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  it("moves a source's own subfolder (and everything already under it) to the new name, returning both directories", async () => {
+    await writeInvoiceToFolder(dir, 'Old Name', { fileName: 'a.pdf', issuedDate: '2026-01-15', mimeType: 'application/pdf', bytes: new Uint8Array([1]) });
+
+    const result = await renameSourceFolder(dir, 'Old Name', 'New Name');
+
+    expect(result).toEqual({ oldDir: path.join(dir, 'Old Name'), newDir: path.join(dir, 'New Name') });
+    await expect(access(path.join(dir, 'Old Name'))).rejects.toThrow();
+    expect(await readFile(path.join(dir, 'New Name', '2026-01', 'a.pdf'))).toEqual(Buffer.from([1]));
+  });
+
+  it('does nothing (returns undefined) when the old subfolder never existed — no invoice was ever written under this source yet', async () => {
+    const result = await renameSourceFolder(dir, 'Never Wrote Here', 'New Name');
+
+    expect(result).toBeUndefined();
+    await expect(access(path.join(dir, 'Never Wrote Here'))).rejects.toThrow();
+    await expect(access(path.join(dir, 'New Name'))).rejects.toThrow();
+  });
+
+  it('does nothing (returns undefined) when a subfolder already sits at the new name — refuses to merge or overwrite', async () => {
+    await writeInvoiceToFolder(dir, 'Old Name', { fileName: 'a.pdf', issuedDate: '2026-01-15', mimeType: 'application/pdf', bytes: new Uint8Array([1]) });
+    await writeInvoiceToFolder(dir, 'New Name', { fileName: 'b.pdf', issuedDate: '2026-01-15', mimeType: 'application/pdf', bytes: new Uint8Array([2]) });
+
+    const result = await renameSourceFolder(dir, 'Old Name', 'New Name');
+
+    expect(result).toBeUndefined();
+    expect(await readFile(path.join(dir, 'Old Name', '2026-01', 'a.pdf'))).toEqual(Buffer.from([1]));
+    expect(await readFile(path.join(dir, 'New Name', '2026-01', 'b.pdf'))).toEqual(Buffer.from([2]));
+  });
+
+  it('does nothing (returns undefined) when sanitizing both names collapses them to the same directory', async () => {
+    await writeInvoiceToFolder(dir, 'Sales / Support', { fileName: 'a.pdf', issuedDate: '2026-01-15', mimeType: 'application/pdf', bytes: new Uint8Array([1]) });
+
+    const result = await renameSourceFolder(dir, 'Sales / Support', 'Sales : Support');
+
+    expect(result).toBeUndefined();
+    expect(await readFile(path.join(dir, 'Sales _ Support', '2026-01', 'a.pdf'))).toEqual(Buffer.from([1]));
   });
 });
 

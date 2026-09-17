@@ -113,6 +113,65 @@ export interface SessionRequirement {
    * exist yet at this point in the flow (there's no session to resolve it *through*).
    */
   createInputFields?: FieldDescriptor[];
+  /**
+   * §14.1's single-question "what and how" wizard first step: short noun/prepositional phrase
+   * naming what this connection is for — a source's own button reads "Collect {collects}, ...";
+   * a destination's reads "Save invoices {collects}, ..." (the same field, phrased by the plugin
+   * author to fit whichever sentence its own kind completes). E.g. "invoices from my Microsoft
+   * Email" (Graph Mail, a source), "to a folder on this device" (Local Folder, a destination).
+   */
+  collects: string;
+  /**
+   * The clause completing "Collect {collects}, ..." (or "Save invoices {collects}, ...") for a
+   * *fresh* connection via this specific requirement — e.g. "I'll authenticate this device.",
+   * "I'll ask my tenant administrator to create an enterprise application.", "I'll paste my AWS
+   * access keys.", "I'll choose a folder." One button per `SessionRequirement` a plugin declares
+   * is generated this way — a plugin with more than one (Azure Billing's client-credentials *and*
+   * device-code) gets one independent, distinctly-worded button per requirement, not a dropdown.
+   * The *reuse* counterpart (shown only when a compatible session already exists) is never
+   * plugin-authored — core always generates "Collect {collects}, reusing existing
+   * authentication." verbatim, since how the session was originally established doesn't matter
+   * once you're just reusing it.
+   */
+  connectHow: string;
+  /**
+   * Real, concrete how-to shown in the connect popup this requirement's own button opens —
+   * *always* shown, regardless of mechanism (a sign-in flow gets "a window will open, sign in
+   * normally"-style framing above the live device-code/browser prompt; a `createInputFields`
+   * paste-flow gets the actual steps to go obtain the value, above the form). Distinct from
+   * `permissionsNote`, which explains *why* the access is needed/safe to grant, not *how* to
+   * actually go get connected.
+   */
+  connectInstructions: string;
+  /**
+   * Whether the wizard's own "reusing existing authentication" button is worth offering for this
+   * requirement at all — defaults to `true` (every plugin's behavior before this field existed).
+   * Set `false` when a second source built on the *same* session would be indistinguishable from
+   * the first: either the plugin's own `wizard` is empty (Claude Team/API, Figma, the legacy
+   * Microsoft 365 billing account, OpenAI — nothing left to configure differently at all), or
+   * whatever config field looks like a differentiator is really just a fact *about the
+   * credentials themselves* (AWS's `orgId`, Cloudflare's `orgId` — a different account needs a
+   * different key/token, i.e. a different session, not a different value typed against the same
+   * one). `true` is for the opposite case: Graph Mail's own subject/sender filters, say, where two
+   * sources sharing one mailbox sign-in genuinely can collect different things.
+   */
+  allowSessionReuse?: boolean;
+}
+
+/**
+ * §14.1's replacement for a plugin-agnostic "Source name" text field: called once the config
+ * wizard's own values are known (the last step before creating the record), so the name can
+ * combine the session's own label with a plugin-specific summary of that config — e.g.
+ * `alice@contoso.com — Microsoft 365 (Subject contains "Invoice")` for Graph Mail. Same
+ * best-effort semantics as `SessionLabelSuggester`/`WizardValueSuggester` (a thrown/rejected call
+ * is treated as no suggestion) and the same signature shape, for consistency — a plugin that
+ * needs to look something up through the session to build the name can (`ctx.sessions.get`),
+ * even though the common case (Graph Mail's own filter summary) never needs to. Optional: core
+ * falls back to the session's own label alone when a plugin doesn't implement this (or it
+ * returns undefined) — never back to an empty/placeholder name.
+ */
+export interface SourceNameSuggester {
+  suggestSourceName?(ctx: PluginContext, session: Session, configValues: unknown, signal: AbortSignal): Promise<string | undefined>;
 }
 
 /**

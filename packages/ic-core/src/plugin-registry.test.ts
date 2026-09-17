@@ -5,7 +5,7 @@ import { createPluginRegistry } from './plugin-registry.js';
 function fakeSourcePlugin(id: string): SourcePlugin {
   return {
     manifest: { id, name: id, kind: 'source', main: 'index.js' },
-    sessionRequirements: [{ sessionTypeId: 'microsoft-entra-delegated-device-code', confirmsBuiltIn: true, requiredScopesOrRoles: [] }],
+    sessionRequirements: [{ sessionTypeId: 'microsoft-entra-delegated-device-code', confirmsBuiltIn: true, requiredScopesOrRoles: [], collects: 'test', connectHow: 'test', connectInstructions: 'test' }],
     wizard: [],
     discover: async function* () {},
     fetchContent: async () => ({ fileName: 'a.pdf', mimeType: 'application/pdf', bytes: new Uint8Array() }),
@@ -15,7 +15,7 @@ function fakeSourcePlugin(id: string): SourcePlugin {
 function fakeDestinationPlugin(id: string): DestinationPlugin {
   return {
     manifest: { id, name: id, kind: 'destination', main: 'index.js' },
-    sessionRequirements: [{ sessionTypeId: 'microsoft-entra-delegated-device-code', confirmsBuiltIn: true, requiredScopesOrRoles: [] }],
+    sessionRequirements: [{ sessionTypeId: 'microsoft-entra-delegated-device-code', confirmsBuiltIn: true, requiredScopesOrRoles: [], collects: 'test', connectHow: 'test', connectInstructions: 'test' }],
     wizard: [],
     upload: async () => ({ status: 'uploaded' }),
   };

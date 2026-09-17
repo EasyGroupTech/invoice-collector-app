@@ -33,6 +33,7 @@ import {
   type SbomEntry,
   type Session,
   type SuggestSessionLabelInput,
+  type SuggestSourceNameInput,
   type SuggestWizardValuesInput,
   type UpdateFlowInput,
   type WizardListDataResult,
@@ -57,6 +58,7 @@ contextBridge.exposeInMainWorld('api', {
   configRemoveRecord: (input: RemoveRecordInput): Promise<void> => ipcRenderer.invoke(Channels.ConfigRemoveRecord, input),
   flowsDelete: (sourceId: string): Promise<void> => ipcRenderer.invoke(Channels.FlowsDelete, sourceId),
   flowsUpdate: (input: UpdateFlowInput): Promise<PluginBackedRecord> => ipcRenderer.invoke(Channels.FlowsUpdate, input),
+  flowsSweepOrphans: (): Promise<void> => ipcRenderer.invoke(Channels.FlowsSweepOrphans),
   configAssignSession: (input: AssignSessionInput): Promise<PluginBackedRecord> => ipcRenderer.invoke(Channels.ConfigAssignSession, input),
   configExportAll: (password: string): Promise<FileExportResult> => ipcRenderer.invoke(Channels.ConfigExportAll, password),
   configPickImportFile: (): Promise<EncryptedConfigExportFile | undefined> => ipcRenderer.invoke(Channels.ConfigPickImportFile),
@@ -89,6 +91,8 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.invoke(Channels.WizardResolveListData, input),
   wizardSuggestValues: (input: SuggestWizardValuesInput): Promise<Record<string, unknown> | undefined> =>
     ipcRenderer.invoke(Channels.WizardSuggestValues, input),
+  wizardSuggestSourceName: (input: SuggestSourceNameInput): Promise<string | undefined> =>
+    ipcRenderer.invoke(Channels.WizardSuggestSourceName, input),
 
   collectRun: (input: RunCollectInput): Promise<RunCollectResult> => ipcRenderer.invoke(Channels.CollectRun, input),
   jobsCancel: (jobId: string): Promise<void> => ipcRenderer.invoke(Channels.JobsCancel, jobId),

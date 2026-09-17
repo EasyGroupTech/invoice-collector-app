@@ -9,6 +9,7 @@ import {
   loadConfigFile,
   removeRecord,
   saveConfigFile,
+  sweepOrphans,
   upsertRecord,
   type ConfigStore,
 } from './config-store.js';
@@ -141,6 +142,65 @@ describe('deleteFlow', () => {
     const result = deleteFlow(existing, 'does-not-exist');
     expect(result.sources).toEqual(existing.sources);
     expect(result.destinations).toEqual(existing.destinations);
+    expect(result.orphanedSessionIds).toEqual([]);
+  });
+});
+
+describe('sweepOrphans', () => {
+  function store(overrides: Partial<ConfigStore> = {}): ConfigStore {
+    return { version: 1, sources: [], destinations: [], ...overrides };
+  }
+
+  it('removes a destination no source references at all — e.g. one a wizard created but whose source was never finished', () => {
+    const destination = createRecord({ name: 'Downloads', pluginId: 'd', pluginVersion: '1.0.0', config: {} });
+    const result = sweepOrphans(store({ destinations: [destination] }), []);
+    expect(result.destinations).toEqual([]);
+  });
+
+  it('keeps a destination a remaining source still points at', () => {
+    const destination = createRecord({ name: 'Downloads', pluginId: 'd', pluginVersion: '1.0.0', config: {} });
+    const source = createRecord({ name: 'Mailbox', pluginId: 's', pluginVersion: '1.0.0', config: {}, destinationId: destination.id });
+    const result = sweepOrphans(store({ sources: [source], destinations: [destination] }), []);
+    expect(result.destinations).toEqual([destination]);
+  });
+
+  it('reports a session id, out of every session that currently exists, that nothing (source or destination) references any more', () => {
+    const result = sweepOrphans(store(), ['session-signed-in-but-never-attached']);
+    expect(result.orphanedSessionIds).toEqual(['session-signed-in-but-never-attached']);
+  });
+
+  it('does not orphan a session a remaining source still references', () => {
+    const source = createRecord({ name: 'Mailbox', pluginId: 's', pluginVersion: '1.0.0', config: {}, sessionId: 'source-session' });
+    const result = sweepOrphans(store({ sources: [source] }), ['source-session']);
+    expect(result.orphanedSessionIds).toEqual([]);
+  });
+
+  it('does not orphan a session a remaining destination still references', () => {
+    const destination = createRecord({ name: 'Downloads', pluginId: 'd', pluginVersion: '1.0.0', config: {}, sessionId: 'dest-session' });
+    const source = createRecord({ name: 'Mailbox', pluginId: 's', pluginVersion: '1.0.0', config: {}, destinationId: destination.id });
+    const result = sweepOrphans(store({ sources: [source], destinations: [destination] }), ['dest-session']);
+    expect(result.orphanedSessionIds).toEqual([]);
+  });
+
+  it("orphans a destination's own session once the destination itself is swept away", () => {
+    const destination = createRecord({ name: 'Downloads', pluginId: 'd', pluginVersion: '1.0.0', config: {}, sessionId: 'dest-session' });
+    const result = sweepOrphans(store({ destinations: [destination] }), ['dest-session']);
+    expect(result.destinations).toEqual([]);
+    expect(result.orphanedSessionIds).toEqual(['dest-session']);
+  });
+
+  it('is a no-op when everything is still referenced', () => {
+    const destination = createRecord({ name: 'Downloads', pluginId: 'd', pluginVersion: '1.0.0', config: {}, sessionId: 'dest-session' });
+    const source = createRecord({
+      name: 'Mailbox',
+      pluginId: 's',
+      pluginVersion: '1.0.0',
+      config: {},
+      destinationId: destination.id,
+      sessionId: 'source-session',
+    });
+    const result = sweepOrphans(store({ sources: [source], destinations: [destination] }), ['source-session', 'dest-session']);
+    expect(result.destinations).toEqual([destination]);
     expect(result.orphanedSessionIds).toEqual([]);
   });
 });

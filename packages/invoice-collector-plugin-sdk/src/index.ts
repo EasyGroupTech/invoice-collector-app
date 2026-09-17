@@ -19,6 +19,7 @@ export type {
   SessionPlugin,
   SessionRequirement,
   SessionsApi,
+  SourceNameSuggester,
 } from './session.js';
 
 export type {
@@ -59,6 +60,8 @@ export type {
   BuiltInSessionInputProvider,
   SessionLabelSuggester,
   WizardValueSuggester,
+  SourceRenameHandler,
+  ScopeDescriber,
   ActivationRequirement,
   ActivationRequirer,
   SourcePlugin,

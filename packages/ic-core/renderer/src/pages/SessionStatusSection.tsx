@@ -35,7 +35,19 @@ type BusyAction = 'login' | 'refresh' | 'logout';
  * summary (active vs. needing attention), both collapsed and expanded — no per-row Type/Expires
  * columns anymore, just name + these three actions.
  */
-export function SessionStatusSection() {
+interface SessionStatusSectionProps {
+  /**
+   * Bumped by `SettingsPage` (via `CollectionFlowsSection`'s own `onSessionsChanged`) whenever a
+   * flow add/edit/delete elsewhere on the page could have changed which sessions exist — this
+   * component fetches its own session list independently and has no other way to know that
+   * happened. Without this, a flow delete that cascades to removing a session (§14.1,
+   * `deleteFlow()`) leaves this card still showing that session as active until something else
+   * happens to remount it.
+   */
+  refreshKey?: number;
+}
+
+export function SessionStatusSection({ refreshKey }: SessionStatusSectionProps) {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [collapsed, setCollapsed] = useState(true);
   const [busySessionId, setBusySessionId] = useState<string | undefined>(undefined);
@@ -48,7 +60,7 @@ export function SessionStatusSection() {
 
   useEffect(() => {
     void refresh();
-  }, []);
+  }, [refreshKey]);
 
   async function login(session: Session) {
     setBusySessionId(session.id);

@@ -6,6 +6,7 @@ import { suggestSessionLabel } from './session-label-suggest.js';
 function pluginServices(): Omit<PluginContext, 'sessions'> {
   return {
     storage: { get: vi.fn(), set: vi.fn(), delete: vi.fn() },
+    appStorage: { get: vi.fn(), set: vi.fn(), delete: vi.fn() },
     http: { request: vi.fn() },
     log: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
     progress: { report: vi.fn() },
@@ -19,7 +20,7 @@ function fakeSessionsApi(): SessionsApi {
 function fakeSourcePlugin(overrides: Partial<SourcePlugin> = {}): SourcePlugin {
   return {
     manifest: { id: 'ic-email-to-downloads', name: 'Mail', kind: 'source', main: 'i.js' },
-    sessionRequirements: [{ sessionTypeId: 'microsoft-entra-delegated-device-code', confirmsBuiltIn: true, requiredScopesOrRoles: [] }],
+    sessionRequirements: [{ sessionTypeId: 'microsoft-entra-delegated-device-code', confirmsBuiltIn: true, requiredScopesOrRoles: [], collects: 'test', connectHow: 'test', connectInstructions: 'test' }],
     wizard: [],
     discover: async function* () {},
     fetchContent: vi.fn(),

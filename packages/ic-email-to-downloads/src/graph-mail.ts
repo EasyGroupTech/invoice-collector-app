@@ -177,3 +177,23 @@ export async function getPrimaryDomain(http: HttpApi, sessionId: string, signal:
   const domains = body.value[0]?.verifiedDomains ?? [];
   return (domains.find((d) => d.isDefault) ?? domains[0])?.name;
 }
+
+interface RawMe {
+  mail?: string;
+  userPrincipalName?: string;
+}
+
+/** §14.1's "session name should say who logs in, where" — the *specific signed-in mailbox's own
+ * address* (e.g. "alice@contoso.com"), not just the tenant's domain (`getPrimaryDomain` above,
+ * kept only as this function's own fallback for a tenant where `/me` genuinely has neither field,
+ * which shouldn't happen for a real mailbox but costs nothing to guard). Prefers `mail` (the
+ * mailbox's actual SMTP address) over `userPrincipalName` (the sign-in identity — usually the same
+ * as `mail`, but not guaranteed to be for every tenant configuration). Returns `undefined` on
+ * anything but a clean 200, same "no suggestion, not an error" contract as every sibling here. */
+export async function getSignedInMailboxAddress(http: HttpApi, sessionId: string, signal: AbortSignal): Promise<string | undefined> {
+  const url = `${GRAPH_BASE}/me?$select=mail,userPrincipalName`;
+  const response = await http.request({ url, sessionId }, signal);
+  if (response.status !== 200) return getPrimaryDomain(http, sessionId, signal);
+  const body = response.json() as RawMe;
+  return body.mail ?? body.userPrincipalName ?? (await getPrimaryDomain(http, sessionId, signal));
+}

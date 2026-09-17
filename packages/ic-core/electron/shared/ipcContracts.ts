@@ -40,6 +40,7 @@ export const Channels = {
 
   FlowsDelete: 'flows:delete',
   FlowsUpdate: 'flows:update',
+  FlowsSweepOrphans: 'flows:sweepOrphans',
 
   ProfilesList: 'profiles:list',
   ProfilesSwitch: 'profiles:switch',
@@ -64,6 +65,7 @@ export const Channels = {
 
   WizardResolveListData: 'wizard:resolveListData',
   WizardSuggestValues: 'wizard:suggestValues',
+  WizardSuggestSourceName: 'wizard:suggestSourceName',
 
   CollectRun: 'collect:run',
   JobsCancel: 'jobs:cancel',
@@ -164,6 +166,16 @@ export interface SuggestSessionLabelInput {
 export interface SuggestWizardValuesInput {
   pluginId: string;
   sessionId: string;
+}
+
+/** §14.1's source auto-naming follow-up — see `SourceNameSuggester` in the SDK for what the
+ * plugin side of this actually does. Fired once the config wizard's own values are known (the
+ * last step before creating the record), unlike SuggestSessionLabelInput/SuggestWizardValuesInput
+ * above, which both fire right after a session is created — hence the extra `configValues`. */
+export interface SuggestSourceNameInput {
+  pluginId: string;
+  sessionId: string;
+  configValues: unknown;
 }
 
 export interface RenameSessionInput {

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { PluginBackedRecord, Session } from 'invoice-collector-plugin-sdk';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -6,228 +6,220 @@ import { DeviceCodeSignInPrompt } from '@/components/DeviceCodeSignInPrompt';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { InstalledPluginSummary as PluginSummary, SessionRequirement } from '../../../electron/shared/ipcContracts';
 import { validateWizardValues, type WizardFieldValues } from '../../../src/wizard-form-state.js';
 import { WizardSteps } from '../descriptors/WizardSteps';
 import { useJob } from '../hooks/useJob';
 
-type WizardStep = 'select' | 'chooseConnections' | 'establishConnections' | 'configure';
+type WizardStep = 'sourceConnect' | 'destinationConnect' | 'configure';
 
-type DestinationChoice = { kind: 'existing'; record: PluginBackedRecord } | { kind: 'new'; plugin: PluginSummary };
+/** One clickable option on the "what and how" screen — a plugin's own `SessionRequirement`
+ * expanded into a fresh-connect row (always shown) and, only when at least one compatible session
+ * already exists, a reuse row. A plugin with more than one `sessionRequirements` entry (e.g. Azure
+ * Billing's device-code and enterprise-app options) gets one independent pair of rows per
+ * requirement — confirmed with the user as the intended shape, not a dropdown. */
+type ConnectRow =
+  | { kind: 'fresh'; plugin: PluginSummary; requirement: SessionRequirement }
+  | { kind: 'reuse'; plugin: PluginSummary; requirement: SessionRequirement; sessions: Session[] };
 
-/** Encodes a destination <Select>'s value as `existing:<recordId>` or `new:<pluginId>` — a plain
- * string is all Radix `Select` items support, and this is the cheapest way to carry "which of the
- * two option groups, and which specific one" through it without a parallel id-lookup elsewhere. */
-function encodeDestinationChoice(choice: DestinationChoice): string {
-  return choice.kind === 'existing' ? `existing:${choice.record.id}` : `new:${choice.plugin.manifest.id}`;
-}
-
-function decodeDestinationChoice(
-  value: string | undefined,
-  existingDestinations: PluginBackedRecord[],
-  destinationPlugins: PluginSummary[],
-): DestinationChoice | undefined {
-  if (!value) return undefined;
-  if (value.startsWith('existing:')) {
-    const record = existingDestinations.find((d) => d.id === value.slice('existing:'.length));
-    return record && { kind: 'existing', record };
-  }
-  const plugin = destinationPlugins.find((p) => p.manifest.id === value.slice('new:'.length));
-  return plugin && { kind: 'new', plugin };
-}
-
-type SessionChoice = { kind: 'existing'; sessionId: string } | { kind: 'new' };
-
-function decodeSessionChoice(value: string | undefined): SessionChoice | undefined {
-  if (!value) return undefined;
-  if (value === 'new') return { kind: 'new' };
-  return { kind: 'existing', sessionId: value.slice('existing:'.length) };
-}
-
-/** Compatible sessions for one *specific* requirement of a plugin, not just its first one — a
- * plugin can declare more than one `sessionRequirements` entry (e.g. Graph Mail's own device-code
- * today, with client-credentials as a documented future addition), and which one the user picked
- * on the "choose connections" step decides which existing sessions even apply here. */
-function compatibleSessionsFor(plugin: PluginSummary, sessions: Session[], sessionTypeId: string | undefined): Session[] {
-  if (!sessionTypeId) return [];
-  const requirement = plugin.sessionRequirements.find((r) => r.sessionTypeId === sessionTypeId);
-  if (!requirement) return [];
+function compatibleSessionsFor(plugin: PluginSummary, sessions: Session[], requirement: SessionRequirement): Session[] {
   return sessions.filter((s) => s.sessionTypeId === requirement.sessionTypeId && (requirement.confirmsBuiltIn || s.createdByPluginId === plugin.manifest.id));
 }
 
-const LOCAL_FOLDER_DESTINATION_PLUGIN_ID = 'app.easygroup.destination.local-folder';
-
-interface SessionTypeSelectProps {
-  id: string;
-  label: string;
-  requirements: SessionRequirement[];
-  value: string | undefined;
-  onChange: (value: string) => void;
+function buildConnectRows(plugins: PluginSummary[], sessions: Session[]): ConnectRow[] {
+  const rows: ConnectRow[] = [];
+  for (const plugin of plugins) {
+    for (const requirement of plugin.sessionRequirements) {
+      rows.push({ kind: 'fresh', plugin, requirement });
+      if (requirement.allowSessionReuse === false) continue;
+      const compatible = compatibleSessionsFor(plugin, sessions, requirement);
+      if (compatible.length > 0) rows.push({ kind: 'reuse', plugin, requirement, sessions: compatible });
+    }
+  }
+  return rows;
 }
 
-/** A plugin can declare more than one session type it can connect with — shown as its own
- * dropdown even when a plugin (like Graph Mail today) only declares one, so adding a second later
- * (client-credentials, say) doesn't require redesigning this step, just adding another
- * `SessionRequirement` to the plugin's manifest. */
-function SessionTypeSelect({ id, label, requirements, value, onChange }: SessionTypeSelectProps) {
-  return (
-    <div className="flex flex-col gap-1.5">
-      <Label htmlFor={id}>{label}</Label>
-      <Select value={value} onValueChange={onChange}>
-        <SelectTrigger id={id} className="w-full">
-          <SelectValue placeholder="Select…" />
-        </SelectTrigger>
-        <SelectContent>
-          {requirements.map((r) => (
-            <SelectItem key={r.sessionTypeId} value={r.sessionTypeId}>
-              {r.sessionTypeId}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </div>
-  );
+/** "Collect {collects}, {how}" for a source, "Save invoices {collects}, {how}" for a destination
+ * — same `collects` field, phrased contextually by whichever sentence its own kind completes (per
+ * the confirmed two-screen design). A reuse row's "how" is always this fixed, core-generated
+ * phrase, never anything the plugin itself supplies. */
+function connectRowLabel(row: ConnectRow, sentence: (collects: string, how: string) => string): string {
+  const how = row.kind === 'fresh' ? row.requirement.connectHow : 'reusing existing authentication.';
+  return sentence(row.requirement.collects, how);
 }
 
-interface SessionModeSelectProps {
-  id: string;
-  label: string;
-  compatibleSessions: Session[];
-  value: string | undefined;
-  onChange: (value: string) => void;
+const sourceSentence = (collects: string, how: string) => `Collect ${collects}, ${how}`;
+const destinationSentence = (collects: string, how: string) => `Save invoices ${collects}, ${how}`;
+
+function sessionLabelById(sessions: Session[], sessionId: string): string | undefined {
+  return sessions.find((s) => s.id === sessionId)?.label;
 }
 
-/** Step 2's own connection picker — "reuse one of these" or "create new", as one dropdown rather
- * than a radio list + a separate button, matching the same existing-vs-new pattern the "Collect
- * to" destination picker (step 1) already uses. Which one it resolves to only decides what step 3
- * shows next (a `SessionCreatePanel`, or nothing) — nothing is actually established here. */
-function SessionModeSelect({ id, label, compatibleSessions, value, onChange }: SessionModeSelectProps) {
-  return (
-    <div className="flex flex-col gap-1.5">
-      <Label htmlFor={id}>{label}</Label>
-      <Select value={value} onValueChange={onChange}>
-        <SelectTrigger id={id} className="w-full">
-          <SelectValue placeholder="Select…" />
-        </SelectTrigger>
-        <SelectContent>
-          {compatibleSessions.length > 0 && (
-            <SelectGroup>
-              <SelectLabel>Existing sessions</SelectLabel>
-              {compatibleSessions.map((s) => (
-                <SelectItem key={s.id} value={`existing:${s.id}`}>
-                  {s.label}
-                </SelectItem>
-              ))}
-            </SelectGroup>
-          )}
-          <SelectGroup>
-            <SelectLabel>Create new</SelectLabel>
-            <SelectItem value="new">Create a new session</SelectItem>
-          </SelectGroup>
-        </SelectContent>
-      </Select>
-    </div>
-  );
-}
-
-export interface EstablishedSession {
-  session: Session;
-  name: string;
-}
-
-interface SessionCreatePanelProps {
+interface ResolvedConnection {
   plugin: PluginSummary;
   requirement: SessionRequirement;
-  value: EstablishedSession | undefined;
-  onChange: (value: EstablishedSession | undefined) => void;
-  /** Called once, right alongside the label suggestion below, with whatever `WizardValueSuggester`
-   * (e.g. an organization id a browser-captured session's own stored secret already carries) the
-   * plugin could derive from the session it just established — merged into the *later* `configure`
-   * step's own wizard values by the caller, so a field like "Organization UUID" can already be
-   * filled in by the time the user reaches it instead of asking them to go dig it up themselves. */
-  onValuesSuggested?: (values: Record<string, unknown>) => void;
+  sessionId: string;
 }
 
-/** Step 3's "establish it" half of what step 2 chose "create new" for. Once the session job
- * finishes, asks the plugin (via `SessionLabelSuggester`, e.g. Graph Mail deriving the signed-in
- * tenant's domain) for a friendly name, then hands the user an editable field pre-filled with that
- * suggestion — the actual rename only lands (via `sessionsRename`) when the wizard advances past
- * this step, so an edit here never fights the suggestion fetch. Also asks (via
- * `WizardValueSuggester`) for values to pre-fill the later `configure` step's own wizard with. */
-function SessionCreatePanel({ plugin, requirement, value, onChange, onValuesSuggested }: SessionCreatePanelProps) {
+interface ConnectButtonListProps {
+  rows: ConnectRow[];
+  sentence: (collects: string, how: string) => string;
+  onFresh: (plugin: PluginSummary, requirement: SessionRequirement) => void;
+  onReuse: (row: ConnectRow & { kind: 'reuse' }) => void;
+}
+
+function ConnectButtonList({ rows, sentence, onFresh, onReuse }: ConnectButtonListProps) {
+  return (
+    <div className="flex flex-col gap-2">
+      {rows.map((row) =>
+        row.kind === 'fresh' ? (
+          <Button
+            key={`fresh:${row.plugin.manifest.id}:${row.requirement.sessionTypeId}`}
+            type="button"
+            variant="outline"
+            className="h-auto justify-start whitespace-normal text-left"
+            onClick={() => onFresh(row.plugin, row.requirement)}
+          >
+            {connectRowLabel(row, sentence)}
+          </Button>
+        ) : (
+          <Button
+            key={`reuse:${row.plugin.manifest.id}:${row.requirement.sessionTypeId}`}
+            type="button"
+            variant="secondary"
+            className="h-auto justify-start whitespace-normal text-left"
+            onClick={() => onReuse(row)}
+          >
+            {connectRowLabel(row, sentence)}
+          </Button>
+        ),
+      )}
+    </div>
+  );
+}
+
+interface ReusePickerProps {
+  plugin: PluginSummary;
+  sessions: Session[];
+  onPick: (sessionId: string) => void;
+  onCancel: () => void;
+}
+
+/** Only shown when a reuse row's compatible-session list has more than one entry — a single match
+ * is auto-picked silently by the caller, matching the confirmed design. */
+function ReusePicker({ plugin, sessions, onPick, onCancel }: ReusePickerProps) {
+  return (
+    <div className="flex flex-col gap-2 rounded-lg border p-4">
+      <p className="text-sm font-medium">Which {plugin.manifest.name} session?</p>
+      {sessions.map((s) => (
+        <Button key={s.id} type="button" variant="outline" className="h-auto justify-start whitespace-normal text-left" onClick={() => onPick(s.id)}>
+          {s.label}
+        </Button>
+      ))}
+      <Button type="button" variant="ghost" size="sm" className="self-start" onClick={onCancel}>
+        Back
+      </Button>
+    </div>
+  );
+}
+
+interface ConnectPanelProps {
+  plugin: PluginSummary;
+  requirement: SessionRequirement;
+  /** Fires once, after a freshly-created session has been auto-named (via `SessionLabelSuggester`,
+   * silently renamed — never an editable field) and `WizardValueSuggester` has had a chance to
+   * pre-fill the later configure step. */
+  onConnected: (session: Session, suggestedValues: Record<string, unknown> | undefined) => void;
+  onCancel: () => void;
+}
+
+/** The "what and how" screen's own connect popup: always shows `connectInstructions`; a
+ * `createInputFields` requirement (a pasted-credential plugin) also renders that form and waits
+ * for an explicit "Connect" click, while anything else (device-code, browser-captured) starts
+ * signing in immediately on mount — there's nothing else to collect first. */
+function ConnectPanel({ plugin, requirement, onConnected, onCancel }: ConnectPanelProps) {
   const job = useJob<Session>();
-  const [suggesting, setSuggesting] = useState(false);
-  // Only meaningful when requirement.createInputFields is set (a custom session type that needs
-  // real, structured, user-typed input before create() can run — e.g. a pasted secure line) —
-  // self-contained per panel, since a source's and a destination's SessionCreatePanel can both be
-  // open at once and must not share one field-values state.
   const [inputValues, setInputValues] = useState<WizardFieldValues>({});
+  const [finishing, setFinishing] = useState(false);
+  const inputFields = requirement.createInputFields ?? [];
+  const hasFields = inputFields.length > 0;
+  const inputValid = !hasFields || validateWizardValues(inputFields, inputValues).valid;
+  const succeeded = job.result?.ok === true;
+  const running = job.jobId !== undefined && !job.result;
+
+  function connect() {
+    void job.start(
+      window.api.sessionsCreate({
+        pluginId: plugin.manifest.id,
+        sessionTypeId: requirement.sessionTypeId,
+        ...(hasFields ? { input: inputValues } : {}),
+      }),
+    );
+  }
+
+  const autoStartedRef = useRef(false);
+  useEffect(() => {
+    if (hasFields || autoStartedRef.current) return;
+    autoStartedRef.current = true;
+    connect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
-    if (!job.result?.ok || value) return;
-    const session = job.result.result;
-    setSuggesting(true);
+    if (!succeeded) return;
+    const session = (job.result as { ok: true; result: Session }).result;
+    setFinishing(true);
     void Promise.all([
       window.api.sessionsSuggestLabel({ pluginId: plugin.manifest.id, sessionId: session.id }),
       window.api.wizardSuggestValues({ pluginId: plugin.manifest.id, sessionId: session.id }),
     ])
-      .then(([suggestedLabel, suggestedValues]) => {
-        onChange({ session, name: suggestedLabel ?? session.label });
-        if (suggestedValues) onValuesSuggested?.(suggestedValues);
+      .then(async ([suggestedLabel, suggestedValues]) => {
+        const finalSession =
+          suggestedLabel && suggestedLabel !== session.label
+            ? await window.api.sessionsRename({ pluginId: plugin.manifest.id, sessionId: session.id, label: suggestedLabel })
+            : session;
+        onConnected(finalSession, suggestedValues);
       })
-      .finally(() => setSuggesting(false));
+      .finally(() => setFinishing(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [job.result]);
-
-  const inputFields = requirement.createInputFields ?? [];
-  const inputValid = inputFields.length === 0 || validateWizardValues(inputFields, inputValues).valid;
+  }, [succeeded]);
 
   return (
-    <div className="flex flex-col gap-2 rounded-lg border p-4">
-      <p className="text-sm font-medium">Connect: {plugin.manifest.name}</p>
-      {requirement.permissionsNote && <p className="text-sm text-muted-foreground">{requirement.permissionsNote}</p>}
-      <p className="text-sm text-muted-foreground">Requires: {requirement.requiredScopesOrRoles.join(', ') || 'no specific scopes declared'}</p>
+    <div className="flex flex-col gap-3 rounded-lg border p-4">
+      <p className="text-sm font-medium">{plugin.manifest.name}</p>
+      <p className="text-sm text-muted-foreground">{requirement.connectInstructions}</p>
 
-      {!value && !job.jobId && inputFields.length > 0 && (
-        <WizardSteps pluginId={plugin.manifest.id} steps={inputFields} values={inputValues} onChange={(name, v) => setInputValues((prev) => ({ ...prev, [name]: v }))} />
+      {hasFields && !succeeded && (
+        <WizardSteps
+          pluginId={plugin.manifest.id}
+          steps={inputFields}
+          values={inputValues}
+          onChange={(name, v) => setInputValues((prev) => ({ ...prev, [name]: v }))}
+        />
       )}
 
-      {!value && !job.jobId && (
-        <div>
+      {running && <DeviceCodeSignInPrompt progressLog={job.progressLog} />}
+      {job.result && !job.result.ok && <p className="text-sm text-destructive">{job.result.error}</p>}
+      {finishing && <p className="text-sm text-muted-foreground">Finishing up…</p>}
+
+      {!succeeded && !finishing && (
+        <div className="flex gap-2">
           <Button
             type="button"
-            variant="outline"
+            variant="ghost"
             size="sm"
-            disabled={!inputValid}
-            onClick={() =>
-              void job.start(
-                window.api.sessionsCreate({
-                  pluginId: plugin.manifest.id,
-                  sessionTypeId: requirement.sessionTypeId,
-                  ...(inputFields.length > 0 ? { input: inputValues } : {}),
-                }),
-              )
-            }
+            onClick={() => {
+              if (running) job.cancel();
+              onCancel();
+            }}
           >
-            Sign in
+            Back
           </Button>
-        </div>
-      )}
-
-      {job.jobId && !job.result && <DeviceCodeSignInPrompt progressLog={job.progressLog} />}
-
-      {job.result && !job.result.ok && <p className="text-sm text-destructive">{job.result.error}</p>}
-
-      {value && (
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor={`session-name-${plugin.manifest.id}`}>Session name</Label>
-          <Input
-            id={`session-name-${plugin.manifest.id}`}
-            value={value.name}
-            disabled={suggesting}
-            onChange={(e) => onChange({ ...value, name: e.target.value })}
-          />
+          {hasFields && (
+            <Button type="button" size="sm" disabled={!inputValid || running} onClick={connect}>
+              {job.result && !job.result.ok ? 'Retry' : 'Connect'}
+            </Button>
+          )}
         </div>
       )}
     </div>
@@ -240,39 +232,45 @@ interface AddCollectorWizardProps {
 }
 
 /**
- * §14.1 US4/US7's guided "add a collector" flow — a source paired with where it collects to, in
- * one dialog, replacing the plain kind-scoped `AddRecordDialog` for the Collect page's own
- * top-level Add button (Settings' own Sources/Destinations sections keep using the simpler dialog
- * for adding just one thing at a time). Four steps:
- * 1. **Select** — the source plugin and a destination (reuse an existing one, or configure a new
- *    one, defaulting to reusing one if any already exist — else to the local-folder destination,
- *    matching §14.1 US7's "zero-setup" framing).
- * 2. **Choose connections** — for whichever of source/destination needs a session, pick which
- *    session TYPE to use (a plugin can declare more than one — shown as its own dropdown even when
- *    only one exists today), then "reuse an existing compatible one" or "create new".
- * 3. **Establish connections** — for anything step 2 said "create new" for, the actual sign-in
- *    (a live device-code prompt for today's built-in session types) plus an editable friendly name
- *    for the resulting session, defaulting to whatever the plugin suggests once signed in.
- * 4. **Configure** — each plugin's own record name + wizard fields, then submit.
+ * §14.1's guided "add a collector" flow — a source paired with where it collects to, in one
+ * dialog, replacing the plain kind-scoped `AddRecordDialog` for the Collect page's own top-level
+ * Add button (Settings' own Sources/Destinations sections keep using the simpler dialog for
+ * adding just one thing at a time). Three screens, each a flat list of "what and how" buttons
+ * rather than a dropdown-driven form:
+ * 1. **Source connect** — one button per (plugin, `SessionRequirement`): "Collect {collects},
+ *    {connectHow}" always shown, plus "Collect {collects}, reusing existing authentication." when
+ *    a compatible session already exists (silently auto-picked if there's exactly one, else a
+ *    small picker). Clicking either resolves the source's session and auto-advances.
+ * 2. **Destination connect** — the same pattern (phrased "Save invoices {collects}, …" instead),
+ *    plus a button per already-configured destination record to reuse it wholesale.
+ * 3. **Configure** — each plugin's own wizard fields, then submit. No manual name fields: the
+ *    session's name is whatever `SessionLabelSuggester` returned (silently renamed, never shown as
+ *    an editable field); the record's name is computed from `SourceNameSuggester` at submit time,
+ *    falling back to the session's own label.
  */
 export function AddCollectorWizard({ onClose, onCreated }: AddCollectorWizardProps) {
-  const [step, setStep] = useState<WizardStep>('select');
+  const [step, setStep] = useState<WizardStep>('sourceConnect');
   const [sourcePlugins, setSourcePlugins] = useState<PluginSummary[]>([]);
   const [destinationPlugins, setDestinationPlugins] = useState<PluginSummary[]>([]);
   const [existingDestinations, setExistingDestinations] = useState<PluginBackedRecord[]>([]);
   const [sessions, setSessions] = useState<Session[]>([]);
 
-  const [sourcePluginId, setSourcePluginId] = useState<string | undefined>(undefined);
-  const [destinationChoiceValue, setDestinationChoiceValue] = useState<string | undefined>(undefined);
-  const [sourceSessionTypeId, setSourceSessionTypeId] = useState<string | undefined>(undefined);
-  const [destinationSessionTypeId, setDestinationSessionTypeId] = useState<string | undefined>(undefined);
-  const [sourceSessionChoiceValue, setSourceSessionChoiceValue] = useState<string | undefined>(undefined);
-  const [destinationSessionChoiceValue, setDestinationSessionChoiceValue] = useState<string | undefined>(undefined);
-  const [sourceEstablished, setSourceEstablished] = useState<EstablishedSession | undefined>(undefined);
-  const [destinationEstablished, setDestinationEstablished] = useState<EstablishedSession | undefined>(undefined);
-  const [sourceName, setSourceName] = useState('');
+  const [sourceFreshTarget, setSourceFreshTarget] = useState<{ plugin: PluginSummary; requirement: SessionRequirement } | undefined>(undefined);
+  const [sourceReuseTarget, setSourceReuseTarget] = useState<(ConnectRow & { kind: 'reuse' }) | undefined>(undefined);
+  const [sourceConnection, setSourceConnection] = useState<ResolvedConnection | undefined>(undefined);
+
+  const [destinationFreshTarget, setDestinationFreshTarget] = useState<{ plugin: PluginSummary; requirement: SessionRequirement } | undefined>(undefined);
+  const [destinationReuseTarget, setDestinationReuseTarget] = useState<(ConnectRow & { kind: 'reuse' }) | undefined>(undefined);
+  const [destinationConnection, setDestinationConnection] = useState<ResolvedConnection | undefined>(undefined);
+  const [destinationExistingRecord, setDestinationExistingRecord] = useState<PluginBackedRecord | undefined>(undefined);
+
   const [sourceScope, setSourceScope] = useState('');
-  const [destinationName, setDestinationName] = useState('');
+  const [sourceName, setSourceName] = useState('');
+  // Once the user types into the name field directly, the live suggestion below stops overwriting
+  // it — the same "smart default, stops following once edited" pattern a slug-from-title field
+  // would use, so an intentional correction never gets silently clobbered by the next keystroke in
+  // an unrelated wizard field.
+  const [sourceNameEdited, setSourceNameEdited] = useState(false);
   const [sourceValues, setSourceValues] = useState<WizardFieldValues>({});
   const [destinationValues, setDestinationValues] = useState<WizardFieldValues>({});
   const [error, setError] = useState<string | undefined>(undefined);
@@ -287,126 +285,113 @@ export function AddCollectorWizard({ onClose, onCreated }: AddCollectorWizardPro
     void window.api.sessionsList().then(setSessions);
   }, []);
 
-  // Default "Collect to" once its data has loaded: reuse the first existing destination if one is
-  // already set up (avoids silently piling up duplicate destinations every time), otherwise
-  // configure a new one — preferring the local-folder plugin specifically, matching §14.1 US7's
-  // "zero-setup local Downloads folder destination" framing, else whichever destination plugin is
-  // actually installed.
+  const sourceRows = useMemo(() => buildConnectRows(sourcePlugins, sessions), [sourcePlugins, sessions]);
+  const destinationRows = useMemo(() => buildConnectRows(destinationPlugins, sessions), [destinationPlugins, sessions]);
+
+  const sourceSubViewActive = sourceFreshTarget !== undefined || sourceReuseTarget !== undefined;
+  const destinationSubViewActive = destinationFreshTarget !== undefined || destinationReuseTarget !== undefined;
+
+  function changeSourceConnection() {
+    setSourceConnection(undefined);
+    setSourceValues({});
+    setSourceScope('');
+    setSourceName('');
+    setSourceNameEdited(false);
+  }
+
+  // Live-updates the "Collection name" field with SourceNameSuggester's own best guess as the
+  // config wizard's values settle — debounced the same way WizardSteps' own filter fields are
+  // (400ms), so a suggestion call doesn't fire on every keystroke of, say, Graph Mail's "Subject
+  // contains" field. Stops touching the field entirely once the user has edited it directly.
   useEffect(() => {
-    if (destinationChoiceValue !== undefined) return;
-    if (existingDestinations.length > 0) {
-      setDestinationChoiceValue(encodeDestinationChoice({ kind: 'existing', record: existingDestinations[0] }));
-    } else if (destinationPlugins.length > 0) {
-      const localFolder = destinationPlugins.find((p) => p.manifest.id === LOCAL_FOLDER_DESTINATION_PLUGIN_ID);
-      setDestinationChoiceValue(encodeDestinationChoice({ kind: 'new', plugin: localFolder ?? destinationPlugins[0] }));
-    }
-  }, [existingDestinations, destinationPlugins, destinationChoiceValue]);
-
-  const sourcePlugin = sourcePlugins.find((p) => p.manifest.id === sourcePluginId);
-  const destinationChoice = decodeDestinationChoice(destinationChoiceValue, existingDestinations, destinationPlugins);
-
-  // Default each session-TYPE picker once its plugin is known, and re-default if the current
-  // selection stops being one of the plugin's declared types (e.g. the user picked a different
-  // source plugin after already picking a type for the previous one).
-  useEffect(() => {
-    if (!sourcePlugin) {
-      if (sourceSessionTypeId !== undefined) setSourceSessionTypeId(undefined);
-      return;
-    }
-    if (sourceSessionTypeId && sourcePlugin.sessionRequirements.some((r) => r.sessionTypeId === sourceSessionTypeId)) return;
-    setSourceSessionTypeId(sourcePlugin.sessionRequirements[0]?.sessionTypeId);
-  }, [sourcePlugin, sourceSessionTypeId]);
-
-  useEffect(() => {
-    if (destinationChoice?.kind !== 'new') {
-      if (destinationSessionTypeId !== undefined) setDestinationSessionTypeId(undefined);
-      return;
-    }
-    const plugin = destinationChoice.plugin;
-    if (destinationSessionTypeId && plugin.sessionRequirements.some((r) => r.sessionTypeId === destinationSessionTypeId)) return;
-    setDestinationSessionTypeId(plugin.sessionRequirements[0]?.sessionTypeId);
-  }, [destinationChoice, destinationSessionTypeId]);
-
-  const sourceRequirement = sourcePlugin?.sessionRequirements.find((r) => r.sessionTypeId === sourceSessionTypeId);
-  const destinationRequirement =
-    destinationChoice?.kind === 'new' ? destinationChoice.plugin.sessionRequirements.find((r) => r.sessionTypeId === destinationSessionTypeId) : undefined;
-
-  const sourceCompatibleSessions = sourcePlugin ? compatibleSessionsFor(sourcePlugin, sessions, sourceSessionTypeId) : [];
-  const destinationCompatibleSessions =
-    destinationChoice?.kind === 'new' ? compatibleSessionsFor(destinationChoice.plugin, sessions, destinationSessionTypeId) : [];
-
-  // Whenever the selected session TYPE changes (including a plugin swap), the previous
-  // existing-vs-new choice no longer necessarily applies — clear it so the default-selection
-  // effect below re-derives it for the newly selected type.
-  useEffect(() => {
-    setSourceSessionChoiceValue(undefined);
-    setSourceEstablished(undefined);
-  }, [sourceSessionTypeId]);
-
-  useEffect(() => {
-    setDestinationSessionChoiceValue(undefined);
-    setDestinationEstablished(undefined);
-  }, [destinationSessionTypeId]);
-
-  // Default each session picker once its own data is ready: reuse the first compatible existing
-  // session if one exists, else "create new" — same reuse-first reasoning as the destination
-  // default above.
-  useEffect(() => {
-    if (!sourceRequirement || sourceSessionChoiceValue !== undefined) return;
-    setSourceSessionChoiceValue(sourceCompatibleSessions.length > 0 ? `existing:${sourceCompatibleSessions[0].id}` : 'new');
+    if (!sourceConnection || sourceNameEdited) return;
+    const plugin = sourceConnection.plugin;
+    const sessionId = sourceConnection.sessionId;
+    const fallback = sessionLabelById(sessions, sessionId) ?? plugin.manifest.name;
+    const timer = setTimeout(() => {
+      void window.api
+        .wizardSuggestSourceName({ pluginId: plugin.manifest.id, sessionId, configValues: sourceValues })
+        .then((suggested) => setSourceName(suggested ?? fallback))
+        .catch(() => setSourceName(fallback));
+    }, 400);
+    return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sourceRequirement, sourceCompatibleSessions.length, sourceSessionChoiceValue]);
+  }, [sourceConnection, sourceValues, sourceNameEdited]);
 
-  useEffect(() => {
-    if (!destinationRequirement || destinationSessionChoiceValue !== undefined) return;
-    setDestinationSessionChoiceValue(destinationCompatibleSessions.length > 0 ? `existing:${destinationCompatibleSessions[0].id}` : 'new');
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [destinationRequirement, destinationCompatibleSessions.length, destinationSessionChoiceValue]);
+  function changeDestinationConnection() {
+    setDestinationConnection(undefined);
+    setDestinationExistingRecord(undefined);
+    setDestinationValues({});
+  }
 
-  const sourceSessionChoice = decodeSessionChoice(sourceSessionChoiceValue);
-  const destinationSessionChoice = decodeSessionChoice(destinationSessionChoiceValue);
-
-  const resolvedSourceSessionId = sourceSessionChoice?.kind === 'existing' ? sourceSessionChoice.sessionId : sourceEstablished?.session.id;
-  const resolvedDestinationSessionId =
-    destinationSessionChoice?.kind === 'existing' ? destinationSessionChoice.sessionId : destinationEstablished?.session.id;
-
-  const canProceedFromSelect = sourcePlugin !== undefined && destinationChoice !== undefined;
-  const canProceedFromChooseConnections =
-    (!sourceRequirement || sourceSessionChoice !== undefined) && (!destinationRequirement || destinationSessionChoice !== undefined);
-  const canProceedFromEstablish =
-    (!sourceRequirement || sourceSessionChoice?.kind === 'existing' || sourceEstablished !== undefined) &&
-    (!destinationRequirement || destinationSessionChoice?.kind === 'existing' || destinationEstablished !== undefined);
-  const canSubmit = (!sourceRequirement || resolvedSourceSessionId !== undefined) && (!destinationRequirement || resolvedDestinationSessionId !== undefined);
-
-  async function proceedToConfigure() {
-    setError(undefined);
-    try {
-      if (sourcePlugin && sourceEstablished && sourceEstablished.name !== sourceEstablished.session.label) {
-        await window.api.sessionsRename({ pluginId: sourcePlugin.manifest.id, sessionId: sourceEstablished.session.id, label: sourceEstablished.name });
-      }
-      if (destinationChoice?.kind === 'new' && destinationEstablished && destinationEstablished.name !== destinationEstablished.session.label) {
-        await window.api.sessionsRename({
-          pluginId: destinationChoice.plugin.manifest.id,
-          sessionId: destinationEstablished.session.id,
-          label: destinationEstablished.name,
-        });
-      }
-      setStep('configure');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+  function handleSourceReuse(row: ConnectRow & { kind: 'reuse' }) {
+    if (row.sessions.length === 1) {
+      setSourceConnection({ plugin: row.plugin, requirement: row.requirement, sessionId: row.sessions[0].id });
+      setStep('destinationConnect');
+    } else {
+      setSourceReuseTarget(row);
     }
   }
 
+  function handleSourceReusePick(sessionId: string) {
+    if (!sourceReuseTarget) return;
+    setSourceConnection({ plugin: sourceReuseTarget.plugin, requirement: sourceReuseTarget.requirement, sessionId });
+    setSourceReuseTarget(undefined);
+    setStep('destinationConnect');
+  }
+
+  function handleSourceConnected(session: Session, suggestedValues: Record<string, unknown> | undefined) {
+    if (!sourceFreshTarget) return;
+    setSessions((prev) => [...prev, session]);
+    setSourceConnection({ plugin: sourceFreshTarget.plugin, requirement: sourceFreshTarget.requirement, sessionId: session.id });
+    if (suggestedValues) setSourceValues((prev) => ({ ...prev, ...suggestedValues }));
+    setSourceFreshTarget(undefined);
+    setStep('destinationConnect');
+  }
+
+  function handleDestinationReuse(row: ConnectRow & { kind: 'reuse' }) {
+    if (row.sessions.length === 1) {
+      setDestinationConnection({ plugin: row.plugin, requirement: row.requirement, sessionId: row.sessions[0].id });
+      setStep('configure');
+    } else {
+      setDestinationReuseTarget(row);
+    }
+  }
+
+  function handleDestinationReusePick(sessionId: string) {
+    if (!destinationReuseTarget) return;
+    setDestinationConnection({ plugin: destinationReuseTarget.plugin, requirement: destinationReuseTarget.requirement, sessionId });
+    setDestinationReuseTarget(undefined);
+    setStep('configure');
+  }
+
+  function handleDestinationConnected(session: Session, suggestedValues: Record<string, unknown> | undefined) {
+    if (!destinationFreshTarget) return;
+    setSessions((prev) => [...prev, session]);
+    setDestinationConnection({ plugin: destinationFreshTarget.plugin, requirement: destinationFreshTarget.requirement, sessionId: session.id });
+    if (suggestedValues) setDestinationValues((prev) => ({ ...prev, ...suggestedValues }));
+    setDestinationFreshTarget(undefined);
+    setStep('configure');
+  }
+
+  function handleReuseExistingDestination(record: PluginBackedRecord) {
+    setDestinationExistingRecord(record);
+    setStep('configure');
+  }
+
+  const canSubmit = sourceConnection !== undefined && (destinationConnection !== undefined || destinationExistingRecord !== undefined);
+
   async function submit() {
-    if (!sourcePlugin || !destinationChoice || !canSubmit) return;
+    if (!sourceConnection || !canSubmit) return;
+    const sourcePlugin = sourceConnection.plugin;
 
     const sourceValidation = validateWizardValues(sourcePlugin.wizard, sourceValues);
     if (!sourceValidation.valid) {
       setError(`Missing required source field(s): ${sourceValidation.missingFields.join(', ')}`);
       return;
     }
-    if (destinationChoice.kind === 'new') {
-      const destinationValidation = validateWizardValues(destinationChoice.plugin.wizard, destinationValues);
+    if (destinationConnection) {
+      const destinationValidation = validateWizardValues(destinationConnection.plugin.wizard, destinationValues);
       if (!destinationValidation.valid) {
         setError(`Missing required destination field(s): ${destinationValidation.missingFields.join(', ')}`);
         return;
@@ -416,31 +401,44 @@ export function AddCollectorWizard({ onClose, onCreated }: AddCollectorWizardPro
     setSubmitting(true);
     setError(undefined);
     try {
-      const destinationId =
-        destinationChoice.kind === 'existing'
-          ? destinationChoice.record.id
-          : (
-              await window.api.configCreateRecord({
-                kind: 'destination',
-                pluginId: destinationChoice.plugin.manifest.id,
-                pluginVersion: destinationChoice.plugin.packageVersion,
-                name: destinationName || destinationChoice.plugin.manifest.name,
-                config: destinationValues,
-                sessionId: resolvedDestinationSessionId,
-              })
-            ).id;
+      let destinationId: string;
+      if (destinationExistingRecord) {
+        destinationId = destinationExistingRecord.id;
+      } else if (destinationConnection) {
+        const destPlugin = destinationConnection.plugin;
+        const fallbackName = sessionLabelById(sessions, destinationConnection.sessionId) ?? destPlugin.manifest.name;
+        const suggestedName = await window.api.wizardSuggestSourceName({
+          pluginId: destPlugin.manifest.id,
+          sessionId: destinationConnection.sessionId,
+          configValues: destinationValues,
+        });
+        const created = await window.api.configCreateRecord({
+          kind: 'destination',
+          pluginId: destPlugin.manifest.id,
+          pluginVersion: destPlugin.packageVersion,
+          name: suggestedName ?? fallbackName,
+          config: destinationValues,
+          sessionId: destinationConnection.sessionId,
+        });
+        destinationId = created.id;
+      } else {
+        return;
+      }
+
+      const sourceFallbackName = sessionLabelById(sessions, sourceConnection.sessionId) ?? sourcePlugin.manifest.name;
+      const finalSourceName = sourceName.trim() || sourceFallbackName;
 
       await window.api.configCreateRecord({
         kind: 'source',
         pluginId: sourcePlugin.manifest.id,
         pluginVersion: sourcePlugin.packageVersion,
-        name: sourceName || sourcePlugin.manifest.name,
+        name: finalSourceName,
         config: sourceValues,
         destinationId,
-        sessionId: resolvedSourceSessionId,
+        sessionId: sourceConnection.sessionId,
         scope: sourceScope || undefined,
       });
-      toast.success(`${sourceName || sourcePlugin.manifest.name} added`);
+      toast.success(`${finalSourceName} added`);
       onCreated();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -449,192 +447,166 @@ export function AddCollectorWizard({ onClose, onCreated }: AddCollectorWizardPro
     }
   }
 
-  const stepNumber = step === 'select' ? 1 : step === 'chooseConnections' ? 2 : step === 'establishConnections' ? 3 : 4;
+  const stepNumber = step === 'sourceConnect' ? 1 : step === 'destinationConnect' ? 2 : 3;
+
+  // Closing the wizard without ever reaching a successful submit() (Cancel, Escape, clicking
+  // outside) can still leave real state behind: a connect screen may already have signed a
+  // brand-new session in, and — if submit() itself got partway through before failing (its own
+  // destination-then-source sequence) — a new destination too, neither one ever referenced by the
+  // source that would have made them part of a real flow. flowsSweepOrphans() is the same
+  // best-effort cleanup used after an edit that changes a flow's destination; it's a no-op when
+  // nothing was actually left dangling, so it's safe to always run on the way out.
+  async function handleClose() {
+    try {
+      await window.api.flowsSweepOrphans();
+    } catch {
+      // Best-effort — a failed cleanup sweep should never block the user from closing the dialog.
+    }
+    onClose();
+  }
 
   return (
-    <Dialog open onOpenChange={(open) => !open && onClose()}>
+    <Dialog open onOpenChange={(open) => !open && void handleClose()}>
       <DialogContent className="flex max-h-[80vh] flex-col gap-4 overflow-y-auto sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Add a collector (step {stepNumber} of 4)</DialogTitle>
+          <DialogTitle>Add a collector (step {stepNumber} of 3)</DialogTitle>
         </DialogHeader>
 
         <fieldset disabled={submitting} className="flex flex-col gap-4">
-          {step === 'select' && (
+          {step === 'sourceConnect' && (
             <>
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="wizard-source-plugin">Configure source</Label>
-                <Select value={sourcePluginId} onValueChange={setSourcePluginId}>
-                  <SelectTrigger id="wizard-source-plugin" className="w-full">
-                    <SelectValue placeholder="Select a source…" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {sourcePlugins.map((p) => (
-                      <SelectItem key={p.manifest.id} value={p.manifest.id}>
-                        {p.manifest.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="wizard-destination">Collect to</Label>
-                <Select value={destinationChoiceValue} onValueChange={setDestinationChoiceValue}>
-                  <SelectTrigger id="wizard-destination" className="w-full">
-                    <SelectValue placeholder="Select a destination…" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {existingDestinations.length > 0 && (
-                      <SelectGroup>
-                        <SelectLabel>Existing destinations</SelectLabel>
-                        {existingDestinations.map((d) => (
-                          <SelectItem key={d.id} value={encodeDestinationChoice({ kind: 'existing', record: d })}>
-                            {d.name}
-                          </SelectItem>
-                        ))}
-                      </SelectGroup>
-                    )}
-                    {destinationPlugins.length > 0 && (
-                      <SelectGroup>
-                        <SelectLabel>Configure new</SelectLabel>
-                        {destinationPlugins.map((p) => (
-                          <SelectItem key={p.manifest.id} value={encodeDestinationChoice({ kind: 'new', plugin: p })}>
-                            {p.manifest.name}
-                          </SelectItem>
-                        ))}
-                      </SelectGroup>
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
-            </>
-          )}
-
-          {step === 'chooseConnections' && (
-            <>
-              {sourcePlugin && sourcePlugin.sessionRequirements.length > 0 && (
-                <div className="flex flex-col gap-3 rounded-lg border p-3">
-                  <p className="text-sm font-medium">{sourcePlugin.manifest.name} connection</p>
-                  <SessionTypeSelect
-                    id="wizard-source-session-type"
-                    label="Connection type"
-                    requirements={sourcePlugin.sessionRequirements}
-                    value={sourceSessionTypeId}
-                    onChange={setSourceSessionTypeId}
-                  />
-                  {sourceRequirement && (
-                    <SessionModeSelect
-                      id="wizard-source-session"
-                      label="Use"
-                      compatibleSessions={sourceCompatibleSessions}
-                      value={sourceSessionChoiceValue}
-                      onChange={setSourceSessionChoiceValue}
-                    />
-                  )}
-                </div>
-              )}
-              {destinationChoice?.kind === 'new' && destinationChoice.plugin.sessionRequirements.length > 0 && (
-                <div className="flex flex-col gap-3 rounded-lg border p-3">
-                  <p className="text-sm font-medium">{destinationChoice.plugin.manifest.name} connection</p>
-                  <SessionTypeSelect
-                    id="wizard-destination-session-type"
-                    label="Connection type"
-                    requirements={destinationChoice.plugin.sessionRequirements}
-                    value={destinationSessionTypeId}
-                    onChange={setDestinationSessionTypeId}
-                  />
-                  {destinationRequirement && (
-                    <SessionModeSelect
-                      id="wizard-destination-session"
-                      label="Use"
-                      compatibleSessions={destinationCompatibleSessions}
-                      value={destinationSessionChoiceValue}
-                      onChange={setDestinationSessionChoiceValue}
-                    />
-                  )}
-                </div>
-              )}
-              {!(sourcePlugin && sourcePlugin.sessionRequirements.length > 0) &&
-                !(destinationChoice?.kind === 'new' && destinationChoice.plugin.sessionRequirements.length > 0) && (
-                  <p className="text-sm text-muted-foreground">Nothing needs connecting for this source/destination.</p>
-                )}
-            </>
-          )}
-
-          {step === 'establishConnections' && (
-            <>
-              {sourcePlugin && sourceRequirement && sourceSessionChoice?.kind === 'new' && (
-                <SessionCreatePanel
-                  plugin={sourcePlugin}
-                  requirement={sourceRequirement}
-                  value={sourceEstablished}
-                  onChange={setSourceEstablished}
-                  onValuesSuggested={(values) => setSourceValues((prev) => ({ ...prev, ...values }))}
+              <p className="text-sm font-medium">What and how do you want application to collect?</p>
+              {sourceFreshTarget ? (
+                <ConnectPanel
+                  plugin={sourceFreshTarget.plugin}
+                  requirement={sourceFreshTarget.requirement}
+                  onConnected={handleSourceConnected}
+                  onCancel={() => setSourceFreshTarget(undefined)}
                 />
-              )}
-              {destinationChoice?.kind === 'new' && destinationRequirement && destinationSessionChoice?.kind === 'new' && (
-                <SessionCreatePanel
-                  plugin={destinationChoice.plugin}
-                  requirement={destinationRequirement}
-                  value={destinationEstablished}
-                  onChange={setDestinationEstablished}
-                  onValuesSuggested={(values) => setDestinationValues((prev) => ({ ...prev, ...values }))}
+              ) : sourceReuseTarget ? (
+                <ReusePicker
+                  plugin={sourceReuseTarget.plugin}
+                  sessions={sourceReuseTarget.sessions}
+                  onPick={handleSourceReusePick}
+                  onCancel={() => setSourceReuseTarget(undefined)}
                 />
+              ) : sourceConnection ? (
+                <div className="flex flex-col gap-2 rounded-lg border p-4">
+                  <p className="text-sm font-medium">Connected</p>
+                  <p className="text-sm text-muted-foreground">
+                    Collect {sourceConnection.requirement.collects}, using {sessionLabelById(sessions, sourceConnection.sessionId) ?? 'this session'}.
+                  </p>
+                  <Button type="button" variant="ghost" size="sm" className="self-start" onClick={changeSourceConnection}>
+                    Change connection
+                  </Button>
+                </div>
+              ) : (
+                <ConnectButtonList rows={sourceRows} sentence={sourceSentence} onFresh={(plugin, requirement) => setSourceFreshTarget({ plugin, requirement })} onReuse={handleSourceReuse} />
               )}
-              {sourceSessionChoice?.kind !== 'new' && destinationSessionChoice?.kind !== 'new' && (
-                <p className="text-sm text-muted-foreground">Reusing existing connections — nothing new to sign in to.</p>
-              )}
-              {error && <p className="text-sm text-destructive">{error}</p>}
             </>
           )}
 
-          {step === 'configure' && sourcePlugin && (
+          {step === 'destinationConnect' && (
+            <>
+              <p className="text-sm font-medium">Where do you want application to save invoices?</p>
+              {destinationFreshTarget ? (
+                <ConnectPanel
+                  plugin={destinationFreshTarget.plugin}
+                  requirement={destinationFreshTarget.requirement}
+                  onConnected={handleDestinationConnected}
+                  onCancel={() => setDestinationFreshTarget(undefined)}
+                />
+              ) : destinationReuseTarget ? (
+                <ReusePicker
+                  plugin={destinationReuseTarget.plugin}
+                  sessions={destinationReuseTarget.sessions}
+                  onPick={handleDestinationReusePick}
+                  onCancel={() => setDestinationReuseTarget(undefined)}
+                />
+              ) : destinationConnection ? (
+                <div className="flex flex-col gap-2 rounded-lg border p-4">
+                  <p className="text-sm font-medium">Connected</p>
+                  <p className="text-sm text-muted-foreground">
+                    Save invoices {destinationConnection.requirement.collects}, using {sessionLabelById(sessions, destinationConnection.sessionId) ?? 'this session'}.
+                  </p>
+                  <Button type="button" variant="ghost" size="sm" className="self-start" onClick={changeDestinationConnection}>
+                    Change connection
+                  </Button>
+                </div>
+              ) : destinationExistingRecord ? (
+                <div className="flex flex-col gap-2 rounded-lg border p-4">
+                  <p className="text-sm font-medium">Connected</p>
+                  <p className="text-sm text-muted-foreground">Save invoices to {destinationExistingRecord.name}.</p>
+                  <Button type="button" variant="ghost" size="sm" className="self-start" onClick={changeDestinationConnection}>
+                    Change connection
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  {existingDestinations.length > 0 && (
+                    <div className="flex flex-col gap-2">
+                      <p className="text-xs font-medium text-muted-foreground">Already set up</p>
+                      {existingDestinations.map((record) => (
+                        <Button
+                          key={record.id}
+                          type="button"
+                          variant="outline"
+                          className="h-auto justify-start whitespace-normal text-left"
+                          onClick={() => handleReuseExistingDestination(record)}
+                        >
+                          Save invoices to {record.name}.
+                        </Button>
+                      ))}
+                    </div>
+                  )}
+                  <div className="flex flex-col gap-2">
+                    {existingDestinations.length > 0 && <p className="text-xs font-medium text-muted-foreground">Configure a new destination</p>}
+                    <ConnectButtonList
+                      rows={destinationRows}
+                      sentence={destinationSentence}
+                      onFresh={(plugin, requirement) => setDestinationFreshTarget({ plugin, requirement })}
+                      onReuse={handleDestinationReuse}
+                    />
+                  </div>
+                </>
+              )}
+            </>
+          )}
+
+          {step === 'configure' && sourceConnection && (
             <>
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="wizard-source-name">Source name</Label>
+                <Label htmlFor="wizard-source-name">Collection name</Label>
                 <Input
                   id="wizard-source-name"
                   value={sourceName}
-                  onChange={(e) => setSourceName(e.target.value)}
-                  placeholder={sourcePlugin.manifest.name}
+                  onChange={(e) => {
+                    setSourceNameEdited(true);
+                    setSourceName(e.target.value);
+                  }}
+                  placeholder={sourceConnection.plugin.manifest.name}
                 />
               </div>
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="wizard-source-scope">Scope (optional)</Label>
-                <Input
-                  id="wizard-source-scope"
-                  value={sourceScope}
-                  onChange={(e) => setSourceScope(e.target.value)}
-                  placeholder="e.g. Finance department"
-                />
+                <Input id="wizard-source-scope" value={sourceScope} onChange={(e) => setSourceScope(e.target.value)} placeholder="e.g. Finance department" />
               </div>
               <WizardSteps
-                pluginId={sourcePlugin.manifest.id}
-                steps={sourcePlugin.wizard}
+                pluginId={sourceConnection.plugin.manifest.id}
+                steps={sourceConnection.plugin.wizard}
                 values={sourceValues}
-                sessionId={resolvedSourceSessionId}
+                sessionId={sourceConnection.sessionId}
                 onChange={(n, v) => setSourceValues((prev) => ({ ...prev, [n]: v }))}
               />
 
-              {destinationChoice?.kind === 'new' && (
-                <>
-                  <div className="flex flex-col gap-1.5">
-                    <Label htmlFor="wizard-destination-name">Destination name</Label>
-                    <Input
-                      id="wizard-destination-name"
-                      value={destinationName}
-                      onChange={(e) => setDestinationName(e.target.value)}
-                      placeholder={destinationChoice.plugin.manifest.name}
-                    />
-                  </div>
-                  <WizardSteps
-                    pluginId={destinationChoice.plugin.manifest.id}
-                    steps={destinationChoice.plugin.wizard}
-                    values={destinationValues}
-                    sessionId={resolvedDestinationSessionId}
-                    onChange={(n, v) => setDestinationValues((prev) => ({ ...prev, [n]: v }))}
-                  />
-                </>
+              {destinationConnection && (
+                <WizardSteps
+                  pluginId={destinationConnection.plugin.manifest.id}
+                  steps={destinationConnection.plugin.wizard}
+                  values={destinationValues}
+                  sessionId={destinationConnection.sessionId}
+                  onChange={(n, v) => setDestinationValues((prev) => ({ ...prev, [n]: v }))}
+                />
               )}
 
               {error && <p className="text-sm text-destructive">{error}</p>}
@@ -643,39 +615,33 @@ export function AddCollectorWizard({ onClose, onCreated }: AddCollectorWizardPro
         </fieldset>
 
         <DialogFooter>
-          {step === 'select' && (
+          {step === 'sourceConnect' && !sourceSubViewActive && (
             <>
-              <Button type="button" variant="ghost" onClick={onClose}>
+              <Button type="button" variant="ghost" onClick={() => void handleClose()}>
                 Cancel
               </Button>
-              <Button type="button" disabled={!canProceedFromSelect} onClick={() => setStep('chooseConnections')}>
-                Next
-              </Button>
+              {sourceConnection && (
+                <Button type="button" onClick={() => setStep('destinationConnect')}>
+                  Next
+                </Button>
+              )}
             </>
           )}
-          {step === 'chooseConnections' && (
+          {step === 'destinationConnect' && !destinationSubViewActive && (
             <>
-              <Button type="button" variant="ghost" onClick={() => setStep('select')}>
+              <Button type="button" variant="ghost" onClick={() => setStep('sourceConnect')}>
                 Back
               </Button>
-              <Button type="button" disabled={!canProceedFromChooseConnections} onClick={() => setStep('establishConnections')}>
-                Next
-              </Button>
-            </>
-          )}
-          {step === 'establishConnections' && (
-            <>
-              <Button type="button" variant="ghost" onClick={() => setStep('chooseConnections')}>
-                Back
-              </Button>
-              <Button type="button" disabled={!canProceedFromEstablish} onClick={() => void proceedToConfigure()}>
-                Next
-              </Button>
+              {(destinationConnection || destinationExistingRecord) && (
+                <Button type="button" onClick={() => setStep('configure')}>
+                  Next
+                </Button>
+              )}
             </>
           )}
           {step === 'configure' && (
             <>
-              <Button type="button" variant="ghost" onClick={() => setStep('establishConnections')}>
+              <Button type="button" variant="ghost" onClick={() => setStep('destinationConnect')}>
                 Back
               </Button>
               <Button type="button" disabled={submitting || !canSubmit} onClick={() => void submit()}>
