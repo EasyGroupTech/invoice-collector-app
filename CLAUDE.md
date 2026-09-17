@@ -121,10 +121,13 @@ platform-specific optional-dependency resolution). Not yet resolved for real pac
 - **This repo and everything in it is MIT-licensed and meant to stay dependency-clean under that
   license** — a new dependency (anywhere in the workspace, including a plugin's own) must check
   against `invoice-collector-plugin-sdk/src/sbom.ts`'s `MIT_COMPATIBLE_LICENSE_IDS` allowlist before
-  being added, and the relevant package's `sbom.cdx.json` regenerated (see root `package.json`'s
-  `generate-sbom:*` scripts — **currently broken**: they invoke a `generate-sbom` binary that isn't
-  actually installed/aliased anywhere in this repo; regenerate by running `cyclonedx-npm --workspace
-  <name> --omit dev --output-file packages/<name>/sbom.cdx.json` directly until that's fixed).
+  being added, and the relevant package's `sbom.cdx.json` regenerated via root `package.json`'s
+  `generate-sbom:*` scripts (`generate-sbom:ic-core`/`generate-sbom:sdk`/`generate-sbom:email-to-downloads`).
+  These resolve to the SDK's own `generate-sbom` bin (`invoice-collector-plugin-sdk/dist/generate-sbom-cli.js`)
+  — confirmed working, but only *after* the SDK has been built at least once (`npm run build -w
+  invoice-collector-plugin-sdk`, part of this repo's own root `build`/`typecheck` already); on a
+  truly fresh checkout, before any build has run, they fail with a plain "command not found"
+  rather than a useful error, which is easy to mistake for the tool itself being broken.
   `--omit dev` matters: a `devDependency` (types-only, like `electron` in a plugin package) should
   not show up in a shipped plugin's own SBOM.
 
@@ -183,7 +186,6 @@ platform-specific optional-dependency resolution). Not yet resolved for real pac
 
 Kept in `docs/implementation-plan.md`'s phase table (⬜ rows) and, for anything not yet a planned
 phase at all, `docs/architecture-design.md`'s own "known gap, not yet closed" callouts scattered
-through the relevant sections — don't duplicate a list here, it will drift. Two worth knowing about
-by name because they're easy to trip over silently: the `generate-sbom:*` npm scripts are currently
-broken (see Hard constraints above), and there's no packaged build / E2E suite / live-API test tier
-yet (phases 1.17–1.19).
+through the relevant sections — don't duplicate a list here, it will drift. One worth knowing about
+by name because it's easy to trip over silently: there's no packaged build / E2E suite / live-API
+test tier yet (phases 1.17–1.19).
