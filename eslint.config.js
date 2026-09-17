@@ -34,4 +34,13 @@ export default tseslint.config(
       'react-hooks/set-state-in-effect': 'off',
     },
   },
+  {
+    // Phase 1.17's build/packaging scripts (scripts/stage-bundled-plugin.mjs) — plain Node.js
+    // scripts, not part of any package's own typechecked source, so they need Node's globals
+    // declared explicitly rather than inheriting a browser/DOM lib setting from anywhere else.
+    files: ['**/scripts/**/*.mjs'],
+    languageOptions: {
+      globals: { process: 'readonly', console: 'readonly' },
+    },
+  },
 );

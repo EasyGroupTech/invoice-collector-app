@@ -1,0 +1,69 @@
+# Phase 1.17's real packaging config. Run via `npm run package` at the repo root (chains the
+# builds/SBOMs this depends on first) — never `electron-builder` directly, since that would
+# package whatever dist/resources happen to already be sitting on disk, possibly stale.
+appId: tech.easygroup.invoicecollector
+productName: Invoice Collector
+copyright: "Copyright © 2026 Mikhail Bobkov"
+
+directories:
+  output: release
+  buildResources: build
+
+# Only the production Electron bundle + package.json (for electron-builder's own dependency-tree
+# walk, below) — none of this package's own TS source, tests, or the renderer's unbuilt source.
+files:
+  - dist/main/**/*
+  - dist/preload/**/*
+  - dist/renderer/**/*
+  - package.json
+  - "!**/*.test.*"
+
+# scripts/stage-bundled-plugin.mjs's own output (§11) — a real, already-`npm install`-produced
+# copy of ic-email-to-downloads, landing at <packaged-app>/resources/bundled-plugins/<id>/ so
+# bundled-plugins.ts's seedBundledPlugins() can find it at boot via process.resourcesPath.
+extraResources:
+  - from: resources/bundled-plugins
+    to: bundled-plugins
+
+# electron-builder's own dependency-tree walk resolves this package's real npm dependencies out of
+# the workspace's hoisted node_modules — genuinely not yet verified against this repo's actual
+# npm-workspaces layout (invoice-collector-plugin-sdk resolves via a workspace symlink, a known
+# rough edge for that walk); confirm the packaged app's own node_modules is actually complete
+# before trusting this without a real end-to-end run.
+mac:
+  target:
+    - dmg
+    - zip
+  icon: build/icon.icns
+  category: public.app-category.business
+  hardenedRuntime: true
+  # No explicit identity configured here — electron-builder's own default,
+  # CSC_IDENTITY_AUTO_DISCOVERY, picks up a real "Developer ID Application" certificate from the
+  # login keychain automatically when one exists.
+  #
+  # Notarization: electron-builder's own default afterSign hook (@electron/notarize) auto-submits
+  # to Apple's real, production notarization service whenever APPLE_ID/
+  # APPLE_APP_SPECIFIC_PASSWORD/APPLE_TEAM_ID are present in the environment — genuinely confirmed
+  # working end-to-end (real submission, real "Notarization Ticket=stapled" verified via
+  # `codesign -dvvv`/`xcrun stapler validate`/`spctl -a`), and kept intentionally, on the
+  # maintainer's own explicit decision, rather than disabled via `notarize: false`. Apple
+  # app-specific passwords authenticate the Apple ID account, not a specific app — confirmed the
+  # notarized binary's own identity (`Identifier=tech.easygroup.invoicecollector`,
+  # `TeamIdentifier=7D4DR5LR88`) is genuinely this app, not cross-contaminated with any other
+  # project sharing the same developer account. Real, if low-stakes, process note: this fired the
+  # *first* time `npm run package` ran, automatically, with no explicit per-run confirmation —
+  # every subsequent `npm run package` will notarize again the same way; that's now the accepted,
+  # intended behavior for this repo, not something to re-confirm each time.
+
+win:
+  target:
+    - nsis
+  icon: build/icon.ico
+  # No signing backend exists yet — SignPath Foundation's application was never actually submitted
+  # (docs/implementation-plan.md §0 item 4), so there's nothing to sign with. This produces a
+  # genuinely unsigned .exe today; wiring in a real cert/backend once one exists is a config
+  # addition here, not a rebuild of this file.
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
