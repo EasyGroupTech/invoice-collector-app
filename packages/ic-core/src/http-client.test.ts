@@ -98,7 +98,9 @@ describe('createHttpApi', () => {
       const entry = onAudit.mock.calls[0][0];
       expect(entry.pluginId).toBe('tech.easygroup.source.azure-billing');
       expect(entry.method).toBe('GET');
-      expect(entry.url).toBe('https://management.azure.com/…/invoices');
+      // sanitizeUrlForAudit, not the more aggressive sanitizeUrlForLog — the full path shape and
+      // the non-secret api-version query param both survive, so "Copy as cURL" stays replayable.
+      expect(entry.url).toBe('https://management.azure.com/subscriptions/[id]/invoices?api-version=2024-04-01');
       expect(entry.status).toBe(200);
       expect(typeof entry.durationMs).toBe('number');
       expect(JSON.stringify(entry)).not.toContain('request-secret');

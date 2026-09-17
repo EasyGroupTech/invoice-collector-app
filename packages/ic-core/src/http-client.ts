@@ -1,6 +1,6 @@
 import type { HttpApi, HttpRequestInput, HttpResponse, Session } from 'invoice-collector-plugin-sdk';
 import type { AuditLogEntry } from './audit-log.js';
-import { sanitizeBodyForLog, sanitizeHeadersForLog, sanitizeResponseBodyForLog, sanitizeUrlForLog } from './log-sanitize.js';
+import { sanitizeBodyForLog, sanitizeHeadersForLog, sanitizeResponseBodyForLog, sanitizeUrlForAudit, sanitizeUrlForLog } from './log-sanitize.js';
 
 /**
  * The two SessionsRegistry primitives HttpApi needs (§7) — narrowed rather than importing the
@@ -149,7 +149,11 @@ export function createHttpApi(pluginId: string, options: HttpClientOptions): Htt
           ? {
               pluginId,
               method: input.method ?? 'GET',
-              url: sanitizeUrlForLog(input.url),
+              // sanitizeUrlForAudit, not sanitizeUrlForLog — the audit log needs the full path
+              // shape and non-secret query params (api-version, …) for "Copy as cURL" to
+              // actually be replayable; onLog's own terse summary line below stays on the
+              // more aggressive sanitizeUrlForLog, unchanged.
+              url: sanitizeUrlForAudit(input.url),
               durationMs,
               requestHeaders: sanitizeHeadersForLog(authed.headers ?? {}),
               responseHeaders: sanitizeHeadersForLog(response.headers),

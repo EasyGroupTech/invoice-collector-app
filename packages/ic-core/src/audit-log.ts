@@ -20,7 +20,9 @@ export interface AuditLogEntry {
    * else in this codebase (`PluginBackedRecord.pluginId`, `Session.createdByPluginId`, …). */
   pluginId: string;
   method: string;
-  /** Already sanitized (`sanitizeUrlForLog`) — origin + final path segment only. */
+  /** Already sanitized (`sanitizeUrlForAudit`, not `sanitizeUrlForLog`'s more aggressive
+   * "origin + last segment, no query string" — this one keeps the full path shape and
+   * non-secret query params, since "Copy as cURL" needs it to actually be replayable). */
   url: string;
   status?: number;
   durationMs: number;

@@ -44,6 +44,46 @@ export function sanitizeUrlForLog(rawUrl: string): string {
   return `${url.protocol}//${host}${path}`;
 }
 
+// Query parameter names that commonly carry a credential/signature — a SAS token, an Azure ARM
+// invoice-download SAS, an API key passed as `?key=`/`?apikey=`, etc. Matched against the param
+// *name*, not its value, same convention as SENSITIVE_KEY_PATTERN/SENSITIVE_HEADER_NAMES.
+const SENSITIVE_QUERY_PARAM_PATTERN = /sig|signature|token|key|secret|sas|password|credential/i;
+
+/**
+ * §7's audit log (phase 1.22) needs a *less* lossy URL than `sanitizeUrlForLog` above —
+ * confirmed live: reducing a URL to "origin + last path segment, no query string at all" made
+ * the audit log's own "Copy as cURL" action produce a command that couldn't actually be replayed
+ * (wrong path — every id/resource-name segment gone — and missing genuinely useful, non-secret
+ * params like `api-version`). `sanitizeUrlForLog` itself is intentionally left alone — it backs
+ * `onLog`'s own terse per-call summary line in the plain-text app.log, where that brevity is
+ * still the right trade-off and replayability was never a design goal.
+ *
+ * Keeps the *full* path shape, with only a GUID or long numeric id inside it masked (reusing the
+ * same `GUID_PATTERN`/`LONG_NUMERIC_PATTERN` `sanitizeMessageForLog` already uses) — a
+ * subscription id or invoice id becomes `[id]`, but "billingAccounts"/"invoices" segments (the
+ * actual resource shape a cURL replay needs) survive. Keeps every query parameter whose *name*
+ * doesn't look credential-shaped, redacting only the ones that do (a SAS/signature/API key) —
+ * `api-version` and similar genuinely useful, non-secret params stay real.
+ */
+export function sanitizeUrlForAudit(rawUrl: string): string {
+  let url: URL;
+  try {
+    url = new URL(rawUrl);
+  } catch {
+    return rawUrl;
+  }
+  const host = SHAREPOINT_HOST.test(url.hostname) ? '[tenant].sharepoint.com' : url.hostname;
+  const path = url.pathname.replace(GUID_PATTERN, '[id]').replace(LONG_NUMERIC_PATTERN, '[id]');
+
+  const params = new URLSearchParams();
+  for (const [key, value] of url.searchParams) {
+    params.set(key, SENSITIVE_QUERY_PARAM_PATTERN.test(key) ? '[REDACTED]' : value);
+  }
+  const query = params.toString();
+
+  return `${url.protocol}//${host}${path}${query ? `?${query}` : ''}`;
+}
+
 // HTTP header names that carry credentials by convention but don't contain any of
 // SENSITIVE_KEY_PATTERN's own substrings ("authorization"/"cookie" match none of
 // password/secret/token/credential/apikey) — §7's audit log (phase 1.22) needs both checks, not

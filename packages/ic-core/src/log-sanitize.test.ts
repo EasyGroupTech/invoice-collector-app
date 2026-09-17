@@ -4,6 +4,7 @@ import {
   sanitizeHeadersForLog,
   sanitizeMessageForLog,
   sanitizeResponseBodyForLog,
+  sanitizeUrlForAudit,
   sanitizeUrlForLog,
   sanitizeValueForLog,
 } from './log-sanitize.js';
@@ -84,6 +85,55 @@ describe('sanitizeValueForLog', () => {
     const obj: Record<string, unknown> = { name: 'a' };
     obj.self = obj;
     expect(sanitizeValueForLog(obj)).toEqual({ name: 'a', self: '[circular]' });
+  });
+});
+
+describe('sanitizeUrlForAudit (§7 audit log, phase 1.22 — less lossy than sanitizeUrlForLog)', () => {
+  it('keeps the full path shape, unlike sanitizeUrlForLog collapsing everything but the last segment', () => {
+    expect(sanitizeUrlForAudit('https://management.azure.com/providers/Microsoft.Billing/billingAccounts/acct-1/invoices')).toBe(
+      'https://management.azure.com/providers/Microsoft.Billing/billingAccounts/acct-1/invoices',
+    );
+  });
+
+  it('masks a GUID inside the path but keeps the surrounding resource-shape segments', () => {
+    expect(sanitizeUrlForAudit('https://management.azure.com/subscriptions/11111111-2222-3333-4444-555555555555/invoices')).toBe(
+      'https://management.azure.com/subscriptions/[id]/invoices',
+    );
+  });
+
+  it('masks a long numeric id inside the path', () => {
+    expect(sanitizeUrlForAudit('https://example.com/subscriptions/123456789012/invoices')).toBe('https://example.com/subscriptions/[id]/invoices');
+  });
+
+  it('keeps a genuinely useful, non-secret query param like api-version', () => {
+    expect(sanitizeUrlForAudit('https://management.azure.com/invoices?api-version=2024-04-01')).toBe(
+      'https://management.azure.com/invoices?api-version=2024-04-01',
+    );
+  });
+
+  it('redacts a credential-shaped query param by name, keeping the param present but not its value', () => {
+    expect(sanitizeUrlForAudit('https://example.com/file?sig=SECRET123&expires=123')).toBe('https://example.com/file?sig=%5BREDACTED%5D&expires=123');
+  });
+
+  it('redacts every credential-shaped query param name it knows about', () => {
+    const url = sanitizeUrlForAudit('https://example.com/x?token=t1&apiKey=k1&sas=s1&password=p1&client_secret=c1');
+    expect(url).not.toContain('t1');
+    expect(url).not.toContain('k1');
+    expect(url).not.toContain('s1');
+    expect(url).not.toContain('p1');
+    expect(url).not.toContain('c1');
+  });
+
+  it('still masks a *.sharepoint.com tenant-identifying hostname', () => {
+    expect(sanitizeUrlForAudit('https://contoso.sharepoint.com/sites/Finance/doc.pdf')).toBe('https://[tenant].sharepoint.com/sites/Finance/doc.pdf');
+  });
+
+  it('drops the query string entirely when there is none', () => {
+    expect(sanitizeUrlForAudit('https://example.com/health')).toBe('https://example.com/health');
+  });
+
+  it('leaves a non-URL string alone rather than throwing', () => {
+    expect(sanitizeUrlForAudit('not a url at all')).toBe('not a url at all');
   });
 });
 
