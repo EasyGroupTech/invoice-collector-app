@@ -1,5 +1,6 @@
 import type { HttpApi, HttpRequestInput, HttpResponse, Session } from 'invoice-collector-plugin-sdk';
-import { sanitizeUrlForLog } from './log-sanitize.js';
+import type { AuditLogEntry } from './audit-log.js';
+import { sanitizeBodyForLog, sanitizeHeadersForLog, sanitizeResponseBodyForLog, sanitizeUrlForLog } from './log-sanitize.js';
 
 /**
  * The two SessionsRegistry primitives HttpApi needs (§7) — narrowed rather than importing the
@@ -42,6 +43,16 @@ export interface HttpClientOptions {
    * sanitizeMessageForLog already consider safe. Defaults to a no-op; real persistence is a later
    * phase's concern (mirrors how Encryptor/createPluginServices are injected, not built here). */
   onLog?: (entry: HttpLogEntry) => void;
+  /**
+   * §7's audit log (phase 1.22) — a separate hook from `onLog` above, deliberately: `onLog`'s own
+   * "never receives headers or body" constraint stays exactly as it was, untouched, rather than
+   * loosened for this. `onAudit` *does* get headers/body, but only ever the already-redacted
+   * form (`sanitizeHeadersForLog`/`sanitizeBodyForLog`/`sanitizeResponseBodyForLog`, computed
+   * inside this module) — the real, unredacted values never reach this callback either. Fires
+   * at the same three points `onLog` does (success, throttled-retry, recovery-retry), since each
+   * is a real request that actually went out and is worth its own audit entry, not just the
+   * final outcome. */
+  onAudit?: (entry: Omit<AuditLogEntry, 'id' | 'timestamp'>) => void;
 }
 
 function defaultSleep(ms: number, signal?: AbortSignal): Promise<void> {
@@ -60,6 +71,12 @@ function defaultSleep(ms: number, signal?: AbortSignal): Promise<void> {
       { once: true },
     );
   });
+}
+
+function getHeaderCaseInsensitive(headers: Record<string, string> | undefined, name: string): string | undefined {
+  if (!headers) return undefined;
+  const key = Object.keys(headers).find((k) => k.toLowerCase() === name);
+  return key ? headers[key] : undefined;
 }
 
 function parseRetryAfterMs(headers: Record<string, string>): number | undefined {
@@ -125,6 +142,22 @@ export function createHttpApi(pluginId: string, options: HttpClientOptions): Htt
         const durationMs = now() - startedAt;
         const response = await toHttpResponse(rawResponse);
 
+        // Computed once per attempt regardless of which of the three onAudit call sites below
+        // ends up firing — always the *redacted* form; the real headers/body never leave this
+        // scope any further than this.
+        const auditFields = options.onAudit
+          ? {
+              pluginId,
+              method: input.method ?? 'GET',
+              url: sanitizeUrlForLog(input.url),
+              durationMs,
+              requestHeaders: sanitizeHeadersForLog(authed.headers ?? {}),
+              responseHeaders: sanitizeHeadersForLog(response.headers),
+              requestBody: sanitizeBodyForLog(getHeaderCaseInsensitive(authed.headers, 'content-type'), authed.body),
+              responseBody: sanitizeResponseBodyForLog(response.headers['content-type'], response.arrayBuffer()),
+            }
+          : undefined;
+
         if (response.status === 401 && input.sessionId && !recoveredOnce) {
           recoveredOnce = true;
           options.onLog?.({
@@ -135,6 +168,7 @@ export function createHttpApi(pluginId: string, options: HttpClientOptions): Htt
             attempt,
             outcome: 'retrying-after-recovery',
           });
+          if (auditFields) options.onAudit?.({ ...auditFields, status: response.status });
           try {
             await options.sessionsRegistry.recoverSession(pluginId, input.sessionId);
           } catch {
@@ -154,9 +188,12 @@ export function createHttpApi(pluginId: string, options: HttpClientOptions): Htt
             attempt,
             outcome: 'retrying-throttled',
           });
+          if (auditFields) options.onAudit?.({ ...auditFields, status: response.status });
           await sleep(delayMs, signal);
           continue;
         }
+
+        if (auditFields) options.onAudit?.({ ...auditFields, status: response.status });
 
         options.onLog?.({
           method: input.method ?? 'GET',

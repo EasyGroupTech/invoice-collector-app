@@ -8,6 +8,7 @@
 import type {
   ActivatePluginInput,
   AdvancedSettings,
+  AuditLogEntry,
   AssignSessionInput,
   ConfigImportResult,
   CreateRecordInput,
@@ -107,6 +108,9 @@ declare global {
 
       logsRead(): Promise<LogReadResult>;
       logsDownload(): Promise<FileExportResult>;
+
+      auditLogList(): Promise<AuditLogEntry[]>;
+      auditLogClear(): Promise<void>;
 
       openExternal(url: string): Promise<void>;
 

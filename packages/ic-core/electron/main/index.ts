@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { microsoftEntraDelegatedDeviceCodeSessionPlugin } from 'invoice-collector-plugin-sdk';
 import { defaultAdvancedSettings, loadAdvancedSettings, saveAdvancedSettings, type AdvancedSettings } from '../../src/advanced-settings.js';
 import { logAppEvent, logCollectionEvent, readLogTail, sanitizeIpcArgsForLog } from '../../src/app-log.js';
+import { createAuditLog } from '../../src/audit-log.js';
 import { createCollectJobGuard } from '../../src/collect-job-guard.js';
 import { runCollectPipeline } from '../../src/collect-pipeline.js';
 import { decryptConfigExport, encryptConfigExport, type EncryptedConfigExportFile } from '../../src/config-export-crypto.js';
@@ -24,7 +25,7 @@ import { disablePlugin, enablePlugin, installPlugin, reloadInstalledPlugins, uni
 import { renderHtmlToPdf } from './htmlToPdf.js';
 import { createInvoiceHistory } from '../../src/invoice-history.js';
 import { createJobRunner } from '../../src/job-runner.js';
-import { advancedSettingsFile, appLogFile, pluginActivationFile, pluginsDir, profilePaths } from '../../src/paths.js';
+import { advancedSettingsFile, appLogFile, auditLogFile, pluginActivationFile, pluginsDir, profilePaths } from '../../src/paths.js';
 import { createPluginLog } from '../../src/plugin-log.js';
 import { createPluginRegistry } from '../../src/plugin-registry.js';
 import { createPackageWideStorage, createPluginStorage } from '../../src/plugin-storage.js';
@@ -101,6 +102,13 @@ let mainWindow: BrowserWindow | null = null;
 // the same file plugin-log.ts's createPluginLog already appends "[pluginId]"-tagged lines to.
 const APP_LOG_FILE = appLogFile(app.getPath('userData'));
 
+// §7's *network* audit log (phase 1.22) — every real outbound ctx.http call, redacted before
+// it's ever stored. Deliberately named/kept distinct from installIpcAuditLogging above, an
+// unrelated pre-existing concept (which IPC channel the renderer invoked, into the plain-text
+// APP_LOG_FILE) — this one is HttpApi's own request/response traffic, always structured JSON, in
+// its own file (auditLogFile).
+const networkAuditLog = createAuditLog({ filePath: auditLogFile(app.getPath('userData')) });
+
 // Wraps every ipcMain.handle(channel, listener) registered AFTER this call (so it must run before
 // any of them below) to log the channel name, sanitized arguments, and success/failure — ported
 // from the reference app's own installIpcAuditLogging, a single interception point that gives an
@@ -151,7 +159,11 @@ function createPluginServices(pluginId: string) {
   return {
     storage: createPluginStorage(paths.pluginStorageFile(pluginId)),
     appStorage: createPluginStorage(pluginActivationFile(app.getPath('userData'), pluginId)),
-    http: createHttpApi(pluginId, { sessionsRegistry: sessionAuthResolver, retryPolicy: () => currentAdvancedSettings.retryPolicy }),
+    http: createHttpApi(pluginId, {
+      sessionsRegistry: sessionAuthResolver,
+      retryPolicy: () => currentAdvancedSettings.retryPolicy,
+      onAudit: (entry) => void networkAuditLog.record(entry),
+    }),
     installUrl: pluginRegistry.getInstallUrl(pluginId),
     log,
     // Default sink for a ctx.progress.report() call with no live job listening (e.g. the
@@ -757,6 +769,11 @@ ipcMain.handle(Channels.LogsDownload, async () => {
   }
   return { exported: true, filePath: result.filePath };
 });
+
+// --- Network audit log (§7, phase 1.22) ---
+
+ipcMain.handle(Channels.AuditLogList, () => networkAuditLog.list());
+ipcMain.handle(Channels.AuditLogClear, () => networkAuditLog.clear());
 
 // --- App ---
 

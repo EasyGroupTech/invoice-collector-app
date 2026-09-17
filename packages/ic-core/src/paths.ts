@@ -44,6 +44,14 @@ export function appLogFile(baseDir: string): string {
   return path.join(baseDir, 'logs', 'app.log');
 }
 
+/** §7's network audit log (phase 1.22) — same "one continuous file, not per-profile" reasoning
+ * as `appLogFile` above: a Collect run's own sequence of real outbound calls should read in
+ * order regardless of a profile switch mid-run. Unlike `appLogFile`, this one is always
+ * structured JSON (`audit-log.ts`'s own `AuditLogFile`), never free-text. */
+export function auditLogFile(baseDir: string): string {
+  return path.join(baseDir, 'logs', 'audit-log.json');
+}
+
 /** Advanced Settings (§7's HTTP retry policy today) — an app-behavior preference, not profile
  * data, so it lives here rather than in ProfilePaths: switching profiles shouldn't change how
  * retries behave. */

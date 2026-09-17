@@ -3,6 +3,7 @@ import {
   Channels,
   type ActivatePluginInput,
   type AdvancedSettings,
+  type AuditLogEntry,
   type AssignSessionInput,
   type ConfigImportResult,
   type CreateRecordInput,
@@ -121,6 +122,9 @@ contextBridge.exposeInMainWorld('api', {
 
   logsRead: (): Promise<LogReadResult> => ipcRenderer.invoke(Channels.LogsRead),
   logsDownload: (): Promise<FileExportResult> => ipcRenderer.invoke(Channels.LogsDownload),
+
+  auditLogList: (): Promise<AuditLogEntry[]> => ipcRenderer.invoke(Channels.AuditLogList),
+  auditLogClear: (): Promise<void> => ipcRenderer.invoke(Channels.AuditLogClear),
 
   openExternal: (url: string): Promise<void> => ipcRenderer.invoke(Channels.AppOpenExternal, url),
 
