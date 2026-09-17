@@ -19,6 +19,7 @@ import type { ConfigImportResult } from '../../src/config-export.js';
 import type { InvoiceHistoryRecord } from '../../src/invoice-history.js';
 import type { JobDoneEvent, JobHandle, JobProgressEvent } from '../../src/job-runner.js';
 import type { PluginInstallNeedsConfirmation, PluginInstallResult } from '../../src/plugin-install.js';
+import type { PluginUpdateCheckResult } from '../../src/plugin-update-check.js';
 import type { ProfileSummary } from '../../src/profiles.js';
 import type { SbomEntry } from '../../src/sbom-registry.js';
 
@@ -67,6 +68,7 @@ export const Channels = {
   PluginsEnable: 'plugins:enable',
   PluginsDisable: 'plugins:disable',
   PluginsDownloadAsset: 'plugins:downloadAsset',
+  PluginsCheckForUpdates: 'plugins:checkForUpdates',
 
   WizardResolveListData: 'wizard:resolveListData',
   WizardSuggestValues: 'wizard:suggestValues',
@@ -268,6 +270,13 @@ export interface DownloadPluginAssetInput {
   sessionTypeId: string;
 }
 
+/** `PluginsCheckForUpdates`'s return shape (§9, phase 1.23) — every currently-installed package,
+ * checked in one round-trip rather than one IPC call per row, keyed by packageId so the Plugins
+ * card can look a result up directly against what `PluginsListPackages` already rendered.
+ * Deliberately not triggered automatically on mount — see AuditLogList-style manual "Refresh"
+ * precedent — a background poll would burn a real caller's GitHub API rate limit for no reason. */
+export type PluginUpdateCheckResults = Record<string, PluginUpdateCheckResult>;
+
 export type RunCollectResult = JobHandle | { error: string };
 
 /** `filePath` is only set when `exported` is true — the user can cancel the native Save dialog,
@@ -316,6 +325,7 @@ export type {
   PluginInstallResult,
   PluginManifest,
   PluginSourceRecord,
+  PluginUpdateCheckResult,
   ProfileSummary,
   SbomEntry,
   Session,

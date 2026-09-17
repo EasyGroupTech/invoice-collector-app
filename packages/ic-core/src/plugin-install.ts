@@ -31,6 +31,22 @@ export type TrustTier = 'open-source' | 'unverified';
  * never read, so an empty file is enough. */
 const DISABLED_MARKER_FILENAME = 'disabled.marker';
 
+/**
+ * Phase 1.23's real prerequisite, confirmed live twice already (2.10.1's changelog in the private
+ * plugin-package repo): Node's ESM `import()` cache is keyed by the resolved `file://` URL, not
+ * by content — reinstalling a package at the same stable on-disk path within one long-running
+ * `ic-core` process silently keeps serving the *previous* import's cached module, even though the
+ * file on disk genuinely changed. A query-string suffix that changes on every real
+ * install/enable call forces a real cache miss (a well-established Node ESM hot-reload trick —
+ * the loader strips the query string when resolving the filesystem path, but keeps it as part of
+ * the module cache key), with no change to the on-disk layout or a restart needed. Deliberately
+ * *not* applied in `reloadInstalledPlugins()` below — that always runs in a fresh process at
+ * boot, where the cache is empty regardless, so there's nothing to bust and no behavior to change.
+ */
+function moduleUrlFor(packageDir: string, mainFile: string): string {
+  return `${pathToFileURL(path.join(packageDir, mainFile)).href}?updatedAt=${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
 export interface PluginInstallResult {
   status: 'installed';
   manifest: PluginManifest;
@@ -190,8 +206,7 @@ export async function installPlugin(
     // several implementations.
     let activationRequirement: PluginInstallResult['activationRequirement'];
     for (const implementation of manifest.implementations) {
-      const moduleUrl = pathToFileURL(path.join(finalDir, implementation.main)).href;
-      const loaded = await importModule(moduleUrl);
+      const loaded = await importModule(moduleUrlFor(finalDir, implementation.main));
       const plugin = loaded.default as SourcePlugin | DestinationPlugin;
       validateAndRegisterPlugin(implementation, plugin, options.registry, manifest.id, options.sessionsRegistry);
       if (!activationRequirement && plugin.activationRequirement) {
@@ -453,8 +468,7 @@ export async function enablePlugin(packageId: string, options: EnablePluginOptio
   }
 
   for (const implementation of manifest.implementations) {
-    const moduleUrl = pathToFileURL(path.join(packageDir, implementation.main)).href;
-    const loaded = await importModule(moduleUrl);
+    const loaded = await importModule(moduleUrlFor(packageDir, implementation.main));
     const plugin = loaded.default as SourcePlugin | DestinationPlugin;
     validateAndRegisterPlugin(implementation, plugin, options.registry, manifest.id, options.sessionsRegistry);
   }
