@@ -429,6 +429,14 @@ interface SessionsApi {
   // it there'd be no way for a device-code sign-in's own instructions to reach anyone driving it.
   create(sessionTypeId: string, input: unknown, signal?: AbortSignal, onProgress?: (message: string, data?: Record<string, unknown>) => void): Promise<Session>;
   reconnect(sessionId: string, signal?: AbortSignal, onProgress?: (message: string, data?: Record<string, unknown>) => void): Promise<Session>;
+  // Phase 1.21: re-runs create() against an EXISTING session with fresh, user-supplied input —
+  // unlike reconnect(), which only ever replays the input originally stored at create() time (or
+  // tries a silent refresh() first). For a session type whose own credential can go stale on its
+  // own terms (a secure line's embedded client secret with a real expiry, say) where the fix is a
+  // genuinely new credential, not a retry of the old one. Never tries refresh() first — the
+  // caller already has a fresh credential in hand. The new input replaces what's stored, so a
+  // later plain reconnect() uses it too.
+  rotate(sessionId: string, input: unknown, signal?: AbortSignal, onProgress?: (message: string, data?: Record<string, unknown>) => void): Promise<Session>;
 }
 ```
 
@@ -503,6 +511,14 @@ export interface SessionRequirement {
   // textSelect step needs a session to resolve its own dataSource, which doesn't exist yet at
   // this point in the flow. Closes the "custom session create() input" gap §8 used to leave open.
   createInputFields?: FieldDescriptor[];
+
+  // Phase 1.25, a real live-reported gap: connectInstructions naming a file the user has no way
+  // to actually get (Azure Billing's own onboarding script, "send this to your tenant admin" with
+  // no copy of it anywhere in reach). path is relative to this plugin's own installed package
+  // directory, bundled into its zip the same way compiled dist/*.js is; core resolves it itself
+  // against the *installed* package (never a renderer-supplied path) and renders a "Download
+  // {label}" button, backed by a real native Save dialog.
+  downloadableAsset?: { path: string; label: string };
 }
 ```
 

@@ -156,6 +156,19 @@ export interface SessionRequirement {
    * sources sharing one mailbox sign-in genuinely can collect different things.
    */
   allowSessionReuse?: boolean;
+  /**
+   * A static file this requirement's own `connectInstructions` refers to but can't be expected to
+   * already have on hand — e.g. Azure Billing's secure-line onboarding script, which
+   * `connectInstructions` tells the user to "send to your tenant administrator" with no way to
+   * actually get a copy of it. Real, live-reported gap: a plugin whose `connectInstructions` names
+   * a file but never gives the user one is a dead end, not a usable connection method. `path` is
+   * relative to this plugin's own installed package directory (bundled into the package's zip the
+   * same way its compiled `dist/*.js` is — see `tools/package-plugin.mjs` in a commercial plugin
+   * pack); core renders a "Download {label}" button in the connect panel, backed by a real native
+   * Save dialog, resolving `path` itself against the *installed* package (never a renderer-
+   * supplied path) so a plugin can only ever offer exactly the one file it declared here.
+   */
+  downloadableAsset?: { path: string; label: string };
 }
 
 /**
@@ -206,4 +219,23 @@ export interface SessionsApi {
    * report.
    */
   reconnect(sessionId: string, signal?: AbortSignal, onProgress?: (message: string, data?: Record<string, unknown>) => void): Promise<Session>;
+  /**
+   * Phase 1.21's session secret rotation — re-runs `create()` against an *existing* session's id
+   * with fresh, user-supplied input. Unlike `reconnect()`, which only ever replays whatever input
+   * was originally stored at `create()` time (or tries a silent `refresh()` renewal first), this
+   * is for a session type whose `create()` takes real structured input that can go stale on its
+   * own terms — e.g. a secure line carrying a client secret with a fixed expiry (§6.1's Azure
+   * Billing secure-line session) — where the fix is a genuinely *new* credential, not a retry of
+   * the old one. Swaps the new secret into the *same* session record, so every Source/Destination
+   * already built on it keeps working; no remove-and-recreate. Never tries a silent refresh
+   * first — the caller already has a fresh credential in hand, so there's nothing worth trying to
+   * avoid first. The newly-supplied input replaces whatever was stored before, so a later plain
+   * `reconnect()` (if `create()` ever needs replaying again) uses the new one too.
+   */
+  rotate(
+    sessionId: string,
+    input: unknown,
+    signal?: AbortSignal,
+    onProgress?: (message: string, data?: Record<string, unknown>) => void,
+  ): Promise<Session>;
 }

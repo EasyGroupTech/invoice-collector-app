@@ -286,6 +286,87 @@ describe('SessionsRegistry', () => {
     });
   });
 
+  describe('rotate() (phase 1.21 — session secret rotation)', () => {
+    it('calls create() with the fresh input, not whatever was originally stored', async () => {
+      const create = vi.fn(async (_ctx, input: unknown): Promise<SessionCreateResult> => ({
+        label: (input as { label: string; secureLine?: string }).label,
+        secret: { secureLine: (input as { secureLine?: string }).secureLine },
+      }));
+      registry.registerSessionPlugin(fakeSessionPlugin(CUSTOM_TYPE, { create }));
+      const api = registry.forPlugin('commercial-azure-plugin');
+      const created = await api.create(CUSTOM_TYPE, { label: 'Azure secure line', secureLine: 'ICSRC1:old' });
+      create.mockClear();
+
+      const rotated = await api.rotate(created.id, { label: 'Azure secure line', secureLine: 'ICSRC1:new' });
+
+      expect(create).toHaveBeenCalledWith(expect.anything(), { label: 'Azure secure line', secureLine: 'ICSRC1:new' }, expect.anything());
+      expect(rotated.id).toBe(created.id);
+      expect((await api.get(created.id))?.secret).toEqual({ secureLine: 'ICSRC1:new' });
+    });
+
+    it('never attempts a silent refresh() first, unlike reconnect()', async () => {
+      const refresh = vi.fn(async (): Promise<SessionRefreshResult> => ({ secret: { token: 'refreshed-token' } }));
+      registry.registerSessionPlugin(fakeSessionPlugin(BUILT_IN_TYPE, { refresh }));
+      const api = registry.forPlugin('ic-email-to-downloads');
+      const created = await api.create(BUILT_IN_TYPE, { label: 'Mailbox sign-in' });
+
+      await api.rotate(created.id, { label: 'Mailbox sign-in' });
+
+      expect(refresh).not.toHaveBeenCalled();
+    });
+
+    it('persists the new input, so a later plain reconnect() replays it, not the stale original', async () => {
+      let call = 0;
+      const create = vi.fn(async (_ctx, input: unknown): Promise<SessionCreateResult> => {
+        call += 1;
+        return { label: (input as { label: string }).label, secret: { seenInput: input, call } };
+      });
+      registry.registerSessionPlugin(fakeSessionPlugin(CUSTOM_TYPE, { create }));
+      const api = registry.forPlugin('commercial-azure-plugin');
+      const created = await api.create(CUSTOM_TYPE, { label: 'Azure secure line', secureLine: 'ICSRC1:old' });
+      await api.rotate(created.id, { label: 'Azure secure line', secureLine: 'ICSRC1:new' });
+
+      await api.reconnect(created.id);
+
+      expect((await api.get(created.id))?.secret).toEqual({ seenInput: { label: 'Azure secure line', secureLine: 'ICSRC1:new' }, call: 3 });
+    });
+
+    it('routes ctx.progress.report() calls to the caller-supplied onProgress', async () => {
+      const create = vi.fn(async (ctx: PluginContext, input: unknown): Promise<SessionCreateResult> => {
+        ctx.progress.report('validating secure line');
+        return { label: (input as { label: string }).label, secret: {} };
+      });
+      registry.registerSessionPlugin(fakeSessionPlugin(CUSTOM_TYPE, { create }));
+      const api = registry.forPlugin('commercial-azure-plugin');
+      const created = await api.create(CUSTOM_TYPE, { label: 'Azure secure line' });
+      const onProgress = vi.fn();
+
+      await api.rotate(created.id, { label: 'Azure secure line' }, undefined, onProgress);
+
+      expect(onProgress).toHaveBeenCalledWith('validating secure line');
+    });
+
+    it('rejects a session id that is not visible to the calling plugin', async () => {
+      registry.registerSessionPlugin(fakeSessionPlugin(CUSTOM_TYPE));
+      const creator = registry.forPlugin('commercial-azure-plugin');
+      const created = await creator.create(CUSTOM_TYPE, { label: 'Azure secure line' });
+
+      const other = registry.forPlugin('some-other-plugin');
+      await expect(other.rotate(created.id, { label: 'Azure secure line' })).rejects.toThrow(/session not found/i);
+    });
+
+    it('rejects a sessionTypeId with no registered SessionPlugin', async () => {
+      registry.registerSessionPlugin(fakeSessionPlugin(CUSTOM_TYPE));
+      const api = registry.forPlugin('commercial-azure-plugin');
+      const created = await api.create(CUSTOM_TYPE, { label: 'Azure secure line' });
+      registry.stopScheduler();
+      const freshRegistry = createSessionsRegistry({ filePath, encryptor: fakeEncryptor, createPluginServices: stubPluginServices });
+
+      await expect(freshRegistry.forPlugin('commercial-azure-plugin').rotate(created.id, {})).rejects.toThrow(/no sessionplugin registered/i);
+      freshRegistry.stopScheduler();
+    });
+  });
+
   describe('listAll (internal, for core\'s own Sessions UI)', () => {
     it('returns every session regardless of which plugin created it', async () => {
       registry.registerSessionPlugin(fakeSessionPlugin(BUILT_IN_TYPE));

@@ -45,6 +45,7 @@ import {
   type AssignSessionInput,
   type CreateRecordInput,
   type CreateSessionInput,
+  type DownloadPluginAssetInput,
   type ExportInvoiceRowsInput,
   type ExportReportInput,
   type InstallPluginInput,
@@ -53,6 +54,7 @@ import {
   type RemoveRecordInput,
   type RenameSessionInput,
   type ResolveWizardListDataInput,
+  type RotateSessionInput,
   type RunCollectInput,
   type SuggestSessionLabelInput,
   type SuggestSourceNameInput,
@@ -424,6 +426,17 @@ ipcMain.handle(Channels.SessionsRefresh, (_event, input: ReconnectSessionInput) 
   sessionsRegistry.recoverSession(input.pluginId, input.sessionId),
 );
 
+// Phase 1.21 — always interactive (unlike SessionsRefresh, and unlike SessionsReconnect's own
+// silent-refresh-first behavior): the caller already has fresh input in hand, so job-wrapped the
+// same way SessionsCreate/SessionsReconnect are, for the same cancellable-with-progress reasons.
+ipcMain.handle(Channels.SessionsRotate, (_event, input: RotateSessionInput) => {
+  return jobRunner.runJob('session-rotate', async (report, signal) =>
+    sessionsRegistry
+      .forPlugin(input.pluginId)
+      .rotate(input.sessionId, input.input, signal, (message, data) => report({ message, data })),
+  );
+});
+
 // A user-facing Logout only clears stored credentials — it doesn't delete the session record
 // (FlowsDelete's own cascade is the only thing that does that, once nothing references it).
 ipcMain.handle(Channels.SessionsLogout, (_event, sessionId: string) => sessionsRegistry.logoutSession(sessionId));
@@ -556,6 +569,32 @@ ipcMain.handle(Channels.PluginsEnable, (_event, packageId: string) =>
     sessionsRegistry,
   }),
 );
+
+// §6's downloadableAsset (real gap live-reported: connectInstructions naming a file the user has
+// no way to actually get) — path resolved entirely server-side from the already-loaded plugin's
+// own declared requirement, never from a renderer-supplied path, and the resolved absolute path
+// is double-checked to still land inside that package's own directory before ever reading it.
+ipcMain.handle(Channels.PluginsDownloadAsset, async (_event, input: DownloadPluginAssetInput) => {
+  const plugin = pluginRegistry.get(input.pluginId);
+  const requirement = plugin?.sessionRequirements.find((r) => r.sessionTypeId === input.sessionTypeId);
+  const asset = requirement?.downloadableAsset;
+  if (!asset) throw new Error(`Plugin "${input.pluginId}" has no downloadable asset for session type "${input.sessionTypeId}"`);
+
+  const packageId = pluginRegistry.getPackageId(input.pluginId);
+  if (!packageId) throw new Error(`Plugin "${input.pluginId}" is not installed`);
+  const packageDir = path.join(pluginsDir(app.getPath('userData')), packageId);
+  const absolutePath = path.join(packageDir, asset.path);
+  if (path.relative(packageDir, absolutePath).startsWith('..')) {
+    throw new Error(`Plugin "${input.pluginId}" declared an invalid downloadableAsset path`);
+  }
+
+  const content = await readFile(absolutePath);
+  const result = await dialog.showSaveDialog(mainWindow!, { defaultPath: path.basename(asset.path) });
+  if (result.canceled || !result.filePath) return { exported: false };
+
+  await writeFile(result.filePath, content);
+  return { exported: true, filePath: result.filePath };
+});
 
 // --- Wizard ---
 

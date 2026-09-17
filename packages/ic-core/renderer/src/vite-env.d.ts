@@ -12,6 +12,7 @@ import type {
   ConfigImportResult,
   CreateRecordInput,
   CreateSessionInput,
+  DownloadPluginAssetInput,
   EncryptedConfigExportFile,
   ExportInvoiceRowsInput,
   ExportReportInput,
@@ -33,6 +34,7 @@ import type {
   RemoveRecordInput,
   RenameSessionInput,
   ResolveWizardListDataInput,
+  RotateSessionInput,
   RunCollectInput,
   RunCollectResult,
   SbomEntry,
@@ -69,6 +71,7 @@ declare global {
       sessionsReconnect(input: ReconnectSessionInput): Promise<JobHandle>;
       sessionsRefresh(input: ReconnectSessionInput): Promise<Session>;
       sessionsLogout(sessionId: string): Promise<void>;
+      sessionsRotate(input: RotateSessionInput): Promise<JobHandle>;
       sessionsSuggestLabel(input: SuggestSessionLabelInput): Promise<string | undefined>;
       sessionsRename(input: RenameSessionInput): Promise<Session>;
 
@@ -79,6 +82,7 @@ declare global {
       pluginsUninstall(pluginId: string): Promise<void>;
       pluginsDisable(packageId: string): Promise<void>;
       pluginsEnable(packageId: string): Promise<void>;
+      pluginsDownloadAsset(input: DownloadPluginAssetInput): Promise<FileExportResult>;
 
       wizardResolveListData(input: ResolveWizardListDataInput): Promise<WizardListDataResult>;
       wizardSuggestValues(input: SuggestWizardValuesInput): Promise<Record<string, unknown> | undefined>;

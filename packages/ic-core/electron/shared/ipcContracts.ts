@@ -52,6 +52,7 @@ export const Channels = {
   SessionsReconnect: 'sessions:reconnect',
   SessionsRefresh: 'sessions:refresh',
   SessionsLogout: 'sessions:logout',
+  SessionsRotate: 'sessions:rotate',
   SessionsSuggestLabel: 'sessions:suggestLabel',
   SessionsRename: 'sessions:rename',
 
@@ -64,6 +65,7 @@ export const Channels = {
   PluginsUninstall: 'plugins:uninstall',
   PluginsEnable: 'plugins:enable',
   PluginsDisable: 'plugins:disable',
+  PluginsDownloadAsset: 'plugins:downloadAsset',
 
   WizardResolveListData: 'wizard:resolveListData',
   WizardSuggestValues: 'wizard:suggestValues',
@@ -156,6 +158,14 @@ export interface ReconnectSessionInput {
   sessionId: string;
 }
 
+/** Phase 1.21's session secret rotation — `SessionsApi.rotate`'s own IPC shape: `ReconnectSessionInput`
+ * plus the fresh, user-supplied `input` `create()` gets re-run with. */
+export interface RotateSessionInput {
+  pluginId: string;
+  sessionId: string;
+  input: unknown;
+}
+
 /** §6's "friendly session name" follow-up — see `SessionLabelSuggester` in the SDK for what the
  * plugin side of this actually does. */
 export interface SuggestSessionLabelInput {
@@ -242,6 +252,16 @@ export interface InstalledPluginSummary {
 export interface InstalledPluginPackageSummary {
   manifest: PluginManifest;
   enabled: boolean;
+}
+
+/** `PluginsDownloadAsset`'s own input — identifies the exact `SessionRequirement` by
+ * `sessionTypeId` rather than trusting a renderer-supplied file path: main resolves
+ * `downloadableAsset.path` itself, from the already-loaded, already-vetted plugin's own
+ * declared requirement, so a caller can only ever ask for exactly the one file a plugin
+ * actually offered — never an arbitrary path. */
+export interface DownloadPluginAssetInput {
+  pluginId: string;
+  sessionTypeId: string;
 }
 
 export type RunCollectResult = JobHandle | { error: string };
