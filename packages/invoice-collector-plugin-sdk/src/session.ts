@@ -156,6 +156,19 @@ export interface SessionRequirement {
    * sources sharing one mailbox sign-in genuinely can collect different things.
    */
   allowSessionReuse?: boolean;
+  /**
+   * A static file this requirement's own `connectInstructions` refers to but can't be expected to
+   * already have on hand — e.g. Azure Billing's secure-line onboarding script, which
+   * `connectInstructions` tells the user to "send to your tenant administrator" with no way to
+   * actually get a copy of it. Real, live-reported gap: a plugin whose `connectInstructions` names
+   * a file but never gives the user one is a dead end, not a usable connection method. `path` is
+   * relative to this plugin's own installed package directory (bundled into the package's zip the
+   * same way its compiled `dist/*.js` is — see `tools/package-plugin.mjs` in a commercial plugin
+   * pack); core renders a "Download {label}" button in the connect panel, backed by a real native
+   * Save dialog, resolving `path` itself against the *installed* package (never a renderer-
+   * supplied path) so a plugin can only ever offer exactly the one file it declared here.
+   */
+  downloadableAsset?: { path: string; label: string };
 }
 
 /**

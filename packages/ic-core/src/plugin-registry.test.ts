@@ -211,6 +211,29 @@ describe('PluginRegistry', () => {
     });
   });
 
+  describe('getPackageId (§6\'s downloadableAsset — resolving an installed package\'s own on-disk directory)', () => {
+    it('resolves an implementation back to its own package id', () => {
+      const registry = createPluginRegistry();
+      registry.register(fakeSourcePlugin('tech.easygroup.source.azure-billing'), 'plugin-azure-billing');
+
+      expect(registry.getPackageId('tech.easygroup.source.azure-billing')).toBe('plugin-azure-billing');
+    });
+
+    it('is undefined for an implementation id that was never registered', () => {
+      const registry = createPluginRegistry();
+      expect(registry.getPackageId('does-not-exist')).toBeUndefined();
+    });
+
+    it('unregistering the implementation clears its package id too', () => {
+      const registry = createPluginRegistry();
+      registry.register(fakeSourcePlugin('tech.easygroup.source.azure-billing'), 'plugin-azure-billing');
+
+      registry.unregister('tech.easygroup.source.azure-billing');
+
+      expect(registry.getPackageId('tech.easygroup.source.azure-billing')).toBeUndefined();
+    });
+  });
+
   describe('siblingImplementationIds (§9.1/§15 activation fan-out)', () => {
     it('returns just the one implementation for a single-implementation package', () => {
       const registry = createPluginRegistry();

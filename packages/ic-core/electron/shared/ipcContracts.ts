@@ -65,6 +65,7 @@ export const Channels = {
   PluginsUninstall: 'plugins:uninstall',
   PluginsEnable: 'plugins:enable',
   PluginsDisable: 'plugins:disable',
+  PluginsDownloadAsset: 'plugins:downloadAsset',
 
   WizardResolveListData: 'wizard:resolveListData',
   WizardSuggestValues: 'wizard:suggestValues',
@@ -251,6 +252,16 @@ export interface InstalledPluginSummary {
 export interface InstalledPluginPackageSummary {
   manifest: PluginManifest;
   enabled: boolean;
+}
+
+/** `PluginsDownloadAsset`'s own input — identifies the exact `SessionRequirement` by
+ * `sessionTypeId` rather than trusting a renderer-supplied file path: main resolves
+ * `downloadableAsset.path` itself, from the already-loaded, already-vetted plugin's own
+ * declared requirement, so a caller can only ever ask for exactly the one file a plugin
+ * actually offered — never an arbitrary path. */
+export interface DownloadPluginAssetInput {
+  pluginId: string;
+  sessionTypeId: string;
 }
 
 export type RunCollectResult = JobHandle | { error: string };

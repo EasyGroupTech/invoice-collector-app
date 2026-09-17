@@ -511,6 +511,14 @@ export interface SessionRequirement {
   // textSelect step needs a session to resolve its own dataSource, which doesn't exist yet at
   // this point in the flow. Closes the "custom session create() input" gap §8 used to leave open.
   createInputFields?: FieldDescriptor[];
+
+  // Phase 1.25, a real live-reported gap: connectInstructions naming a file the user has no way
+  // to actually get (Azure Billing's own onboarding script, "send this to your tenant admin" with
+  // no copy of it anywhere in reach). path is relative to this plugin's own installed package
+  // directory, bundled into its zip the same way compiled dist/*.js is; core resolves it itself
+  // against the *installed* package (never a renderer-supplied path) and renders a "Download
+  // {label}" button, backed by a real native Save dialog.
+  downloadableAsset?: { path: string; label: string };
 }
 ```
 

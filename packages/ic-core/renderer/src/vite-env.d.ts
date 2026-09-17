@@ -12,6 +12,7 @@ import type {
   ConfigImportResult,
   CreateRecordInput,
   CreateSessionInput,
+  DownloadPluginAssetInput,
   EncryptedConfigExportFile,
   ExportInvoiceRowsInput,
   ExportReportInput,
@@ -81,6 +82,7 @@ declare global {
       pluginsUninstall(pluginId: string): Promise<void>;
       pluginsDisable(packageId: string): Promise<void>;
       pluginsEnable(packageId: string): Promise<void>;
+      pluginsDownloadAsset(input: DownloadPluginAssetInput): Promise<FileExportResult>;
 
       wizardResolveListData(input: ResolveWizardListDataInput): Promise<WizardListDataResult>;
       wizardSuggestValues(input: SuggestWizardValuesInput): Promise<Record<string, unknown> | undefined>;

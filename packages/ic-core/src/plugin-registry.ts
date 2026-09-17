@@ -47,6 +47,12 @@ export interface PluginRegistry {
   /** Resolves an implementation's own pluginId back to the install URL of the package it belongs
    * to — undefined if that implementation isn't registered, or its package was never given one. */
   getInstallUrl(pluginId: string): string | undefined;
+  /** Resolves an implementation's own pluginId back to the *id* of the package it belongs to —
+   * undefined if that implementation isn't registered. Backs `PluginsDownloadAsset` (§6's
+   * `downloadableAsset`): the installed package's own on-disk directory is
+   * `<pluginsDir>/<packageId>/`, and a `SessionRequirement.downloadableAsset.path` is relative to
+   * exactly that, not to the implementation id (which never appears in the on-disk layout at all). */
+  getPackageId(pluginId: string): string | undefined;
   /** Every implementation id (including `pluginId` itself) registered under the same package as
    * `pluginId` — just `[pluginId]` for a single-implementation package, or one not registered at
    * all. Backs activation's own fan-out storage (§9.1/§15) — a package bundling more than one
@@ -125,6 +131,10 @@ export function createPluginRegistry(): PluginRegistry {
       const packageId = packageIdByImplementationId.get(pluginId);
       if (!packageId) return undefined;
       return installUrlByPackageId.get(packageId);
+    },
+
+    getPackageId(pluginId) {
+      return packageIdByImplementationId.get(pluginId);
     },
 
     siblingImplementationIds(pluginId) {

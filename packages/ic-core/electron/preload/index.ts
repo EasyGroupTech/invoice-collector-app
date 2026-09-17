@@ -7,6 +7,7 @@ import {
   type ConfigImportResult,
   type CreateRecordInput,
   type CreateSessionInput,
+  type DownloadPluginAssetInput,
   type EncryptedConfigExportFile,
   type ExportInvoiceRowsInput,
   type ExportReportInput,
@@ -90,6 +91,7 @@ contextBridge.exposeInMainWorld('api', {
   pluginsUninstall: (pluginId: string): Promise<void> => ipcRenderer.invoke(Channels.PluginsUninstall, pluginId),
   pluginsDisable: (packageId: string): Promise<void> => ipcRenderer.invoke(Channels.PluginsDisable, packageId),
   pluginsEnable: (packageId: string): Promise<void> => ipcRenderer.invoke(Channels.PluginsEnable, packageId),
+  pluginsDownloadAsset: (input: DownloadPluginAssetInput): Promise<FileExportResult> => ipcRenderer.invoke(Channels.PluginsDownloadAsset, input),
 
   wizardResolveListData: (input: ResolveWizardListDataInput): Promise<WizardListDataResult> =>
     ipcRenderer.invoke(Channels.WizardResolveListData, input),

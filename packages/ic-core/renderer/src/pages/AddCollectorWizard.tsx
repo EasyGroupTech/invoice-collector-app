@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { PluginBackedRecord, Session } from 'invoice-collector-plugin-sdk';
+import { Download } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { DeviceCodeSignInPrompt } from '@/components/DeviceCodeSignInPrompt';
@@ -184,10 +185,27 @@ function ConnectPanel({ plugin, requirement, onConnected, onCancel }: ConnectPan
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [succeeded]);
 
+  async function downloadAsset() {
+    if (!requirement.downloadableAsset) return;
+    try {
+      const result = await window.api.pluginsDownloadAsset({ pluginId: plugin.manifest.id, sessionTypeId: requirement.sessionTypeId });
+      if (result.exported) toast.success(`Saved to ${result.filePath}`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : String(err));
+    }
+  }
+
   return (
     <div className="flex flex-col gap-3 rounded-lg border p-4">
       <p className="text-sm font-medium">{plugin.manifest.name}</p>
       <p className="text-sm text-muted-foreground">{requirement.connectInstructions}</p>
+
+      {requirement.downloadableAsset && !succeeded && (
+        <Button type="button" variant="outline" size="sm" className="w-fit" onClick={() => void downloadAsset()}>
+          <Download />
+          Download {requirement.downloadableAsset.label}
+        </Button>
+      )}
 
       {hasFields && !succeeded && (
         <WizardSteps
