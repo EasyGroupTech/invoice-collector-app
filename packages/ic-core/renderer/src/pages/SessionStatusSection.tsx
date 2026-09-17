@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { Session } from 'invoice-collector-plugin-sdk';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { ChevronDown, ChevronRight, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -42,7 +42,10 @@ type BusyAction = 'login' | 'refresh' | 'logout' | 'rotate';
  *   secure-line client secret, which has a real expiry `reconnect()` alone can't fix by itself,
  *   since it only ever replays the *old*, now-expired input). Every session type without
  *   `createInputFields` (a device-code sign-in, a captured browser session) has nothing for this
- *   to collect, so no Rotate button shows at all — Login already covers those.
+ *   to collect, so no Rotate button shows at all — Login already covers those. Also shows the
+ *   same `downloadableAsset` "Download {label}" button `ConnectPanel` shows at fresh-create time
+ *   (phase 1.25), when the plugin declared one — rotating because a secret expired needs a *new*
+ *   one from the exact same script that set it up in the first place, not just the paste field.
  *
  * Collapsed by default like `PluginsSection`; the card description is always a plain status
  * summary (active vs. needing attention), both collapsed and expanded — no per-row Type/Expires
@@ -80,16 +83,37 @@ export function SessionStatusSection({ refreshKey }: SessionStatusSectionProps) 
     void window.api.pluginsList().then(setAllPlugins);
   }, [refreshKey]);
 
-  // The Add-Collector wizard's own ConnectPanel renders this exact form at fresh-create time —
-  // any installed plugin whose SessionRequirement names this session's type and declares
-  // createInputFields is what Rotate re-collects, since that's the only real structured input a
-  // custom session type's create() ever takes.
-  function createInputFieldsFor(session: Session) {
+  // The one SessionRequirement (across every installed plugin) whose sessionTypeId matches this
+  // session's own type — backs both createInputFieldsFor (the form Rotate re-collects) and
+  // downloadableAssetFor (the same "Download {label}" button ConnectPanel shows at fresh-create
+  // time, e.g. Azure Billing's onboarding script — needed here too, since rotating because a
+  // secret expired needs a *new* one from the exact same script).
+  function requirementFor(session: Session) {
     for (const plugin of allPlugins) {
       const requirement = plugin.sessionRequirements.find((r) => r.sessionTypeId === session.sessionTypeId);
-      if (requirement?.createInputFields?.length) return requirement.createInputFields;
+      if (requirement) return requirement;
     }
     return undefined;
+  }
+
+  function createInputFieldsFor(session: Session) {
+    const fields = requirementFor(session)?.createInputFields;
+    return fields?.length ? fields : undefined;
+  }
+
+  function downloadableAssetFor(session: Session) {
+    return requirementFor(session)?.downloadableAsset;
+  }
+
+  async function downloadAsset(session: Session) {
+    const asset = downloadableAssetFor(session);
+    if (!asset) return;
+    try {
+      const result = await window.api.pluginsDownloadAsset({ pluginId: session.createdByPluginId, sessionTypeId: session.sessionTypeId });
+      if (result.exported) toast.success(`Saved to ${result.filePath}`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : String(err));
+    }
   }
 
   async function login(session: Session) {
@@ -271,6 +295,12 @@ export function SessionStatusSection({ refreshKey }: SessionStatusSectionProps) 
               <DialogTitle>Rotate {rotateTarget.label}</DialogTitle>
             </DialogHeader>
             <fieldset disabled={busySessionId !== undefined} className="flex flex-col gap-3">
+              {downloadableAssetFor(rotateTarget) && (
+                <Button type="button" variant="outline" size="sm" className="w-fit" onClick={() => void downloadAsset(rotateTarget)}>
+                  <Download />
+                  Download {downloadableAssetFor(rotateTarget)?.label}
+                </Button>
+              )}
               <WizardSteps
                 pluginId={rotateTarget.createdByPluginId}
                 steps={createInputFieldsFor(rotateTarget) ?? []}
