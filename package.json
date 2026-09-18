@@ -16,9 +16,9 @@
     "build": "npm run build -w invoice-collector-plugin-sdk && npm run build --workspaces --if-present",
     "test": "vitest run",
     "lint": "eslint .",
-    "generate-sbom:ic-core": "generate-sbom --workspace ic-core --output packages/ic-core/sbom.cdx.json",
-    "generate-sbom:sdk": "generate-sbom --workspace invoice-collector-plugin-sdk --output packages/invoice-collector-plugin-sdk/sbom.cdx.json",
-    "generate-sbom:email-to-downloads": "generate-sbom --workspace ic-email-to-downloads --output packages/ic-email-to-downloads/sbom.cdx.json",
+    "generate-sbom:ic-core": "node node_modules/invoice-collector-plugin-sdk/dist/generate-sbom-cli.js --workspace ic-core --output packages/ic-core/sbom.cdx.json",
+    "generate-sbom:sdk": "node node_modules/invoice-collector-plugin-sdk/dist/generate-sbom-cli.js --workspace invoice-collector-plugin-sdk --output packages/invoice-collector-plugin-sdk/sbom.cdx.json",
+    "generate-sbom:email-to-downloads": "node node_modules/invoice-collector-plugin-sdk/dist/generate-sbom-cli.js --workspace ic-email-to-downloads --output packages/ic-email-to-downloads/sbom.cdx.json",
     "package": "npm run build && npm run generate-sbom:ic-core && npm run generate-sbom:email-to-downloads && npm run build:app -w ic-core && npm run package -w ic-core",
     "package:plugin": "npm run build && npm run generate-sbom:email-to-downloads && npm run package -w ic-email-to-downloads"
   },
