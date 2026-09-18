@@ -4,6 +4,14 @@ name: Release SDK
 # — the SDK is the rarest-changing of the three, published to npm on its own tag prefix so it
 # never has to wait on (or drag along) a core or plugin release. sdk-vX.Y.Z only ever publishes to
 # npm; there's no GitHub Release for it — npm is its real distribution channel.
+#
+# Publishes via npm's own Trusted Publishing (OIDC) — no NPM_TOKEN secret at all, nothing to leak
+# or rotate. Requires the package to already exist on the registry first (npm's own real
+# limitation, unlike PyPI: trusted publishing can't be configured for a name that's never been
+# published) — the very first sdk-v* release is a one-time manual `npm publish` from the
+# maintainer's own machine; every one after this is configured, at
+# https://www.npmjs.com/package/invoice-collector-plugin-sdk/access, to trust exactly this repo +
+# this workflow file.
 on:
   push:
     tags:
@@ -14,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      id-token: write # required for --provenance
+      id-token: write # required for OIDC trusted publishing (and the provenance attestation it produces automatically)
     steps:
       - uses: actions/checkout@v4
 
@@ -29,10 +37,8 @@ jobs:
       - run: npm run build -w invoice-collector-plugin-sdk
       - run: npm test -w invoice-collector-plugin-sdk
 
-      # prepack (package.json's own hook) copies the root LICENSE in; --provenance attaches a
-      # real Sigstore-backed build provenance attestation to the published package, the npm-side
-      # equivalent of the GitHub Artifact Attestation §9.1 already requires for an installed
-      # plugin's own zip.
-      - run: npm publish -w invoice-collector-plugin-sdk --access public --provenance
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      # prepack (package.json's own hook) copies the root LICENSE in. No NODE_AUTH_TOKEN — the
+      # npm CLI (11.5.1+, bundled with this Node version) auto-detects the OIDC environment and
+      # authenticates via the trusted-publisher config instead; it also generates and publishes
+      # a real provenance attestation automatically, with no --provenance flag needed.
+      - run: npm publish -w invoice-collector-plugin-sdk --access public
