@@ -5,9 +5,11 @@ from cloud services and email, and archiving them to a destination like a shared
 around a plugin architecture so new sources and destinations can be added without changing the core
 app at all.
 
-**Status: early development.** This repo currently contains the project's monorepo scaffold and
-core design decisions — not yet a working application. See [Development](#development) for what
-actually runs today, and [Packages](#packages) for what each piece is meant to become.
+## Download
+
+Grab the latest installer for your OS from the [Releases page](https://github.com/EasyGroupTech/invoice-collector-app/releases) — look for the plain `vX.Y.Z` tag (that's the app itself; `sdk-v*`/`plugin-v*` tags are separate, independently-released components, below).
+
+**Windows note**: the Windows build isn't code-signed yet (no signing backend is set up — see `docs/implementation-plan.md`'s own `§0` for the real status), so Windows SmartScreen will warn on first run. macOS builds are properly signed and notarized.
 
 ## Why a plugin architecture
 
@@ -38,11 +40,15 @@ This is an npm-workspaces monorepo.
   interface: types for building a source or destination plugin, the shared Session concept
   (connections plugins can establish and, in some cases, reuse across each other), and one built-in
   session implementation (OAuth2 delegated device-code) plugin authors can depend on instead of
-  writing their own. Published to npm so any plugin — open source or commercial — can build against
-  it.
+  writing their own. [Published to npm](https://www.npmjs.com/package/invoice-collector-plugin-sdk)
+  so any plugin — open source or commercial — can build against it: `npm install --save-dev
+  invoice-collector-plugin-sdk`.
 - **[`packages/ic-email-to-downloads`](packages/ic-email-to-downloads)** — the reference plugin:
   scans a mailbox for invoice attachments and saves them to a local folder. Ships bundled with the
-  packaged app, and doubles as a real, complete example for anyone writing their own plugin.
+  packaged app (installed automatically on first launch), and is also released independently as
+  its own downloadable plugin bundle (the `plugin-v*` tags) so it can be updated without a full
+  app release, or installed manually into a build that doesn't already have it. Doubles as a
+  real, complete example for anyone writing their own plugin.
 
 ## Development
 
@@ -52,11 +58,13 @@ npm run typecheck   # across all three packages
 npm run build        # across all three packages
 npm test              # across all three packages
 npm run lint
+npm run electron:dev -w ic-core   # run the app itself, unpackaged
 ```
 
-There's no functional app to run yet — each package is currently a placeholder proving the
-workspace/typecheck/build/test/lint pipeline works end to end. Real functionality lands
-incrementally; this section will grow real run/dev instructions as it does.
+To build real installers locally: `npm run package` (mac/Windows app bundle, mac signed +
+notarized if you have the right Apple Developer credentials on this machine) or `npm run
+package:plugin` (the reference plugin's own standalone zip). CI does the same thing for real,
+tag-triggered releases — see `.github/workflows/release-*.yml`.
 
 ## License
 

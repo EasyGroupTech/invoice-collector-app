@@ -78,12 +78,20 @@ const IC_CORE_SBOM_PATH = path.join(__dirname, '../../sbom.cdx.json');
 // `(void 0).resolve`, a real, confirmed-live failure (not a hypothetical), while `require` is a
 // genuine working global in CJS output, further confirmed by externalizeDepsPlugin() already
 // compiling this package's own `import ... from 'invoice-collector-plugin-sdk'` to a real require().
-const SDK_SBOM_PATH = path.join(path.dirname(require.resolve('invoice-collector-plugin-sdk/package.json')), 'sbom.cdx.json');
+const SDK_PACKAGE_JSON_PATH = require.resolve('invoice-collector-plugin-sdk/package.json');
+const SDK_SBOM_PATH = path.join(path.dirname(SDK_PACKAGE_JSON_PATH), 'sbom.cdx.json');
 
-// §0 item 3: invoice-collector-plugin-sdk isn't published yet, so there's no real released
-// version to compare a plugin's pluginApiVersion range against — every package here is still
-// 0.0.0 pre-release. Revisit once the SDK has an actual first published version.
-const CORE_SDK_VERSION = '0.0.0';
+// Derived from the real SDK package.json, not a hand-maintained literal — a version this repo's
+// own release process (phase 1.19) previously had to remember to bump by hand every time the SDK
+// changed, with nothing catching a stale value. Since ic-core always resolves the SDK via real
+// Node module resolution (the npm workspace symlink today, a real installed copy in a packaged
+// build), this is always the exact version core was actually built against, whether or not that
+// version has ever been published to npm.
+// A plain JSON read, not a module import; `require` is the genuine, working global in this
+// file's CJS output (see SDK_SBOM_PATH's own doc comment above for why `import.meta.resolve`
+// isn't an option here).
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const CORE_SDK_VERSION: string = (require(SDK_PACKAGE_JSON_PATH) as { version: string }).version;
 
 // Distinct identity for unpackaged runs (electron:dev) so userData and safeStorage/keychain never
 // collide with a packaged install — must run before any app.getPath()/safeStorage call, so before

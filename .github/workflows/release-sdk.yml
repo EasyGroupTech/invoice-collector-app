@@ -1,0 +1,38 @@
+name: Release SDK
+
+# §11's own "three distinct outputs, versioned independently" design (docs/architecture-design.md)
+# — the SDK is the rarest-changing of the three, published to npm on its own tag prefix so it
+# never has to wait on (or drag along) a core or plugin release. sdk-vX.Y.Z only ever publishes to
+# npm; there's no GitHub Release for it — npm is its real distribution channel.
+on:
+  push:
+    tags:
+      - 'sdk-v*'
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # required for --provenance
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          registry-url: 'https://registry.npmjs.org'
+
+      - run: npm ci
+      - run: npm run typecheck -w invoice-collector-plugin-sdk
+      - run: npm run build -w invoice-collector-plugin-sdk
+      - run: npm test -w invoice-collector-plugin-sdk
+
+      # prepack (package.json's own hook) copies the root LICENSE in; --provenance attaches a
+      # real Sigstore-backed build provenance attestation to the published package, the npm-side
+      # equivalent of the GitHub Artifact Attestation §9.1 already requires for an installed
+      # plugin's own zip.
+      - run: npm publish -w invoice-collector-plugin-sdk --access public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
