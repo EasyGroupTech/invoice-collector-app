@@ -12,7 +12,11 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          # Phase 1.18's own jsdom devDependency needs a newer Node than 20 (its bundled undici
+          # calls a webidl API only present from ~22.22/24.15 onward) — bumped rather than pinning
+          # an older jsdom to chase Node 20 compatibility, especially since Node 20 itself reached
+          # end-of-life in April 2026.
+          node-version: 22
           cache: npm
       - run: npm ci
       - run: npm run typecheck
