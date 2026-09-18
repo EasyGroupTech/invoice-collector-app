@@ -25,6 +25,15 @@ jobs:
 
       - run: npm ci
 
+      # Same reasoning as release-sdk.yml's own fix — don't trust whatever npm happens to ship
+      # bundled with this Node release. The real plugin-v0.1.0 tag push also hit a
+      # `generate-sbom: not found` failure right after this, on a runner where the exact same
+      # command chain worked fine locally — plausibly the same class of npm-version-dependent
+      # workspace-bin-resolution quirk, likely compounded by the SDK's own `bin` field having a
+      # leading `./` in its path (fixed alongside this — confirmed it also silently triggered a
+      # "was invalid and removed" warning at publish time, a real, separate but related bug).
+      - run: npm install -g npm@latest
+
       # Real, confirmed-live failure otherwise: ic-email-to-downloads depends on
       # invoice-collector-plugin-sdk via the npm workspace symlink, resolved against its *built*
       # dist/ output, not its source — `npm run typecheck -w ic-email-to-downloads` run on its

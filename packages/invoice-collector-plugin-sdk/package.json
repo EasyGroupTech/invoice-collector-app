@@ -14,7 +14,7 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
-    "generate-sbom": "./dist/generate-sbom-cli.js"
+    "generate-sbom": "dist/generate-sbom-cli.js"
   },
   "files": [
     "dist"
