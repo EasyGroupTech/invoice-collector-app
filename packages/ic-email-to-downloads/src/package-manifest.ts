@@ -11,8 +11,8 @@ import type { PluginManifest } from 'invoice-collector-plugin-sdk';
 export const PACKAGE_MANIFEST: PluginManifest = {
   id: 'app.easygroup.email-to-downloads',
   name: 'Microsoft Graph Email to Downloads',
-  version: '0.1.0',
-  pluginApiVersion: '^0.1.0',
+  version: '0.2.0',
+  pluginApiVersion: '^0.2.0',
   // Genuinely true — this bundled reference plugin lives in this same public repo (§2/§9).
   repository: 'https://github.com/EasyGroupTech/invoice-collector-app',
   sbom: 'sbom.cdx.json',

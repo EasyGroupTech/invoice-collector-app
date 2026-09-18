@@ -702,6 +702,31 @@ own "Network activity" section renders it with a "Copy as cURL" action built ent
 stored (already-redacted) entry — a redacted field shows up as the literal `[REDACTED]`
 placeholder, safe to paste anywhere as-is.
 
+### 7.1 `PdfApi` — a native-binding capability, provided by core, not bundled per plugin
+
+```ts
+interface PdfApi {
+  extractText(bytes: Uint8Array): Promise<string>;
+}
+```
+
+`ctx.pdf` (phase 1.19's own follow-up finding). PDF-to-text extraction needs a real parser
+(`pdf-parse`, wrapping `pdfjs-dist` + `@napi-rs/canvas`), and that parser ships a real, native,
+platform-specific binding — not something a WASM/pure-JS fallback exists for at the fidelity this
+needs. The reference plugin (`ic-email-to-downloads`) originally bundled `pdf-parse` as its own
+dependency; this broke its own standalone downloadable artifact (§11 item 2) outright on any
+platform other than whichever one happened to build a given release, since that artifact is built
+once, not once per platform the way the app itself is (§11's own per-platform mac/Windows CI
+matrix) — confirmed live, after the first real `plugin-v0.1.0` release, installing it on a
+different platform than the one that built it.
+
+The fix generalizes past this one plugin: any capability that needs a native, platform-specific
+binding belongs on `PluginContext`, implemented once by core (already built correctly per
+platform), rather than bundled separately by every plugin that needs it. A plugin author gets a
+working implementation for whatever platform core actually runs on, with zero native-binding
+packaging of their own to get right — and a plugin's own standalone artifact stays pure JS,
+installable on any platform unmodified.
+
 ## 8. UI extensibility & design consistency
 
 **Declarative descriptors only — no plugin-provided UI components, full stop.**

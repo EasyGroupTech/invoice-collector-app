@@ -3,9 +3,9 @@
   "bomFormat": "CycloneDX",
   "specVersion": "1.6",
   "version": 1,
-  "serialNumber": "urn:uuid:851585d1-763b-40ad-800a-8623742978af",
+  "serialNumber": "urn:uuid:6e7aceb1-325c-43b3-be0e-0adc425926ab",
   "metadata": {
-    "timestamp": "2026-09-17T15:42:08.344Z",
+    "timestamp": "2026-09-18T09:30:15.465Z",
     "tools": {
       "components": [
         {
@@ -98,8 +98,8 @@
     "component": {
       "type": "application",
       "name": "invoice-collector-app",
-      "version": "0.0.0",
-      "bom-ref": "invoice-collector-app@0.0.0",
+      "version": "0.2.0",
+      "bom-ref": "invoice-collector-app@0.2.0",
       "description": "Open-source core app, plugin SDK, and reference plugin for Invoice Collector",
       "licenses": [
         {
@@ -109,11 +109,11 @@
           }
         }
       ],
-      "purl": "pkg:npm/invoice-collector-app@0.0.0",
+      "purl": "pkg:npm/invoice-collector-app@0.2.0",
       "properties": [
         {
           "name": "cdx:npm:package:constraint:engine:node",
-          "value": ">=20"
+          "value": ">=22"
         },
         {
           "name": "cdx:npm:package:private",
@@ -130,8 +130,8 @@
     {
       "type": "library",
       "name": "ic-core",
-      "version": "0.0.0",
-      "bom-ref": "invoice-collector-app@0.0.0|ic-core@0.0.0",
+      "version": "0.2.0",
+      "bom-ref": "invoice-collector-app@0.2.0|ic-core@0.2.0",
       "description": "Invoice Collector core app shell — no built-in source/destination integrations",
       "licenses": [
         {
@@ -141,7 +141,7 @@
           }
         }
       ],
-      "purl": "pkg:npm/ic-core@0.0.0",
+      "purl": "pkg:npm/ic-core@0.2.0",
       "properties": [
         {
           "name": "cdx:npm:package:private",
@@ -158,7 +158,7 @@
       "name": "react-checkbox",
       "group": "@radix-ui",
       "version": "1.3.11",
-      "bom-ref": "invoice-collector-app@0.0.0|@radix-ui/react-checkbox@1.3.11",
+      "bom-ref": "invoice-collector-app@0.2.0|@radix-ui/react-checkbox@1.3.11",
       "licenses": [
         {
           "license": {
@@ -202,7 +202,7 @@
       "name": "react-dialog",
       "group": "@radix-ui",
       "version": "1.1.23",
-      "bom-ref": "invoice-collector-app@0.0.0|@radix-ui/react-dialog@1.1.23",
+      "bom-ref": "invoice-collector-app@0.2.0|@radix-ui/react-dialog@1.1.23",
       "licenses": [
         {
           "license": {
@@ -246,7 +246,7 @@
       "name": "react-dropdown-menu",
       "group": "@radix-ui",
       "version": "2.1.24",
-      "bom-ref": "invoice-collector-app@0.0.0|@radix-ui/react-dropdown-menu@2.1.24",
+      "bom-ref": "invoice-collector-app@0.2.0|@radix-ui/react-dropdown-menu@2.1.24",
       "licenses": [
         {
           "license": {
@@ -290,7 +290,7 @@
       "name": "react-label",
       "group": "@radix-ui",
       "version": "2.1.15",
-      "bom-ref": "invoice-collector-app@0.0.0|@radix-ui/react-label@2.1.15",
+      "bom-ref": "invoice-collector-app@0.2.0|@radix-ui/react-label@2.1.15",
       "licenses": [
         {
           "license": {
@@ -334,7 +334,7 @@
       "name": "react-scroll-area",
       "group": "@radix-ui",
       "version": "1.2.18",
-      "bom-ref": "invoice-collector-app@0.0.0|@radix-ui/react-scroll-area@1.2.18",
+      "bom-ref": "invoice-collector-app@0.2.0|@radix-ui/react-scroll-area@1.2.18",
       "licenses": [
         {
           "license": {
@@ -378,7 +378,7 @@
       "name": "react-select",
       "group": "@radix-ui",
       "version": "2.3.7",
-      "bom-ref": "invoice-collector-app@0.0.0|@radix-ui/react-select@2.3.7",
+      "bom-ref": "invoice-collector-app@0.2.0|@radix-ui/react-select@2.3.7",
       "licenses": [
         {
           "license": {
@@ -422,7 +422,7 @@
       "name": "react-separator",
       "group": "@radix-ui",
       "version": "1.1.15",
-      "bom-ref": "invoice-collector-app@0.0.0|@radix-ui/react-separator@1.1.15",
+      "bom-ref": "invoice-collector-app@0.2.0|@radix-ui/react-separator@1.1.15",
       "licenses": [
         {
           "license": {
@@ -466,7 +466,7 @@
       "name": "react-slot",
       "group": "@radix-ui",
       "version": "1.3.3",
-      "bom-ref": "invoice-collector-app@0.0.0|@radix-ui/react-slot@1.3.3",
+      "bom-ref": "invoice-collector-app@0.2.0|@radix-ui/react-slot@1.3.3",
       "licenses": [
         {
           "license": {
@@ -510,7 +510,7 @@
       "name": "react-tabs",
       "group": "@radix-ui",
       "version": "1.1.21",
-      "bom-ref": "invoice-collector-app@0.0.0|@radix-ui/react-tabs@1.1.21",
+      "bom-ref": "invoice-collector-app@0.2.0|@radix-ui/react-tabs@1.1.21",
       "licenses": [
         {
           "license": {
@@ -553,7 +553,7 @@
       "type": "library",
       "name": "class-variance-authority",
       "version": "0.7.1",
-      "bom-ref": "invoice-collector-app@0.0.0|class-variance-authority@0.7.1",
+      "bom-ref": "invoice-collector-app@0.2.0|class-variance-authority@0.7.1",
       "author": "Joe Bell",
       "description": "Class Variance Authority 🧬",
       "licenses": [
@@ -598,7 +598,7 @@
       "type": "library",
       "name": "clsx",
       "version": "2.1.1",
-      "bom-ref": "invoice-collector-app@0.0.0|clsx@2.1.1",
+      "bom-ref": "invoice-collector-app@0.2.0|clsx@2.1.1",
       "author": "Luke Edwards",
       "description": "A tiny (239B) utility for constructing className strings conditionally.",
       "licenses": [
@@ -647,7 +647,7 @@
       "type": "library",
       "name": "fflate",
       "version": "0.8.3",
-      "bom-ref": "invoice-collector-app@0.0.0|fflate@0.8.3",
+      "bom-ref": "invoice-collector-app@0.2.0|fflate@0.8.3",
       "author": "Arjun Barrett",
       "description": "High performance (de)compression in an 8kB package",
       "licenses": [
@@ -691,8 +691,9 @@
     {
       "type": "library",
       "name": "invoice-collector-plugin-sdk",
-      "version": "0.0.0",
-      "bom-ref": "invoice-collector-app@0.0.0|invoice-collector-plugin-sdk@0.0.0",
+      "version": "0.2.0",
+      "bom-ref": "invoice-collector-app@0.2.0|invoice-collector-plugin-sdk@0.2.0",
+      "author": "Mikhail Bobkov",
       "description": "Plugin interface/contract package for Invoice Collector — types, session contracts, declarative UI descriptor types, the microsoft-entra-delegated-device-code built-in session implementation, and the generate-sbom build helper",
       "licenses": [
         {
@@ -702,12 +703,25 @@
           }
         }
       ],
-      "purl": "pkg:npm/invoice-collector-plugin-sdk@0.0.0",
-      "properties": [
+      "purl": "pkg:npm/invoice-collector-plugin-sdk@0.2.0",
+      "externalReferences": [
         {
-          "name": "cdx:npm:package:private",
-          "value": "true"
+          "url": "git+https://github.com/EasyGroupTech/invoice-collector-app.git#packages/invoice-collector-plugin-sdk",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\" and \"repository.directory\""
         },
+        {
+          "url": "https://github.com/EasyGroupTech/invoice-collector-app/tree/main/packages/invoice-collector-plugin-sdk#readme",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/EasyGroupTech/invoice-collector-app/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        }
+      ],
+      "properties": [
         {
           "name": "cdx:npm:package:path",
           "value": "node_modules/invoice-collector-plugin-sdk"
@@ -718,7 +732,7 @@
       "type": "library",
       "name": "lucide-react",
       "version": "1.40.0",
-      "bom-ref": "invoice-collector-app@0.0.0|lucide-react@1.40.0",
+      "bom-ref": "invoice-collector-app@0.2.0|lucide-react@1.40.0",
       "author": "Eric Fennis",
       "description": "A Lucide icon library package for React applications.",
       "licenses": [
@@ -761,9 +775,58 @@
     },
     {
       "type": "library",
+      "name": "pdf-parse",
+      "version": "2.4.5",
+      "bom-ref": "invoice-collector-app@0.2.0|pdf-parse@2.4.5",
+      "author": "Mehmet Kozan",
+      "description": "Pure TypeScript, cross-platform module for extracting text, images, and tabular data from PDFs. Run directly in your browser or in Node!",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/pdf-parse@2.4.5",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/mehmet-kozan/pdf-parse.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://mehmet-kozan.github.io/pdf-parse/",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/mehmet-kozan/pdf-parse/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        },
+        {
+          "url": "https://registry.npmjs.org/pdf-parse/-/pdf-parse-2.4.5.tgz",
+          "type": "distribution",
+          "comment": "as detected from npm-ls property \"resolved\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:constraint:engine:node",
+          "value": ">=20.16.0 <21 || >=22.3.0"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/pdf-parse"
+        }
+      ]
+    },
+    {
+      "type": "library",
       "name": "react-dom",
       "version": "19.2.8",
-      "bom-ref": "invoice-collector-app@0.0.0|react-dom@19.2.8",
+      "bom-ref": "invoice-collector-app@0.2.0|react-dom@19.2.8",
       "description": "React package for working with the DOM.",
       "licenses": [
         {
@@ -807,7 +870,7 @@
       "type": "library",
       "name": "react",
       "version": "19.2.8",
-      "bom-ref": "invoice-collector-app@0.0.0|react@19.2.8",
+      "bom-ref": "invoice-collector-app@0.2.0|react@19.2.8",
       "description": "React is a JavaScript library for building user interfaces.",
       "licenses": [
         {
@@ -855,7 +918,7 @@
       "type": "library",
       "name": "semver",
       "version": "7.8.5",
-      "bom-ref": "invoice-collector-app@0.0.0|semver@7.8.5",
+      "bom-ref": "invoice-collector-app@0.2.0|semver@7.8.5",
       "author": "GitHub Inc.",
       "description": "The semantic version parser used by npm.",
       "licenses": [
@@ -904,7 +967,7 @@
       "type": "library",
       "name": "sigstore",
       "version": "4.1.1",
-      "bom-ref": "invoice-collector-app@0.0.0|sigstore@4.1.1",
+      "bom-ref": "invoice-collector-app@0.2.0|sigstore@4.1.1",
       "author": "bdehamer@github.com",
       "description": "code-signing for npm packages",
       "licenses": [
@@ -953,7 +1016,7 @@
       "type": "library",
       "name": "sonner",
       "version": "2.0.8",
-      "bom-ref": "invoice-collector-app@0.0.0|sonner@2.0.8",
+      "bom-ref": "invoice-collector-app@0.2.0|sonner@2.0.8",
       "author": "Emil Kowalski",
       "description": "An opinionated toast component for React.",
       "licenses": [
@@ -998,7 +1061,7 @@
       "type": "library",
       "name": "tailwind-merge",
       "version": "3.6.0",
-      "bom-ref": "invoice-collector-app@0.0.0|tailwind-merge@3.6.0",
+      "bom-ref": "invoice-collector-app@0.2.0|tailwind-merge@3.6.0",
       "author": "Dany Castillo",
       "description": "Merge Tailwind CSS classes without style conflicts",
       "licenses": [
@@ -1043,7 +1106,7 @@
       "type": "library",
       "name": "write-excel-file",
       "version": "4.1.1",
-      "bom-ref": "invoice-collector-app@0.0.0|write-excel-file@4.1.1",
+      "bom-ref": "invoice-collector-app@0.2.0|write-excel-file@4.1.1",
       "author": "catamphetamine",
       "description": "Write simple `*.xlsx` files in a browser or Node.js",
       "licenses": [
@@ -1093,7 +1156,7 @@
       "name": "primitive",
       "group": "@radix-ui",
       "version": "1.1.7",
-      "bom-ref": "invoice-collector-app@0.0.0|@radix-ui/primitive@1.1.7",
+      "bom-ref": "invoice-collector-app@0.2.0|@radix-ui/primitive@1.1.7",
       "licenses": [
         {
           "license": {
@@ -1137,7 +1200,7 @@
       "name": "react-compose-refs",
       "group": "@radix-ui",
       "version": "1.1.5",
-      "bom-ref": "invoice-collector-app@0.0.0|@radix-ui/react-compose-refs@1.1.5",
+      "bom-ref": "invoice-collector-app@0.2.0|@radix-ui/react-compose-refs@1.1.5",
       "licenses": [
         {
           "license": {
@@ -1181,7 +1244,7 @@
       "name": "react-context",
       "group": "@radix-ui",
       "version": "1.2.2",
-      "bom-ref": "invoice-collector-app@0.0.0|@radix-ui/react-context@1.2.2",
+      "bom-ref": "invoice-collector-app@0.2.0|@radix-ui/react-context@1.2.2",
       "licenses": [
         {
           "license": {
@@ -1225,7 +1288,7 @@
       "name": "react-presence",
       "group": "@radix-ui",
       "version": "1.1.10",
-      "bom-ref": "invoice-collector-app@0.0.0|@radix-ui/react-presence@1.1.10",
+      "bom-ref": "invoice-collector-app@0.2.0|@radix-ui/react-presence@1.1.10",
       "licenses": [
         {
           "license": {
@@ -1269,7 +1332,7 @@
       "name": "react-primitive",
       "group": "@radix-ui",
       "version": "2.1.10",
-      "bom-ref": "invoice-collector-app@0.0.0|@radix-ui/react-primitive@2.1.10",
+      "bom-ref": "invoice-collector-app@0.2.0|@radix-ui/react-primitive@2.1.10",
       "licenses": [
         {
           "license": {
@@ -1313,7 +1376,7 @@
       "name": "react-use-controllable-state",
       "group": "@radix-ui",
       "version": "1.2.6",
-      "bom-ref": "invoice-collector-app@0.0.0|@radix-ui/react-use-controllable-state@1.2.6",
+      "bom-ref": "invoice-collector-app@0.2.0|@radix-ui/react-use-controllable-state@1.2.6",
       "licenses": [
         {
           "license": {
@@ -1357,7 +1420,7 @@
       "name": "react-use-size",
       "group": "@radix-ui",
       "version": "1.1.4",
-      "bom-ref": "invoice-collector-app@0.0.0|@radix-ui/react-use-size@1.1.4",
+      "bom-ref": "invoice-collector-app@0.2.0|@radix-ui/react-use-size@1.1.4",
       "licenses": [
         {
           "license": {
@@ -1401,7 +1464,7 @@
       "name": "react-dom",
       "group": "@types",
       "version": "19.2.7",
-      "bom-ref": "invoice-collector-app@0.0.0|@types/react-dom@19.2.7",
+      "bom-ref": "invoice-collector-app@0.2.0|@types/react-dom@19.2.7",
       "description": "TypeScript definitions for react-dom",
       "licenses": [
         {
@@ -1446,7 +1509,7 @@
       "name": "react",
       "group": "@types",
       "version": "19.2.18",
-      "bom-ref": "invoice-collector-app@0.0.0|@types/react@19.2.18",
+      "bom-ref": "invoice-collector-app@0.2.0|@types/react@19.2.18",
       "description": "TypeScript definitions for react",
       "licenses": [
         {
@@ -1491,7 +1554,7 @@
       "name": "react-dismissable-layer",
       "group": "@radix-ui",
       "version": "1.1.19",
-      "bom-ref": "invoice-collector-app@0.0.0|@radix-ui/react-dismissable-layer@1.1.19",
+      "bom-ref": "invoice-collector-app@0.2.0|@radix-ui/react-dismissable-layer@1.1.19",
       "licenses": [
         {
           "license": {
@@ -1535,7 +1598,7 @@
       "name": "react-focus-guards",
       "group": "@radix-ui",
       "version": "1.1.6",
-      "bom-ref": "invoice-collector-app@0.0.0|@radix-ui/react-focus-guards@1.1.6",
+      "bom-ref": "invoice-collector-app@0.2.0|@radix-ui/react-focus-guards@1.1.6",
       "licenses": [
         {
           "license": {
@@ -1579,7 +1642,7 @@
       "name": "react-focus-scope",
       "group": "@radix-ui",
       "version": "1.1.16",
-      "bom-ref": "invoice-collector-app@0.0.0|@radix-ui/react-focus-scope@1.1.16",
+      "bom-ref": "invoice-collector-app@0.2.0|@radix-ui/react-focus-scope@1.1.16",
       "licenses": [
         {
           "license": {
@@ -1623,7 +1686,7 @@
       "name": "react-id",
       "group": "@radix-ui",
       "version": "1.1.4",
-      "bom-ref": "invoice-collector-app@0.0.0|@radix-ui/react-id@1.1.4",
+      "bom-ref": "invoice-collector-app@0.2.0|@radix-ui/react-id@1.1.4",
       "licenses": [
         {
           "license": {
@@ -1667,7 +1730,7 @@
       "name": "react-portal",
       "group": "@radix-ui",
       "version": "1.1.17",
-      "bom-ref": "invoice-collector-app@0.0.0|@radix-ui/react-portal@1.1.17",
+      "bom-ref": "invoice-collector-app@0.2.0|@radix-ui/react-portal@1.1.17",
       "licenses": [
         {
           "license": {
@@ -1711,7 +1774,7 @@
       "name": "react-use-layout-effect",
       "group": "@radix-ui",
       "version": "1.1.4",
-      "bom-ref": "invoice-collector-app@0.0.0|@radix-ui/react-use-layout-effect@1.1.4",
+      "bom-ref": "invoice-collector-app@0.2.0|@radix-ui/react-use-layout-effect@1.1.4",
       "licenses": [
         {
           "license": {
@@ -1754,7 +1817,7 @@
       "type": "library",
       "name": "aria-hidden",
       "version": "1.2.6",
-      "bom-ref": "invoice-collector-app@0.0.0|aria-hidden@1.2.6",
+      "bom-ref": "invoice-collector-app@0.2.0|aria-hidden@1.2.6",
       "author": "Anton Korzunov",
       "description": "Cast aria-hidden to everything, except...",
       "licenses": [
@@ -1803,7 +1866,7 @@
       "type": "library",
       "name": "react-remove-scroll",
       "version": "2.7.2",
-      "bom-ref": "invoice-collector-app@0.0.0|react-remove-scroll@2.7.2",
+      "bom-ref": "invoice-collector-app@0.2.0|react-remove-scroll@2.7.2",
       "author": "Anton Korzunov",
       "description": "Disables scroll outside of `children` node.",
       "licenses": [
@@ -1853,7 +1916,7 @@
       "name": "react-menu",
       "group": "@radix-ui",
       "version": "2.1.24",
-      "bom-ref": "invoice-collector-app@0.0.0|@radix-ui/react-menu@2.1.24",
+      "bom-ref": "invoice-collector-app@0.2.0|@radix-ui/react-menu@2.1.24",
       "licenses": [
         {
           "license": {
@@ -1897,7 +1960,7 @@
       "name": "number",
       "group": "@radix-ui",
       "version": "1.1.3",
-      "bom-ref": "invoice-collector-app@0.0.0|@radix-ui/number@1.1.3",
+      "bom-ref": "invoice-collector-app@0.2.0|@radix-ui/number@1.1.3",
       "licenses": [
         {
           "license": {
@@ -1941,7 +2004,7 @@
       "name": "react-direction",
       "group": "@radix-ui",
       "version": "1.1.4",
-      "bom-ref": "invoice-collector-app@0.0.0|@radix-ui/react-direction@1.1.4",
+      "bom-ref": "invoice-collector-app@0.2.0|@radix-ui/react-direction@1.1.4",
       "licenses": [
         {
           "license": {
@@ -1985,7 +2048,7 @@
       "name": "react-use-callback-ref",
       "group": "@radix-ui",
       "version": "1.1.4",
-      "bom-ref": "invoice-collector-app@0.0.0|@radix-ui/react-use-callback-ref@1.1.4",
+      "bom-ref": "invoice-collector-app@0.2.0|@radix-ui/react-use-callback-ref@1.1.4",
       "licenses": [
         {
           "license": {
@@ -2029,7 +2092,7 @@
       "name": "react-collection",
       "group": "@radix-ui",
       "version": "1.1.15",
-      "bom-ref": "invoice-collector-app@0.0.0|@radix-ui/react-collection@1.1.15",
+      "bom-ref": "invoice-collector-app@0.2.0|@radix-ui/react-collection@1.1.15",
       "licenses": [
         {
           "license": {
@@ -2073,7 +2136,7 @@
       "name": "react-popper",
       "group": "@radix-ui",
       "version": "1.3.7",
-      "bom-ref": "invoice-collector-app@0.0.0|@radix-ui/react-popper@1.3.7",
+      "bom-ref": "invoice-collector-app@0.2.0|@radix-ui/react-popper@1.3.7",
       "licenses": [
         {
           "license": {
@@ -2117,7 +2180,7 @@
       "name": "react-use-previous",
       "group": "@radix-ui",
       "version": "1.1.4",
-      "bom-ref": "invoice-collector-app@0.0.0|@radix-ui/react-use-previous@1.1.4",
+      "bom-ref": "invoice-collector-app@0.2.0|@radix-ui/react-use-previous@1.1.4",
       "licenses": [
         {
           "license": {
@@ -2161,7 +2224,7 @@
       "name": "react-visually-hidden",
       "group": "@radix-ui",
       "version": "1.2.11",
-      "bom-ref": "invoice-collector-app@0.0.0|@radix-ui/react-visually-hidden@1.2.11",
+      "bom-ref": "invoice-collector-app@0.2.0|@radix-ui/react-visually-hidden@1.2.11",
       "licenses": [
         {
           "license": {
@@ -2205,7 +2268,7 @@
       "name": "react-roving-focus",
       "group": "@radix-ui",
       "version": "1.1.19",
-      "bom-ref": "invoice-collector-app@0.0.0|@radix-ui/react-roving-focus@1.1.19",
+      "bom-ref": "invoice-collector-app@0.2.0|@radix-ui/react-roving-focus@1.1.19",
       "licenses": [
         {
           "license": {
@@ -2246,9 +2309,106 @@
     },
     {
       "type": "library",
+      "name": "canvas",
+      "group": "@napi-rs",
+      "version": "0.1.80",
+      "bom-ref": "invoice-collector-app@0.2.0|@napi-rs/canvas@0.1.80",
+      "description": "Canvas for Node.js with skia backend",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/%40napi-rs/canvas@0.1.80",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/Brooooooklyn/canvas.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://github.com/Brooooooklyn/canvas#readme",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/Brooooooklyn/canvas/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        },
+        {
+          "url": "https://registry.npmjs.org/@napi-rs/canvas/-/canvas-0.1.80.tgz",
+          "type": "distribution",
+          "comment": "as detected from npm-ls property \"resolved\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:constraint:engine:node",
+          "value": ">= 10"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@napi-rs/canvas"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "pdfjs-dist",
+      "version": "5.4.296",
+      "bom-ref": "invoice-collector-app@0.2.0|pdfjs-dist@5.4.296",
+      "description": "Generic build of Mozilla's PDF.js library.",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/pdfjs-dist@5.4.296",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/mozilla/pdf.js.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://mozilla.github.io/pdf.js/",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/mozilla/pdf.js/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        },
+        {
+          "url": "https://registry.npmjs.org/pdfjs-dist/-/pdfjs-dist-5.4.296.tgz",
+          "type": "distribution",
+          "comment": "as detected from npm-ls property \"resolved\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:constraint:engine:node",
+          "value": ">=20.16.0 || >=22.3.0"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/pdfjs-dist"
+        }
+      ]
+    },
+    {
+      "type": "library",
       "name": "scheduler",
       "version": "0.27.0",
-      "bom-ref": "invoice-collector-app@0.0.0|scheduler@0.27.0",
+      "bom-ref": "invoice-collector-app@0.2.0|scheduler@0.27.0",
       "description": "Cooperative scheduler for the browser environment.",
       "licenses": [
         {
@@ -2293,7 +2453,7 @@
       "name": "bundle",
       "group": "@sigstore",
       "version": "4.0.0",
-      "bom-ref": "invoice-collector-app@0.0.0|@sigstore/bundle@4.0.0",
+      "bom-ref": "invoice-collector-app@0.2.0|@sigstore/bundle@4.0.0",
       "author": "bdehamer@github.com",
       "description": "Sigstore bundle type",
       "licenses": [
@@ -2343,7 +2503,7 @@
       "name": "core",
       "group": "@sigstore",
       "version": "3.2.1",
-      "bom-ref": "invoice-collector-app@0.0.0|@sigstore/core@3.2.1",
+      "bom-ref": "invoice-collector-app@0.2.0|@sigstore/core@3.2.1",
       "author": "bdehamer@github.com",
       "description": "Base library for Sigstore",
       "licenses": [
@@ -2393,7 +2553,7 @@
       "name": "protobuf-specs",
       "group": "@sigstore",
       "version": "0.5.2",
-      "bom-ref": "invoice-collector-app@0.0.0|@sigstore/protobuf-specs@0.5.2",
+      "bom-ref": "invoice-collector-app@0.2.0|@sigstore/protobuf-specs@0.5.2",
       "author": "bdehamer@github.com",
       "description": "code-signing for npm packages",
       "licenses": [
@@ -2443,7 +2603,7 @@
       "name": "sign",
       "group": "@sigstore",
       "version": "4.1.1",
-      "bom-ref": "invoice-collector-app@0.0.0|@sigstore/sign@4.1.1",
+      "bom-ref": "invoice-collector-app@0.2.0|@sigstore/sign@4.1.1",
       "author": "bdehamer@github.com",
       "description": "Sigstore signing library",
       "licenses": [
@@ -2493,7 +2653,7 @@
       "name": "tuf",
       "group": "@sigstore",
       "version": "4.0.2",
-      "bom-ref": "invoice-collector-app@0.0.0|@sigstore/tuf@4.0.2",
+      "bom-ref": "invoice-collector-app@0.2.0|@sigstore/tuf@4.0.2",
       "author": "bdehamer@github.com",
       "description": "Client for the Sigstore TUF repository",
       "licenses": [
@@ -2543,7 +2703,7 @@
       "name": "verify",
       "group": "@sigstore",
       "version": "3.1.1",
-      "bom-ref": "invoice-collector-app@0.0.0|@sigstore/verify@3.1.1",
+      "bom-ref": "invoice-collector-app@0.2.0|@sigstore/verify@3.1.1",
       "author": "bdehamer@github.com",
       "description": "Verification of Sigstore signatures",
       "licenses": [
@@ -2593,7 +2753,7 @@
       "name": "react-use-effect-event",
       "group": "@radix-ui",
       "version": "0.0.5",
-      "bom-ref": "invoice-collector-app@0.0.0|@radix-ui/react-use-effect-event@0.0.5",
+      "bom-ref": "invoice-collector-app@0.2.0|@radix-ui/react-use-effect-event@0.0.5",
       "licenses": [
         {
           "license": {
@@ -2636,7 +2796,7 @@
       "type": "library",
       "name": "csstype",
       "version": "3.2.3",
-      "bom-ref": "invoice-collector-app@0.0.0|csstype@3.2.3",
+      "bom-ref": "invoice-collector-app@0.2.0|csstype@3.2.3",
       "author": "Fredrik Nicol",
       "description": "Strict TypeScript and Flow types for style based on MDN data",
       "licenses": [
@@ -2681,7 +2841,7 @@
       "type": "library",
       "name": "tslib",
       "version": "2.8.1",
-      "bom-ref": "invoice-collector-app@0.0.0|tslib@2.8.1",
+      "bom-ref": "invoice-collector-app@0.2.0|tslib@2.8.1",
       "author": "Microsoft Corp.",
       "description": "Runtime library for TypeScript helper functions",
       "licenses": [
@@ -2726,7 +2886,7 @@
       "type": "library",
       "name": "react-remove-scroll-bar",
       "version": "2.3.8",
-      "bom-ref": "invoice-collector-app@0.0.0|react-remove-scroll-bar@2.3.8",
+      "bom-ref": "invoice-collector-app@0.2.0|react-remove-scroll-bar@2.3.8",
       "author": "Anton Korzunov",
       "description": "Removes body scroll without content _shake_",
       "licenses": [
@@ -2775,7 +2935,7 @@
       "type": "library",
       "name": "react-style-singleton",
       "version": "2.2.3",
-      "bom-ref": "invoice-collector-app@0.0.0|react-style-singleton@2.2.3",
+      "bom-ref": "invoice-collector-app@0.2.0|react-style-singleton@2.2.3",
       "author": "Anton Korzunov",
       "description": "Just create a single stylesheet...",
       "licenses": [
@@ -2824,7 +2984,7 @@
       "type": "library",
       "name": "use-callback-ref",
       "version": "1.3.3",
-      "bom-ref": "invoice-collector-app@0.0.0|use-callback-ref@1.3.3",
+      "bom-ref": "invoice-collector-app@0.2.0|use-callback-ref@1.3.3",
       "author": "theKashey",
       "description": "The same useRef, but with callback",
       "licenses": [
@@ -2873,7 +3033,7 @@
       "type": "library",
       "name": "use-sidecar",
       "version": "1.1.3",
-      "bom-ref": "invoice-collector-app@0.0.0|use-sidecar@1.1.3",
+      "bom-ref": "invoice-collector-app@0.2.0|use-sidecar@1.1.3",
       "author": "theKashey",
       "description": "Sidecar code splitting utils",
       "licenses": [
@@ -2923,7 +3083,7 @@
       "name": "react-dom",
       "group": "@floating-ui",
       "version": "2.1.9",
-      "bom-ref": "invoice-collector-app@0.0.0|@floating-ui/react-dom@2.1.9",
+      "bom-ref": "invoice-collector-app@0.2.0|@floating-ui/react-dom@2.1.9",
       "author": "atomiks",
       "description": "Floating UI for React DOM",
       "licenses": [
@@ -2969,7 +3129,7 @@
       "name": "react-arrow",
       "group": "@radix-ui",
       "version": "1.1.15",
-      "bom-ref": "invoice-collector-app@0.0.0|@radix-ui/react-arrow@1.1.15",
+      "bom-ref": "invoice-collector-app@0.2.0|@radix-ui/react-arrow@1.1.15",
       "licenses": [
         {
           "license": {
@@ -3013,7 +3173,7 @@
       "name": "react-use-rect",
       "group": "@radix-ui",
       "version": "1.1.4",
-      "bom-ref": "invoice-collector-app@0.0.0|@radix-ui/react-use-rect@1.1.4",
+      "bom-ref": "invoice-collector-app@0.2.0|@radix-ui/react-use-rect@1.1.4",
       "licenses": [
         {
           "license": {
@@ -3057,7 +3217,7 @@
       "name": "rect",
       "group": "@radix-ui",
       "version": "1.1.3",
-      "bom-ref": "invoice-collector-app@0.0.0|@radix-ui/rect@1.1.3",
+      "bom-ref": "invoice-collector-app@0.2.0|@radix-ui/rect@1.1.3",
       "licenses": [
         {
           "license": {
@@ -3101,7 +3261,7 @@
       "name": "react-use-is-hydrated",
       "group": "@radix-ui",
       "version": "0.1.3",
-      "bom-ref": "invoice-collector-app@0.0.0|@radix-ui/react-use-is-hydrated@0.1.3",
+      "bom-ref": "invoice-collector-app@0.2.0|@radix-ui/react-use-is-hydrated@0.1.3",
       "licenses": [
         {
           "license": {
@@ -3142,10 +3302,59 @@
     },
     {
       "type": "library",
+      "name": "canvas-darwin-arm64",
+      "group": "@napi-rs",
+      "version": "0.1.80",
+      "bom-ref": "invoice-collector-app@0.2.0|@napi-rs/canvas-darwin-arm64@0.1.80",
+      "description": "Canvas for Node.js with skia backend",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/%40napi-rs/canvas-darwin-arm64@0.1.80",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/Brooooooklyn/canvas.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://github.com/Brooooooklyn/canvas#readme",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/Brooooooklyn/canvas/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        },
+        {
+          "url": "https://registry.npmjs.org/@napi-rs/canvas-darwin-arm64/-/canvas-darwin-arm64-0.1.80.tgz",
+          "type": "distribution",
+          "comment": "as detected from npm-ls property \"resolved\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:constraint:engine:node",
+          "value": ">= 10"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@napi-rs/canvas-darwin-arm64"
+        }
+      ]
+    },
+    {
+      "type": "library",
       "name": "promise-retry",
       "group": "@gar",
       "version": "1.0.3",
-      "bom-ref": "invoice-collector-app@0.0.0|@gar/promise-retry@1.0.3",
+      "bom-ref": "invoice-collector-app@0.2.0|@gar/promise-retry@1.0.3",
       "description": "Retries a function that returns a promise, leveraging the power of the retry module.",
       "licenses": [
         {
@@ -3193,7 +3402,7 @@
       "type": "library",
       "name": "make-fetch-happen",
       "version": "15.0.6",
-      "bom-ref": "invoice-collector-app@0.0.0|make-fetch-happen@15.0.6",
+      "bom-ref": "invoice-collector-app@0.2.0|make-fetch-happen@15.0.6",
       "author": "GitHub Inc.",
       "description": "Opinionated, caching, retrying fetch client",
       "licenses": [
@@ -3242,7 +3451,7 @@
       "type": "library",
       "name": "proc-log",
       "version": "6.1.0",
-      "bom-ref": "invoice-collector-app@0.0.0|proc-log@6.1.0",
+      "bom-ref": "invoice-collector-app@0.2.0|proc-log@6.1.0",
       "author": "GitHub Inc.",
       "description": "just emit 'log' events on the process object",
       "licenses": [
@@ -3291,7 +3500,7 @@
       "type": "library",
       "name": "tuf-js",
       "version": "4.1.0",
-      "bom-ref": "invoice-collector-app@0.0.0|tuf-js@4.1.0",
+      "bom-ref": "invoice-collector-app@0.2.0|tuf-js@4.1.0",
       "author": "bdehamer@github.com",
       "description": "JavaScript implementation of The Update Framework (TUF)",
       "licenses": [
@@ -3340,7 +3549,7 @@
       "type": "library",
       "name": "get-nonce",
       "version": "1.0.1",
-      "bom-ref": "invoice-collector-app@0.0.0|get-nonce@1.0.1",
+      "bom-ref": "invoice-collector-app@0.2.0|get-nonce@1.0.1",
       "author": "Anton Korzunov",
       "description": "returns nonce",
       "licenses": [
@@ -3389,7 +3598,7 @@
       "type": "library",
       "name": "detect-node-es",
       "version": "1.1.0",
-      "bom-ref": "invoice-collector-app@0.0.0|detect-node-es@1.1.0",
+      "bom-ref": "invoice-collector-app@0.2.0|detect-node-es@1.1.0",
       "author": "Ilya Kantor",
       "description": "Detect Node.JS (as opposite to browser environment). ESM modification",
       "licenses": [
@@ -3435,7 +3644,7 @@
       "name": "dom",
       "group": "@floating-ui",
       "version": "1.8.0",
-      "bom-ref": "invoice-collector-app@0.0.0|@floating-ui/dom@1.8.0",
+      "bom-ref": "invoice-collector-app@0.2.0|@floating-ui/dom@1.8.0",
       "author": "atomiks",
       "description": "Floating UI for the web",
       "licenses": [
@@ -3481,7 +3690,7 @@
       "name": "agent",
       "group": "@npmcli",
       "version": "4.0.2",
-      "bom-ref": "invoice-collector-app@0.0.0|@npmcli/agent@4.0.2",
+      "bom-ref": "invoice-collector-app@0.2.0|@npmcli/agent@4.0.2",
       "author": "GitHub Inc.",
       "description": "the http/https agent used by the npm cli",
       "licenses": [
@@ -3531,7 +3740,7 @@
       "name": "redact",
       "group": "@npmcli",
       "version": "4.0.0",
-      "bom-ref": "invoice-collector-app@0.0.0|@npmcli/redact@4.0.0",
+      "bom-ref": "invoice-collector-app@0.2.0|@npmcli/redact@4.0.0",
       "author": "GitHub Inc.",
       "description": "Redact sensitive npm information from output",
       "licenses": [
@@ -3580,7 +3789,7 @@
       "type": "library",
       "name": "cacache",
       "version": "20.0.4",
-      "bom-ref": "invoice-collector-app@0.0.0|cacache@20.0.4",
+      "bom-ref": "invoice-collector-app@0.2.0|cacache@20.0.4",
       "author": "GitHub Inc.",
       "description": "Fast, fault-tolerant, cross-platform, disk-based, data-agnostic, content-addressable cache.",
       "licenses": [
@@ -3629,7 +3838,7 @@
       "type": "library",
       "name": "http-cache-semantics",
       "version": "4.2.0",
-      "bom-ref": "invoice-collector-app@0.0.0|http-cache-semantics@4.2.0",
+      "bom-ref": "invoice-collector-app@0.2.0|http-cache-semantics@4.2.0",
       "author": "Kornel Lesiński",
       "description": "Parses Cache-Control and other headers. Helps building correct HTTP caches and proxies",
       "licenses": [
@@ -3674,7 +3883,7 @@
       "type": "library",
       "name": "minipass-fetch",
       "version": "5.0.2",
-      "bom-ref": "invoice-collector-app@0.0.0|minipass-fetch@5.0.2",
+      "bom-ref": "invoice-collector-app@0.2.0|minipass-fetch@5.0.2",
       "author": "GitHub Inc.",
       "description": "An implementation of window.fetch in Node.js using Minipass streams",
       "licenses": [
@@ -3723,7 +3932,7 @@
       "type": "library",
       "name": "minipass-flush",
       "version": "1.0.7",
-      "bom-ref": "invoice-collector-app@0.0.0|minipass-flush@1.0.7",
+      "bom-ref": "invoice-collector-app@0.2.0|minipass-flush@1.0.7",
       "author": "Isaac Z. Schlueter",
       "description": "A Minipass stream that calls a flush function before emitting 'end'",
       "licenses": [
@@ -3772,7 +3981,7 @@
           "type": "library",
           "name": "minipass",
           "version": "3.3.6",
-          "bom-ref": "invoice-collector-app@0.0.0|minipass-flush@1.0.7|minipass@3.3.6",
+          "bom-ref": "invoice-collector-app@0.2.0|minipass-flush@1.0.7|minipass@3.3.6",
           "author": "Isaac Z. Schlueter",
           "description": "minimal implementation of a PassThrough stream",
           "licenses": [
@@ -3821,7 +4030,7 @@
           "type": "library",
           "name": "yallist",
           "version": "4.0.0",
-          "bom-ref": "invoice-collector-app@0.0.0|minipass-flush@1.0.7|yallist@4.0.0",
+          "bom-ref": "invoice-collector-app@0.2.0|minipass-flush@1.0.7|yallist@4.0.0",
           "author": "Isaac Z. Schlueter",
           "description": "Yet Another Linked List",
           "licenses": [
@@ -3868,7 +4077,7 @@
       "type": "library",
       "name": "minipass-pipeline",
       "version": "1.2.4",
-      "bom-ref": "invoice-collector-app@0.0.0|minipass-pipeline@1.2.4",
+      "bom-ref": "invoice-collector-app@0.2.0|minipass-pipeline@1.2.4",
       "author": "Isaac Z. Schlueter",
       "description": "create a pipeline of streams using Minipass",
       "licenses": [
@@ -3902,7 +4111,7 @@
           "type": "library",
           "name": "minipass",
           "version": "3.3.6",
-          "bom-ref": "invoice-collector-app@0.0.0|minipass-pipeline@1.2.4|minipass@3.3.6",
+          "bom-ref": "invoice-collector-app@0.2.0|minipass-pipeline@1.2.4|minipass@3.3.6",
           "author": "Isaac Z. Schlueter",
           "description": "minimal implementation of a PassThrough stream",
           "licenses": [
@@ -3951,7 +4160,7 @@
           "type": "library",
           "name": "yallist",
           "version": "4.0.0",
-          "bom-ref": "invoice-collector-app@0.0.0|minipass-pipeline@1.2.4|yallist@4.0.0",
+          "bom-ref": "invoice-collector-app@0.2.0|minipass-pipeline@1.2.4|yallist@4.0.0",
           "author": "Isaac Z. Schlueter",
           "description": "Yet Another Linked List",
           "licenses": [
@@ -3998,7 +4207,7 @@
       "type": "library",
       "name": "minipass",
       "version": "7.1.3",
-      "bom-ref": "invoice-collector-app@0.0.0|minipass@7.1.3",
+      "bom-ref": "invoice-collector-app@0.2.0|minipass@7.1.3",
       "author": "Isaac Z. Schlueter",
       "description": "minimal implementation of a PassThrough stream",
       "licenses": [
@@ -4047,7 +4256,7 @@
       "type": "library",
       "name": "negotiator",
       "version": "1.1.0",
-      "bom-ref": "invoice-collector-app@0.0.0|negotiator@1.1.0",
+      "bom-ref": "invoice-collector-app@0.2.0|negotiator@1.1.0",
       "description": "HTTP content negotiation",
       "licenses": [
         {
@@ -4095,7 +4304,7 @@
       "type": "library",
       "name": "ssri",
       "version": "13.0.1",
-      "bom-ref": "invoice-collector-app@0.0.0|ssri@13.0.1",
+      "bom-ref": "invoice-collector-app@0.2.0|ssri@13.0.1",
       "author": "GitHub Inc.",
       "description": "Standard Subresource Integrity library -- parses, serializes, generates, and verifies integrity metadata according to the SRI spec.",
       "licenses": [
@@ -4145,7 +4354,7 @@
       "name": "models",
       "group": "@tufjs",
       "version": "4.1.0",
-      "bom-ref": "invoice-collector-app@0.0.0|@tufjs/models@4.1.0",
+      "bom-ref": "invoice-collector-app@0.2.0|@tufjs/models@4.1.0",
       "author": "bdehamer@github.com",
       "description": "TUF metadata models",
       "licenses": [
@@ -4194,7 +4403,7 @@
       "type": "library",
       "name": "debug",
       "version": "4.4.3",
-      "bom-ref": "invoice-collector-app@0.0.0|debug@4.4.3",
+      "bom-ref": "invoice-collector-app@0.2.0|debug@4.4.3",
       "author": "Josh Junon",
       "description": "Lightweight debugging utility for Node.js and the browser",
       "licenses": [
@@ -4244,7 +4453,7 @@
       "name": "core",
       "group": "@floating-ui",
       "version": "1.8.0",
-      "bom-ref": "invoice-collector-app@0.0.0|@floating-ui/core@1.8.0",
+      "bom-ref": "invoice-collector-app@0.2.0|@floating-ui/core@1.8.0",
       "author": "atomiks",
       "description": "Positioning library for floating elements: tooltips, popovers, dropdowns, and more",
       "licenses": [
@@ -4290,7 +4499,7 @@
       "name": "utils",
       "group": "@floating-ui",
       "version": "0.2.12",
-      "bom-ref": "invoice-collector-app@0.0.0|@floating-ui/utils@0.2.12",
+      "bom-ref": "invoice-collector-app@0.2.0|@floating-ui/utils@0.2.12",
       "author": "atomiks",
       "description": "Utilities for Floating UI",
       "licenses": [
@@ -4335,7 +4544,7 @@
       "type": "library",
       "name": "agent-base",
       "version": "7.1.4",
-      "bom-ref": "invoice-collector-app@0.0.0|agent-base@7.1.4",
+      "bom-ref": "invoice-collector-app@0.2.0|agent-base@7.1.4",
       "author": "Nathan Rajlich",
       "description": "Turn a function into an `http.Agent` instance",
       "licenses": [
@@ -4384,7 +4593,7 @@
       "type": "library",
       "name": "http-proxy-agent",
       "version": "7.0.2",
-      "bom-ref": "invoice-collector-app@0.0.0|http-proxy-agent@7.0.2",
+      "bom-ref": "invoice-collector-app@0.2.0|http-proxy-agent@7.0.2",
       "author": "Nathan Rajlich",
       "description": "An HTTP(s) proxy `http.Agent` implementation for HTTP",
       "licenses": [
@@ -4433,7 +4642,7 @@
       "type": "library",
       "name": "https-proxy-agent",
       "version": "7.0.6",
-      "bom-ref": "invoice-collector-app@0.0.0|https-proxy-agent@7.0.6",
+      "bom-ref": "invoice-collector-app@0.2.0|https-proxy-agent@7.0.6",
       "author": "Nathan Rajlich",
       "description": "An HTTP(s) proxy `http.Agent` implementation for HTTPS",
       "licenses": [
@@ -4482,7 +4691,7 @@
       "type": "library",
       "name": "lru-cache",
       "version": "11.5.2",
-      "bom-ref": "invoice-collector-app@0.0.0|lru-cache@11.5.2",
+      "bom-ref": "invoice-collector-app@0.2.0|lru-cache@11.5.2",
       "author": "Isaac Z. Schlueter",
       "description": "A cache object that deletes the least-recently-used items.",
       "licenses": [
@@ -4531,7 +4740,7 @@
       "type": "library",
       "name": "socks-proxy-agent",
       "version": "8.0.5",
-      "bom-ref": "invoice-collector-app@0.0.0|socks-proxy-agent@8.0.5",
+      "bom-ref": "invoice-collector-app@0.2.0|socks-proxy-agent@8.0.5",
       "author": "Nathan Rajlich",
       "description": "A SOCKS proxy `http.Agent` implementation for HTTP and HTTPS",
       "licenses": [
@@ -4581,7 +4790,7 @@
       "name": "fs",
       "group": "@npmcli",
       "version": "5.0.0",
-      "bom-ref": "invoice-collector-app@0.0.0|@npmcli/fs@5.0.0",
+      "bom-ref": "invoice-collector-app@0.2.0|@npmcli/fs@5.0.0",
       "author": "GitHub Inc.",
       "description": "filesystem utilities for the npm cli",
       "licenses": [
@@ -4630,7 +4839,7 @@
       "type": "library",
       "name": "fs-minipass",
       "version": "3.0.3",
-      "bom-ref": "invoice-collector-app@0.0.0|fs-minipass@3.0.3",
+      "bom-ref": "invoice-collector-app@0.2.0|fs-minipass@3.0.3",
       "author": "GitHub Inc.",
       "description": "fs read and write streams based on minipass",
       "licenses": [
@@ -4679,7 +4888,7 @@
       "type": "library",
       "name": "glob",
       "version": "13.0.6",
-      "bom-ref": "invoice-collector-app@0.0.0|glob@13.0.6",
+      "bom-ref": "invoice-collector-app@0.2.0|glob@13.0.6",
       "author": "Isaac Z. Schlueter",
       "description": "the most correct and second fastest glob implementation in JavaScript",
       "licenses": [
@@ -4728,7 +4937,7 @@
       "type": "library",
       "name": "minipass-collect",
       "version": "2.0.1",
-      "bom-ref": "invoice-collector-app@0.0.0|minipass-collect@2.0.1",
+      "bom-ref": "invoice-collector-app@0.2.0|minipass-collect@2.0.1",
       "author": "Isaac Z. Schlueter",
       "description": "A Minipass stream that collects all the data into a single chunk",
       "licenses": [
@@ -4777,7 +4986,7 @@
       "type": "library",
       "name": "p-map",
       "version": "7.0.7",
-      "bom-ref": "invoice-collector-app@0.0.0|p-map@7.0.7",
+      "bom-ref": "invoice-collector-app@0.2.0|p-map@7.0.7",
       "author": "Sindre Sorhus",
       "description": "Map over promises concurrently",
       "licenses": [
@@ -4826,7 +5035,7 @@
       "type": "library",
       "name": "iconv-lite",
       "version": "0.7.3",
-      "bom-ref": "invoice-collector-app@0.0.0|iconv-lite@0.7.3",
+      "bom-ref": "invoice-collector-app@0.2.0|iconv-lite@0.7.3",
       "author": "Alexander Shtuchkin",
       "description": "Convert character encodings in pure javascript.",
       "licenses": [
@@ -4875,7 +5084,7 @@
       "type": "library",
       "name": "minipass-sized",
       "version": "2.0.0",
-      "bom-ref": "invoice-collector-app@0.0.0|minipass-sized@2.0.0",
+      "bom-ref": "invoice-collector-app@0.2.0|minipass-sized@2.0.0",
       "author": "Isaac Z. Schlueter",
       "description": "A Minipass stream that raises an error if you get a different number of bytes than expected",
       "licenses": [
@@ -4924,7 +5133,7 @@
       "type": "library",
       "name": "minizlib",
       "version": "3.1.0",
-      "bom-ref": "invoice-collector-app@0.0.0|minizlib@3.1.0",
+      "bom-ref": "invoice-collector-app@0.2.0|minizlib@3.1.0",
       "author": "Isaac Z. Schlueter",
       "description": "A small fast zlib stream built on [minipass](http://npm.im/minipass) and Node.js's zlib binding.",
       "licenses": [
@@ -4973,7 +5182,7 @@
       "type": "library",
       "name": "content-type",
       "version": "2.1.0",
-      "bom-ref": "invoice-collector-app@0.0.0|content-type@2.1.0",
+      "bom-ref": "invoice-collector-app@0.2.0|content-type@2.1.0",
       "author": "Douglas Christopher Wilson",
       "description": "Create and parse HTTP Content-Type header",
       "licenses": [
@@ -5023,7 +5232,7 @@
       "name": "canonical-json",
       "group": "@tufjs",
       "version": "2.0.0",
-      "bom-ref": "invoice-collector-app@0.0.0|@tufjs/canonical-json@2.0.0",
+      "bom-ref": "invoice-collector-app@0.2.0|@tufjs/canonical-json@2.0.0",
       "author": "bdehamer@github.com",
       "description": "OLPC JSON canonicalization",
       "licenses": [
@@ -5072,7 +5281,7 @@
       "type": "library",
       "name": "minimatch",
       "version": "10.2.6",
-      "bom-ref": "invoice-collector-app@0.0.0|minimatch@10.2.6",
+      "bom-ref": "invoice-collector-app@0.2.0|minimatch@10.2.6",
       "author": "Isaac Z. Schlueter",
       "description": "a glob matcher in javascript",
       "licenses": [
@@ -5121,7 +5330,7 @@
       "type": "library",
       "name": "ms",
       "version": "2.1.3",
-      "bom-ref": "invoice-collector-app@0.0.0|ms@2.1.3",
+      "bom-ref": "invoice-collector-app@0.2.0|ms@2.1.3",
       "description": "Tiny millisecond conversion utility",
       "licenses": [
         {
@@ -5165,7 +5374,7 @@
       "type": "library",
       "name": "socks",
       "version": "2.8.10",
-      "bom-ref": "invoice-collector-app@0.0.0|socks@2.8.10",
+      "bom-ref": "invoice-collector-app@0.2.0|socks@2.8.10",
       "author": "Josh Glazebrook",
       "description": "Fully featured SOCKS proxy client supporting SOCKSv4, SOCKSv4a, and SOCKSv5. Includes Bind and Associate functionality.",
       "licenses": [
@@ -5218,7 +5427,7 @@
       "type": "library",
       "name": "path-scurry",
       "version": "2.0.2",
-      "bom-ref": "invoice-collector-app@0.0.0|path-scurry@2.0.2",
+      "bom-ref": "invoice-collector-app@0.2.0|path-scurry@2.0.2",
       "author": "Isaac Z. Schlueter",
       "description": "walk paths fast and efficiently",
       "licenses": [
@@ -5267,7 +5476,7 @@
       "type": "library",
       "name": "safer-buffer",
       "version": "2.1.2",
-      "bom-ref": "invoice-collector-app@0.0.0|safer-buffer@2.1.2",
+      "bom-ref": "invoice-collector-app@0.2.0|safer-buffer@2.1.2",
       "author": "Nikita Skovoroda",
       "description": "Modern Buffer API polyfill without footguns",
       "licenses": [
@@ -5312,7 +5521,7 @@
       "type": "library",
       "name": "brace-expansion",
       "version": "5.0.9",
-      "bom-ref": "invoice-collector-app@0.0.0|brace-expansion@5.0.9",
+      "bom-ref": "invoice-collector-app@0.2.0|brace-expansion@5.0.9",
       "description": "Brace expansion as known from sh/bash",
       "licenses": [
         {
@@ -5360,7 +5569,7 @@
       "type": "library",
       "name": "ip-address",
       "version": "10.7.0",
-      "bom-ref": "invoice-collector-app@0.0.0|ip-address@10.7.0",
+      "bom-ref": "invoice-collector-app@0.2.0|ip-address@10.7.0",
       "author": "Beau Gunderson",
       "description": "A library for parsing IPv4 and IPv6 IP addresses in node and the browser.",
       "licenses": [
@@ -5409,7 +5618,7 @@
       "type": "library",
       "name": "smart-buffer",
       "version": "4.2.0",
-      "bom-ref": "invoice-collector-app@0.0.0|smart-buffer@4.2.0",
+      "bom-ref": "invoice-collector-app@0.2.0|smart-buffer@4.2.0",
       "author": "Josh Glazebrook",
       "description": "smart-buffer is a Buffer wrapper that adds automatic read & write offset tracking, string operations, data insertions, and more.",
       "licenses": [
@@ -5462,7 +5671,7 @@
       "type": "library",
       "name": "balanced-match",
       "version": "4.0.4",
-      "bom-ref": "invoice-collector-app@0.0.0|balanced-match@4.0.4",
+      "bom-ref": "invoice-collector-app@0.2.0|balanced-match@4.0.4",
       "description": "Match balanced character pairs, like \"{\" and \"}\"",
       "licenses": [
         {
@@ -5509,904 +5718,927 @@
   ],
   "dependencies": [
     {
-      "ref": "invoice-collector-app@0.0.0",
-      "dependsOn": [
-        "invoice-collector-app@0.0.0|ic-core@0.0.0"
-      ]
-    },
-    {
-      "ref": "invoice-collector-app@0.0.0|ic-core@0.0.0",
-      "dependsOn": [
-        "invoice-collector-app@0.0.0|@radix-ui/react-checkbox@1.3.11",
-        "invoice-collector-app@0.0.0|@radix-ui/react-dialog@1.1.23",
-        "invoice-collector-app@0.0.0|@radix-ui/react-dropdown-menu@2.1.24",
-        "invoice-collector-app@0.0.0|@radix-ui/react-label@2.1.15",
-        "invoice-collector-app@0.0.0|@radix-ui/react-scroll-area@1.2.18",
-        "invoice-collector-app@0.0.0|@radix-ui/react-select@2.3.7",
-        "invoice-collector-app@0.0.0|@radix-ui/react-separator@1.1.15",
-        "invoice-collector-app@0.0.0|@radix-ui/react-slot@1.3.3",
-        "invoice-collector-app@0.0.0|@radix-ui/react-tabs@1.1.21",
-        "invoice-collector-app@0.0.0|class-variance-authority@0.7.1",
-        "invoice-collector-app@0.0.0|clsx@2.1.1",
-        "invoice-collector-app@0.0.0|fflate@0.8.3",
-        "invoice-collector-app@0.0.0|invoice-collector-plugin-sdk@0.0.0",
-        "invoice-collector-app@0.0.0|lucide-react@1.40.0",
-        "invoice-collector-app@0.0.0|react-dom@19.2.8",
-        "invoice-collector-app@0.0.0|react@19.2.8",
-        "invoice-collector-app@0.0.0|semver@7.8.5",
-        "invoice-collector-app@0.0.0|sigstore@4.1.1",
-        "invoice-collector-app@0.0.0|sonner@2.0.8",
-        "invoice-collector-app@0.0.0|tailwind-merge@3.6.0",
-        "invoice-collector-app@0.0.0|write-excel-file@4.1.1"
-      ]
-    },
-    {
-      "ref": "invoice-collector-app@0.0.0|@radix-ui/react-checkbox@1.3.11",
-      "dependsOn": [
-        "invoice-collector-app@0.0.0|@radix-ui/primitive@1.1.7",
-        "invoice-collector-app@0.0.0|@radix-ui/react-compose-refs@1.1.5",
-        "invoice-collector-app@0.0.0|@radix-ui/react-context@1.2.2",
-        "invoice-collector-app@0.0.0|@radix-ui/react-presence@1.1.10",
-        "invoice-collector-app@0.0.0|@radix-ui/react-primitive@2.1.10",
-        "invoice-collector-app@0.0.0|@radix-ui/react-use-controllable-state@1.2.6",
-        "invoice-collector-app@0.0.0|@radix-ui/react-use-size@1.1.4",
-        "invoice-collector-app@0.0.0|@types/react-dom@19.2.7",
-        "invoice-collector-app@0.0.0|@types/react@19.2.18",
-        "invoice-collector-app@0.0.0|react-dom@19.2.8",
-        "invoice-collector-app@0.0.0|react@19.2.8"
-      ]
-    },
-    {
-      "ref": "invoice-collector-app@0.0.0|@radix-ui/react-dialog@1.1.23",
-      "dependsOn": [
-        "invoice-collector-app@0.0.0|@radix-ui/primitive@1.1.7",
-        "invoice-collector-app@0.0.0|@radix-ui/react-compose-refs@1.1.5",
-        "invoice-collector-app@0.0.0|@radix-ui/react-context@1.2.2",
-        "invoice-collector-app@0.0.0|@radix-ui/react-dismissable-layer@1.1.19",
-        "invoice-collector-app@0.0.0|@radix-ui/react-focus-guards@1.1.6",
-        "invoice-collector-app@0.0.0|@radix-ui/react-focus-scope@1.1.16",
-        "invoice-collector-app@0.0.0|@radix-ui/react-id@1.1.4",
-        "invoice-collector-app@0.0.0|@radix-ui/react-portal@1.1.17",
-        "invoice-collector-app@0.0.0|@radix-ui/react-presence@1.1.10",
-        "invoice-collector-app@0.0.0|@radix-ui/react-primitive@2.1.10",
-        "invoice-collector-app@0.0.0|@radix-ui/react-slot@1.3.3",
-        "invoice-collector-app@0.0.0|@radix-ui/react-use-controllable-state@1.2.6",
-        "invoice-collector-app@0.0.0|@radix-ui/react-use-layout-effect@1.1.4",
-        "invoice-collector-app@0.0.0|@types/react-dom@19.2.7",
-        "invoice-collector-app@0.0.0|@types/react@19.2.18",
-        "invoice-collector-app@0.0.0|aria-hidden@1.2.6",
-        "invoice-collector-app@0.0.0|react-dom@19.2.8",
-        "invoice-collector-app@0.0.0|react-remove-scroll@2.7.2",
-        "invoice-collector-app@0.0.0|react@19.2.8"
-      ]
-    },
-    {
-      "ref": "invoice-collector-app@0.0.0|@radix-ui/react-dropdown-menu@2.1.24",
-      "dependsOn": [
-        "invoice-collector-app@0.0.0|@radix-ui/primitive@1.1.7",
-        "invoice-collector-app@0.0.0|@radix-ui/react-compose-refs@1.1.5",
-        "invoice-collector-app@0.0.0|@radix-ui/react-context@1.2.2",
-        "invoice-collector-app@0.0.0|@radix-ui/react-id@1.1.4",
-        "invoice-collector-app@0.0.0|@radix-ui/react-menu@2.1.24",
-        "invoice-collector-app@0.0.0|@radix-ui/react-primitive@2.1.10",
-        "invoice-collector-app@0.0.0|@radix-ui/react-use-controllable-state@1.2.6",
-        "invoice-collector-app@0.0.0|@types/react-dom@19.2.7",
-        "invoice-collector-app@0.0.0|@types/react@19.2.18",
-        "invoice-collector-app@0.0.0|react-dom@19.2.8",
-        "invoice-collector-app@0.0.0|react@19.2.8"
-      ]
-    },
+      "ref": "invoice-collector-app@0.2.0",
+      "dependsOn": [
+        "invoice-collector-app@0.2.0|ic-core@0.2.0"
+      ]
+    },
+    {
+      "ref": "invoice-collector-app@0.2.0|ic-core@0.2.0",
+      "dependsOn": [
+        "invoice-collector-app@0.2.0|@radix-ui/react-checkbox@1.3.11",
+        "invoice-collector-app@0.2.0|@radix-ui/react-dialog@1.1.23",
+        "invoice-collector-app@0.2.0|@radix-ui/react-dropdown-menu@2.1.24",
+        "invoice-collector-app@0.2.0|@radix-ui/react-label@2.1.15",
+        "invoice-collector-app@0.2.0|@radix-ui/react-scroll-area@1.2.18",
+        "invoice-collector-app@0.2.0|@radix-ui/react-select@2.3.7",
+        "invoice-collector-app@0.2.0|@radix-ui/react-separator@1.1.15",
+        "invoice-collector-app@0.2.0|@radix-ui/react-slot@1.3.3",
+        "invoice-collector-app@0.2.0|@radix-ui/react-tabs@1.1.21",
+        "invoice-collector-app@0.2.0|class-variance-authority@0.7.1",
+        "invoice-collector-app@0.2.0|clsx@2.1.1",
+        "invoice-collector-app@0.2.0|fflate@0.8.3",
+        "invoice-collector-app@0.2.0|invoice-collector-plugin-sdk@0.2.0",
+        "invoice-collector-app@0.2.0|lucide-react@1.40.0",
+        "invoice-collector-app@0.2.0|pdf-parse@2.4.5",
+        "invoice-collector-app@0.2.0|react-dom@19.2.8",
+        "invoice-collector-app@0.2.0|react@19.2.8",
+        "invoice-collector-app@0.2.0|semver@7.8.5",
+        "invoice-collector-app@0.2.0|sigstore@4.1.1",
+        "invoice-collector-app@0.2.0|sonner@2.0.8",
+        "invoice-collector-app@0.2.0|tailwind-merge@3.6.0",
+        "invoice-collector-app@0.2.0|write-excel-file@4.1.1"
+      ]
+    },
+    {
+      "ref": "invoice-collector-app@0.2.0|@radix-ui/react-checkbox@1.3.11",
+      "dependsOn": [
+        "invoice-collector-app@0.2.0|@radix-ui/primitive@1.1.7",
+        "invoice-collector-app@0.2.0|@radix-ui/react-compose-refs@1.1.5",
+        "invoice-collector-app@0.2.0|@radix-ui/react-context@1.2.2",
+        "invoice-collector-app@0.2.0|@radix-ui/react-presence@1.1.10",
+        "invoice-collector-app@0.2.0|@radix-ui/react-primitive@2.1.10",
+        "invoice-collector-app@0.2.0|@radix-ui/react-use-controllable-state@1.2.6",
+        "invoice-collector-app@0.2.0|@radix-ui/react-use-size@1.1.4",
+        "invoice-collector-app@0.2.0|@types/react-dom@19.2.7",
+        "invoice-collector-app@0.2.0|@types/react@19.2.18",
+        "invoice-collector-app@0.2.0|react-dom@19.2.8",
+        "invoice-collector-app@0.2.0|react@19.2.8"
+      ]
+    },
+    {
+      "ref": "invoice-collector-app@0.2.0|@radix-ui/react-dialog@1.1.23",
+      "dependsOn": [
+        "invoice-collector-app@0.2.0|@radix-ui/primitive@1.1.7",
+        "invoice-collector-app@0.2.0|@radix-ui/react-compose-refs@1.1.5",
+        "invoice-collector-app@0.2.0|@radix-ui/react-context@1.2.2",
+        "invoice-collector-app@0.2.0|@radix-ui/react-dismissable-layer@1.1.19",
+        "invoice-collector-app@0.2.0|@radix-ui/react-focus-guards@1.1.6",
+        "invoice-collector-app@0.2.0|@radix-ui/react-focus-scope@1.1.16",
+        "invoice-collector-app@0.2.0|@radix-ui/react-id@1.1.4",
+        "invoice-collector-app@0.2.0|@radix-ui/react-portal@1.1.17",
+        "invoice-collector-app@0.2.0|@radix-ui/react-presence@1.1.10",
+        "invoice-collector-app@0.2.0|@radix-ui/react-primitive@2.1.10",
+        "invoice-collector-app@0.2.0|@radix-ui/react-slot@1.3.3",
+        "invoice-collector-app@0.2.0|@radix-ui/react-use-controllable-state@1.2.6",
+        "invoice-collector-app@0.2.0|@radix-ui/react-use-layout-effect@1.1.4",
+        "invoice-collector-app@0.2.0|@types/react-dom@19.2.7",
+        "invoice-collector-app@0.2.0|@types/react@19.2.18",
+        "invoice-collector-app@0.2.0|aria-hidden@1.2.6",
+        "invoice-collector-app@0.2.0|react-dom@19.2.8",
+        "invoice-collector-app@0.2.0|react-remove-scroll@2.7.2",
+        "invoice-collector-app@0.2.0|react@19.2.8"
+      ]
+    },
+    {
+      "ref": "invoice-collector-app@0.2.0|@radix-ui/react-dropdown-menu@2.1.24",
+      "dependsOn": [
+        "invoice-collector-app@0.2.0|@radix-ui/primitive@1.1.7",
+        "invoice-collector-app@0.2.0|@radix-ui/react-compose-refs@1.1.5",
+        "invoice-collector-app@0.2.0|@radix-ui/react-context@1.2.2",
+        "invoice-collector-app@0.2.0|@radix-ui/react-id@1.1.4",
+        "invoice-collector-app@0.2.0|@radix-ui/react-menu@2.1.24",
+        "invoice-collector-app@0.2.0|@radix-ui/react-primitive@2.1.10",
+        "invoice-collector-app@0.2.0|@radix-ui/react-use-controllable-state@1.2.6",
+        "invoice-collector-app@0.2.0|@types/react-dom@19.2.7",
+        "invoice-collector-app@0.2.0|@types/react@19.2.18",
+        "invoice-collector-app@0.2.0|react-dom@19.2.8",
+        "invoice-collector-app@0.2.0|react@19.2.8"
+      ]
+    },
     {
-      "ref": "invoice-collector-app@0.0.0|@radix-ui/react-label@2.1.15",
+      "ref": "invoice-collector-app@0.2.0|@radix-ui/react-label@2.1.15",
       "dependsOn": [
-        "invoice-collector-app@0.0.0|@radix-ui/react-primitive@2.1.10",
-        "invoice-collector-app@0.0.0|@types/react-dom@19.2.7",
-        "invoice-collector-app@0.0.0|@types/react@19.2.18",
-        "invoice-collector-app@0.0.0|react-dom@19.2.8",
-        "invoice-collector-app@0.0.0|react@19.2.8"
+        "invoice-collector-app@0.2.0|@radix-ui/react-primitive@2.1.10",
+        "invoice-collector-app@0.2.0|@types/react-dom@19.2.7",
+        "invoice-collector-app@0.2.0|@types/react@19.2.18",
+        "invoice-collector-app@0.2.0|react-dom@19.2.8",
+        "invoice-collector-app@0.2.0|react@19.2.8"
       ]
     },
     {
-      "ref": "invoice-collector-app@0.0.0|@radix-ui/react-scroll-area@1.2.18",
+      "ref": "invoice-collector-app@0.2.0|@radix-ui/react-scroll-area@1.2.18",
       "dependsOn": [
-        "invoice-collector-app@0.0.0|@radix-ui/number@1.1.3",
-        "invoice-collector-app@0.0.0|@radix-ui/primitive@1.1.7",
-        "invoice-collector-app@0.0.0|@radix-ui/react-compose-refs@1.1.5",
-        "invoice-collector-app@0.0.0|@radix-ui/react-context@1.2.2",
-        "invoice-collector-app@0.0.0|@radix-ui/react-direction@1.1.4",
-        "invoice-collector-app@0.0.0|@radix-ui/react-presence@1.1.10",
-        "invoice-collector-app@0.0.0|@radix-ui/react-primitive@2.1.10",
-        "invoice-collector-app@0.0.0|@radix-ui/react-use-callback-ref@1.1.4",
-        "invoice-collector-app@0.0.0|@radix-ui/react-use-layout-effect@1.1.4",
-        "invoice-collector-app@0.0.0|@types/react-dom@19.2.7",
-        "invoice-collector-app@0.0.0|@types/react@19.2.18",
-        "invoice-collector-app@0.0.0|react-dom@19.2.8",
-        "invoice-collector-app@0.0.0|react@19.2.8"
+        "invoice-collector-app@0.2.0|@radix-ui/number@1.1.3",
+        "invoice-collector-app@0.2.0|@radix-ui/primitive@1.1.7",
+        "invoice-collector-app@0.2.0|@radix-ui/react-compose-refs@1.1.5",
+        "invoice-collector-app@0.2.0|@radix-ui/react-context@1.2.2",
+        "invoice-collector-app@0.2.0|@radix-ui/react-direction@1.1.4",
+        "invoice-collector-app@0.2.0|@radix-ui/react-presence@1.1.10",
+        "invoice-collector-app@0.2.0|@radix-ui/react-primitive@2.1.10",
+        "invoice-collector-app@0.2.0|@radix-ui/react-use-callback-ref@1.1.4",
+        "invoice-collector-app@0.2.0|@radix-ui/react-use-layout-effect@1.1.4",
+        "invoice-collector-app@0.2.0|@types/react-dom@19.2.7",
+        "invoice-collector-app@0.2.0|@types/react@19.2.18",
+        "invoice-collector-app@0.2.0|react-dom@19.2.8",
+        "invoice-collector-app@0.2.0|react@19.2.8"
       ]
     },
     {
-      "ref": "invoice-collector-app@0.0.0|@radix-ui/react-select@2.3.7",
+      "ref": "invoice-collector-app@0.2.0|@radix-ui/react-select@2.3.7",
       "dependsOn": [
-        "invoice-collector-app@0.0.0|@radix-ui/number@1.1.3",
-        "invoice-collector-app@0.0.0|@radix-ui/primitive@1.1.7",
-        "invoice-collector-app@0.0.0|@radix-ui/react-collection@1.1.15",
-        "invoice-collector-app@0.0.0|@radix-ui/react-compose-refs@1.1.5",
-        "invoice-collector-app@0.0.0|@radix-ui/react-context@1.2.2",
-        "invoice-collector-app@0.0.0|@radix-ui/react-direction@1.1.4",
-        "invoice-collector-app@0.0.0|@radix-ui/react-dismissable-layer@1.1.19",
-        "invoice-collector-app@0.0.0|@radix-ui/react-focus-guards@1.1.6",
-        "invoice-collector-app@0.0.0|@radix-ui/react-focus-scope@1.1.16",
-        "invoice-collector-app@0.0.0|@radix-ui/react-id@1.1.4",
-        "invoice-collector-app@0.0.0|@radix-ui/react-popper@1.3.7",
-        "invoice-collector-app@0.0.0|@radix-ui/react-portal@1.1.17",
-        "invoice-collector-app@0.0.0|@radix-ui/react-presence@1.1.10",
-        "invoice-collector-app@0.0.0|@radix-ui/react-primitive@2.1.10",
-        "invoice-collector-app@0.0.0|@radix-ui/react-slot@1.3.3",
-        "invoice-collector-app@0.0.0|@radix-ui/react-use-callback-ref@1.1.4",
-        "invoice-collector-app@0.0.0|@radix-ui/react-use-controllable-state@1.2.6",
-        "invoice-collector-app@0.0.0|@radix-ui/react-use-layout-effect@1.1.4",
-        "invoice-collector-app@0.0.0|@radix-ui/react-use-previous@1.1.4",
-        "invoice-collector-app@0.0.0|@radix-ui/react-visually-hidden@1.2.11",
-        "invoice-collector-app@0.0.0|@types/react-dom@19.2.7",
-        "invoice-collector-app@0.0.0|@types/react@19.2.18",
-        "invoice-collector-app@0.0.0|aria-hidden@1.2.6",
-        "invoice-collector-app@0.0.0|react-dom@19.2.8",
-        "invoice-collector-app@0.0.0|react-remove-scroll@2.7.2",
-        "invoice-collector-app@0.0.0|react@19.2.8"
+        "invoice-collector-app@0.2.0|@radix-ui/number@1.1.3",
+        "invoice-collector-app@0.2.0|@radix-ui/primitive@1.1.7",
+        "invoice-collector-app@0.2.0|@radix-ui/react-collection@1.1.15",
+        "invoice-collector-app@0.2.0|@radix-ui/react-compose-refs@1.1.5",
+        "invoice-collector-app@0.2.0|@radix-ui/react-context@1.2.2",
+        "invoice-collector-app@0.2.0|@radix-ui/react-direction@1.1.4",
+        "invoice-collector-app@0.2.0|@radix-ui/react-dismissable-layer@1.1.19",
+        "invoice-collector-app@0.2.0|@radix-ui/react-focus-guards@1.1.6",
+        "invoice-collector-app@0.2.0|@radix-ui/react-focus-scope@1.1.16",
+        "invoice-collector-app@0.2.0|@radix-ui/react-id@1.1.4",
+        "invoice-collector-app@0.2.0|@radix-ui/react-popper@1.3.7",
+        "invoice-collector-app@0.2.0|@radix-ui/react-portal@1.1.17",
+        "invoice-collector-app@0.2.0|@radix-ui/react-presence@1.1.10",
+        "invoice-collector-app@0.2.0|@radix-ui/react-primitive@2.1.10",
+        "invoice-collector-app@0.2.0|@radix-ui/react-slot@1.3.3",
+        "invoice-collector-app@0.2.0|@radix-ui/react-use-callback-ref@1.1.4",
+        "invoice-collector-app@0.2.0|@radix-ui/react-use-controllable-state@1.2.6",
+        "invoice-collector-app@0.2.0|@radix-ui/react-use-layout-effect@1.1.4",
+        "invoice-collector-app@0.2.0|@radix-ui/react-use-previous@1.1.4",
+        "invoice-collector-app@0.2.0|@radix-ui/react-visually-hidden@1.2.11",
+        "invoice-collector-app@0.2.0|@types/react-dom@19.2.7",
+        "invoice-collector-app@0.2.0|@types/react@19.2.18",
+        "invoice-collector-app@0.2.0|aria-hidden@1.2.6",
+        "invoice-collector-app@0.2.0|react-dom@19.2.8",
+        "invoice-collector-app@0.2.0|react-remove-scroll@2.7.2",
+        "invoice-collector-app@0.2.0|react@19.2.8"
       ]
     },
     {
-      "ref": "invoice-collector-app@0.0.0|@radix-ui/react-separator@1.1.15",
+      "ref": "invoice-collector-app@0.2.0|@radix-ui/react-separator@1.1.15",
       "dependsOn": [
-        "invoice-collector-app@0.0.0|@radix-ui/react-primitive@2.1.10",
-        "invoice-collector-app@0.0.0|@types/react-dom@19.2.7",
-        "invoice-collector-app@0.0.0|@types/react@19.2.18",
-        "invoice-collector-app@0.0.0|react-dom@19.2.8",
-        "invoice-collector-app@0.0.0|react@19.2.8"
+        "invoice-collector-app@0.2.0|@radix-ui/react-primitive@2.1.10",
+        "invoice-collector-app@0.2.0|@types/react-dom@19.2.7",
+        "invoice-collector-app@0.2.0|@types/react@19.2.18",
+        "invoice-collector-app@0.2.0|react-dom@19.2.8",
+        "invoice-collector-app@0.2.0|react@19.2.8"
       ]
     },
     {
-      "ref": "invoice-collector-app@0.0.0|@radix-ui/react-slot@1.3.3",
+      "ref": "invoice-collector-app@0.2.0|@radix-ui/react-slot@1.3.3",
       "dependsOn": [
-        "invoice-collector-app@0.0.0|@radix-ui/react-compose-refs@1.1.5",
-        "invoice-collector-app@0.0.0|@types/react@19.2.18",
-        "invoice-collector-app@0.0.0|react@19.2.8"
+        "invoice-collector-app@0.2.0|@radix-ui/react-compose-refs@1.1.5",
+        "invoice-collector-app@0.2.0|@types/react@19.2.18",
+        "invoice-collector-app@0.2.0|react@19.2.8"
       ]
     },
     {
-      "ref": "invoice-collector-app@0.0.0|@radix-ui/react-tabs@1.1.21",
+      "ref": "invoice-collector-app@0.2.0|@radix-ui/react-tabs@1.1.21",
       "dependsOn": [
-        "invoice-collector-app@0.0.0|@radix-ui/primitive@1.1.7",
-        "invoice-collector-app@0.0.0|@radix-ui/react-context@1.2.2",
-        "invoice-collector-app@0.0.0|@radix-ui/react-direction@1.1.4",
-        "invoice-collector-app@0.0.0|@radix-ui/react-id@1.1.4",
-        "invoice-collector-app@0.0.0|@radix-ui/react-presence@1.1.10",
-        "invoice-collector-app@0.0.0|@radix-ui/react-primitive@2.1.10",
-        "invoice-collector-app@0.0.0|@radix-ui/react-roving-focus@1.1.19",
-        "invoice-collector-app@0.0.0|@radix-ui/react-use-controllable-state@1.2.6",
-        "invoice-collector-app@0.0.0|@types/react-dom@19.2.7",
-        "invoice-collector-app@0.0.0|@types/react@19.2.18",
-        "invoice-collector-app@0.0.0|react-dom@19.2.8",
-        "invoice-collector-app@0.0.0|react@19.2.8"
+        "invoice-collector-app@0.2.0|@radix-ui/primitive@1.1.7",
+        "invoice-collector-app@0.2.0|@radix-ui/react-context@1.2.2",
+        "invoice-collector-app@0.2.0|@radix-ui/react-direction@1.1.4",
+        "invoice-collector-app@0.2.0|@radix-ui/react-id@1.1.4",
+        "invoice-collector-app@0.2.0|@radix-ui/react-presence@1.1.10",
+        "invoice-collector-app@0.2.0|@radix-ui/react-primitive@2.1.10",
+        "invoice-collector-app@0.2.0|@radix-ui/react-roving-focus@1.1.19",
+        "invoice-collector-app@0.2.0|@radix-ui/react-use-controllable-state@1.2.6",
+        "invoice-collector-app@0.2.0|@types/react-dom@19.2.7",
+        "invoice-collector-app@0.2.0|@types/react@19.2.18",
+        "invoice-collector-app@0.2.0|react-dom@19.2.8",
+        "invoice-collector-app@0.2.0|react@19.2.8"
       ]
     },
     {
-      "ref": "invoice-collector-app@0.0.0|class-variance-authority@0.7.1",
+      "ref": "invoice-collector-app@0.2.0|class-variance-authority@0.7.1",
       "dependsOn": [
-        "invoice-collector-app@0.0.0|clsx@2.1.1"
+        "invoice-collector-app@0.2.0|clsx@2.1.1"
       ]
     },
     {
-      "ref": "invoice-collector-app@0.0.0|clsx@2.1.1"
+      "ref": "invoice-collector-app@0.2.0|clsx@2.1.1"
     },
     {
-      "ref": "invoice-collector-app@0.0.0|fflate@0.8.3"
+      "ref": "invoice-collector-app@0.2.0|fflate@0.8.3"
     },
     {
-      "ref": "invoice-collector-app@0.0.0|invoice-collector-plugin-sdk@0.0.0"
+      "ref": "invoice-collector-app@0.2.0|invoice-collector-plugin-sdk@0.2.0"
     },
     {
-      "ref": "invoice-collector-app@0.0.0|lucide-react@1.40.0",
+      "ref": "invoice-collector-app@0.2.0|lucide-react@1.40.0",
       "dependsOn": [
-        "invoice-collector-app@0.0.0|react@19.2.8"
+        "invoice-collector-app@0.2.0|react@19.2.8"
       ]
     },
     {
-      "ref": "invoice-collector-app@0.0.0|react-dom@19.2.8",
+      "ref": "invoice-collector-app@0.2.0|pdf-parse@2.4.5",
       "dependsOn": [
-        "invoice-collector-app@0.0.0|react@19.2.8",
-        "invoice-collector-app@0.0.0|scheduler@0.27.0"
+        "invoice-collector-app@0.2.0|@napi-rs/canvas@0.1.80",
+        "invoice-collector-app@0.2.0|pdfjs-dist@5.4.296"
       ]
     },
     {
-      "ref": "invoice-collector-app@0.0.0|react@19.2.8"
+      "ref": "invoice-collector-app@0.2.0|react-dom@19.2.8",
+      "dependsOn": [
+        "invoice-collector-app@0.2.0|react@19.2.8",
+        "invoice-collector-app@0.2.0|scheduler@0.27.0"
+      ]
+    },
+    {
+      "ref": "invoice-collector-app@0.2.0|react@19.2.8"
     },
     {
-      "ref": "invoice-collector-app@0.0.0|semver@7.8.5"
+      "ref": "invoice-collector-app@0.2.0|semver@7.8.5"
     },
     {
-      "ref": "invoice-collector-app@0.0.0|sigstore@4.1.1",
+      "ref": "invoice-collector-app@0.2.0|sigstore@4.1.1",
       "dependsOn": [
-        "invoice-collector-app@0.0.0|@sigstore/bundle@4.0.0",
-        "invoice-collector-app@0.0.0|@sigstore/core@3.2.1",
-        "invoice-collector-app@0.0.0|@sigstore/protobuf-specs@0.5.2",
-        "invoice-collector-app@0.0.0|@sigstore/sign@4.1.1",
-        "invoice-collector-app@0.0.0|@sigstore/tuf@4.0.2",
-        "invoice-collector-app@0.0.0|@sigstore/verify@3.1.1"
+        "invoice-collector-app@0.2.0|@sigstore/bundle@4.0.0",
+        "invoice-collector-app@0.2.0|@sigstore/core@3.2.1",
+        "invoice-collector-app@0.2.0|@sigstore/protobuf-specs@0.5.2",
+        "invoice-collector-app@0.2.0|@sigstore/sign@4.1.1",
+        "invoice-collector-app@0.2.0|@sigstore/tuf@4.0.2",
+        "invoice-collector-app@0.2.0|@sigstore/verify@3.1.1"
       ]
     },
     {
-      "ref": "invoice-collector-app@0.0.0|sonner@2.0.8",
+      "ref": "invoice-collector-app@0.2.0|sonner@2.0.8",
       "dependsOn": [
-        "invoice-collector-app@0.0.0|@types/react@19.2.18",
-        "invoice-collector-app@0.0.0|react-dom@19.2.8",
-        "invoice-collector-app@0.0.0|react@19.2.8"
+        "invoice-collector-app@0.2.0|@types/react@19.2.18",
+        "invoice-collector-app@0.2.0|react-dom@19.2.8",
+        "invoice-collector-app@0.2.0|react@19.2.8"
       ]
     },
     {
-      "ref": "invoice-collector-app@0.0.0|tailwind-merge@3.6.0"
+      "ref": "invoice-collector-app@0.2.0|tailwind-merge@3.6.0"
     },
     {
-      "ref": "invoice-collector-app@0.0.0|write-excel-file@4.1.1",
+      "ref": "invoice-collector-app@0.2.0|write-excel-file@4.1.1",
       "dependsOn": [
-        "invoice-collector-app@0.0.0|fflate@0.8.3"
+        "invoice-collector-app@0.2.0|fflate@0.8.3"
       ]
+    },
+    {
+      "ref": "invoice-collector-app@0.2.0|@radix-ui/primitive@1.1.7"
     },
     {
-      "ref": "invoice-collector-app@0.0.0|@radix-ui/primitive@1.1.7"
+      "ref": "invoice-collector-app@0.2.0|@radix-ui/react-compose-refs@1.1.5",
+      "dependsOn": [
+        "invoice-collector-app@0.2.0|@types/react@19.2.18",
+        "invoice-collector-app@0.2.0|react@19.2.8"
+      ]
     },
     {
-      "ref": "invoice-collector-app@0.0.0|@radix-ui/react-compose-refs@1.1.5",
+      "ref": "invoice-collector-app@0.2.0|@radix-ui/react-context@1.2.2",
       "dependsOn": [
-        "invoice-collector-app@0.0.0|@types/react@19.2.18",
-        "invoice-collector-app@0.0.0|react@19.2.8"
+        "invoice-collector-app@0.2.0|@types/react@19.2.18",
+        "invoice-collector-app@0.2.0|react@19.2.8"
       ]
     },
     {
-      "ref": "invoice-collector-app@0.0.0|@radix-ui/react-context@1.2.2",
+      "ref": "invoice-collector-app@0.2.0|@radix-ui/react-presence@1.1.10",
       "dependsOn": [
-        "invoice-collector-app@0.0.0|@types/react@19.2.18",
-        "invoice-collector-app@0.0.0|react@19.2.8"
+        "invoice-collector-app@0.2.0|@radix-ui/react-use-layout-effect@1.1.4",
+        "invoice-collector-app@0.2.0|@types/react-dom@19.2.7",
+        "invoice-collector-app@0.2.0|@types/react@19.2.18",
+        "invoice-collector-app@0.2.0|react-dom@19.2.8",
+        "invoice-collector-app@0.2.0|react@19.2.8"
       ]
     },
     {
-      "ref": "invoice-collector-app@0.0.0|@radix-ui/react-presence@1.1.10",
+      "ref": "invoice-collector-app@0.2.0|@radix-ui/react-primitive@2.1.10",
       "dependsOn": [
-        "invoice-collector-app@0.0.0|@radix-ui/react-use-layout-effect@1.1.4",
-        "invoice-collector-app@0.0.0|@types/react-dom@19.2.7",
-        "invoice-collector-app@0.0.0|@types/react@19.2.18",
-        "invoice-collector-app@0.0.0|react-dom@19.2.8",
-        "invoice-collector-app@0.0.0|react@19.2.8"
+        "invoice-collector-app@0.2.0|@radix-ui/react-slot@1.3.3",
+        "invoice-collector-app@0.2.0|@types/react-dom@19.2.7",
+        "invoice-collector-app@0.2.0|@types/react@19.2.18",
+        "invoice-collector-app@0.2.0|react-dom@19.2.8",
+        "invoice-collector-app@0.2.0|react@19.2.8"
       ]
     },
     {
-      "ref": "invoice-collector-app@0.0.0|@radix-ui/react-primitive@2.1.10",
+      "ref": "invoice-collector-app@0.2.0|@radix-ui/react-use-controllable-state@1.2.6",
       "dependsOn": [
-        "invoice-collector-app@0.0.0|@radix-ui/react-slot@1.3.3",
-        "invoice-collector-app@0.0.0|@types/react-dom@19.2.7",
-        "invoice-collector-app@0.0.0|@types/react@19.2.18",
-        "invoice-collector-app@0.0.0|react-dom@19.2.8",
-        "invoice-collector-app@0.0.0|react@19.2.8"
+        "invoice-collector-app@0.2.0|@radix-ui/primitive@1.1.7",
+        "invoice-collector-app@0.2.0|@radix-ui/react-use-effect-event@0.0.5",
+        "invoice-collector-app@0.2.0|@radix-ui/react-use-layout-effect@1.1.4",
+        "invoice-collector-app@0.2.0|@types/react@19.2.18",
+        "invoice-collector-app@0.2.0|react@19.2.8"
       ]
     },
     {
-      "ref": "invoice-collector-app@0.0.0|@radix-ui/react-use-controllable-state@1.2.6",
+      "ref": "invoice-collector-app@0.2.0|@radix-ui/react-use-size@1.1.4",
       "dependsOn": [
-        "invoice-collector-app@0.0.0|@radix-ui/primitive@1.1.7",
-        "invoice-collector-app@0.0.0|@radix-ui/react-use-effect-event@0.0.5",
-        "invoice-collector-app@0.0.0|@radix-ui/react-use-layout-effect@1.1.4",
-        "invoice-collector-app@0.0.0|@types/react@19.2.18",
-        "invoice-collector-app@0.0.0|react@19.2.8"
+        "invoice-collector-app@0.2.0|@radix-ui/react-use-layout-effect@1.1.4",
+        "invoice-collector-app@0.2.0|@types/react@19.2.18",
+        "invoice-collector-app@0.2.0|react@19.2.8"
       ]
     },
     {
-      "ref": "invoice-collector-app@0.0.0|@radix-ui/react-use-size@1.1.4",
+      "ref": "invoice-collector-app@0.2.0|@types/react-dom@19.2.7",
       "dependsOn": [
-        "invoice-collector-app@0.0.0|@radix-ui/react-use-layout-effect@1.1.4",
-        "invoice-collector-app@0.0.0|@types/react@19.2.18",
-        "invoice-collector-app@0.0.0|react@19.2.8"
+        "invoice-collector-app@0.2.0|@types/react@19.2.18"
       ]
     },
     {
-      "ref": "invoice-collector-app@0.0.0|@types/react-dom@19.2.7",
+      "ref": "invoice-collector-app@0.2.0|@types/react@19.2.18",
       "dependsOn": [
-        "invoice-collector-app@0.0.0|@types/react@19.2.18"
+        "invoice-collector-app@0.2.0|csstype@3.2.3"
       ]
     },
     {
-      "ref": "invoice-collector-app@0.0.0|@types/react@19.2.18",
+      "ref": "invoice-collector-app@0.2.0|@radix-ui/react-dismissable-layer@1.1.19",
       "dependsOn": [
-        "invoice-collector-app@0.0.0|csstype@3.2.3"
+        "invoice-collector-app@0.2.0|@radix-ui/primitive@1.1.7",
+        "invoice-collector-app@0.2.0|@radix-ui/react-compose-refs@1.1.5",
+        "invoice-collector-app@0.2.0|@radix-ui/react-primitive@2.1.10",
+        "invoice-collector-app@0.2.0|@radix-ui/react-use-callback-ref@1.1.4",
+        "invoice-collector-app@0.2.0|@radix-ui/react-use-effect-event@0.0.5",
+        "invoice-collector-app@0.2.0|@types/react-dom@19.2.7",
+        "invoice-collector-app@0.2.0|@types/react@19.2.18",
+        "invoice-collector-app@0.2.0|react-dom@19.2.8",
+        "invoice-collector-app@0.2.0|react@19.2.8"
       ]
     },
     {
-      "ref": "invoice-collector-app@0.0.0|@radix-ui/react-dismissable-layer@1.1.19",
+      "ref": "invoice-collector-app@0.2.0|@radix-ui/react-focus-guards@1.1.6",
       "dependsOn": [
-        "invoice-collector-app@0.0.0|@radix-ui/primitive@1.1.7",
-        "invoice-collector-app@0.0.0|@radix-ui/react-compose-refs@1.1.5",
-        "invoice-collector-app@0.0.0|@radix-ui/react-primitive@2.1.10",
-        "invoice-collector-app@0.0.0|@radix-ui/react-use-callback-ref@1.1.4",
-        "invoice-collector-app@0.0.0|@radix-ui/react-use-effect-event@0.0.5",
-        "invoice-collector-app@0.0.0|@types/react-dom@19.2.7",
-        "invoice-collector-app@0.0.0|@types/react@19.2.18",
-        "invoice-collector-app@0.0.0|react-dom@19.2.8",
-        "invoice-collector-app@0.0.0|react@19.2.8"
+        "invoice-collector-app@0.2.0|@types/react@19.2.18",
+        "invoice-collector-app@0.2.0|react@19.2.8"
       ]
     },
     {
-      "ref": "invoice-collector-app@0.0.0|@radix-ui/react-focus-guards@1.1.6",
+      "ref": "invoice-collector-app@0.2.0|@radix-ui/react-focus-scope@1.1.16",
       "dependsOn": [
-        "invoice-collector-app@0.0.0|@types/react@19.2.18",
-        "invoice-collector-app@0.0.0|react@19.2.8"
+        "invoice-collector-app@0.2.0|@radix-ui/react-compose-refs@1.1.5",
+        "invoice-collector-app@0.2.0|@radix-ui/react-primitive@2.1.10",
+        "invoice-collector-app@0.2.0|@radix-ui/react-use-callback-ref@1.1.4",
+        "invoice-collector-app@0.2.0|@types/react-dom@19.2.7",
+        "invoice-collector-app@0.2.0|@types/react@19.2.18",
+        "invoice-collector-app@0.2.0|react-dom@19.2.8",
+        "invoice-collector-app@0.2.0|react@19.2.8"
       ]
     },
     {
-      "ref": "invoice-collector-app@0.0.0|@radix-ui/react-focus-scope@1.1.16",
+      "ref": "invoice-collector-app@0.2.0|@radix-ui/react-id@1.1.4",
       "dependsOn": [
-        "invoice-collector-app@0.0.0|@radix-ui/react-compose-refs@1.1.5",
-        "invoice-collector-app@0.0.0|@radix-ui/react-primitive@2.1.10",
-        "invoice-collector-app@0.0.0|@radix-ui/react-use-callback-ref@1.1.4",
-        "invoice-collector-app@0.0.0|@types/react-dom@19.2.7",
-        "invoice-collector-app@0.0.0|@types/react@19.2.18",
-        "invoice-collector-app@0.0.0|react-dom@19.2.8",
-        "invoice-collector-app@0.0.0|react@19.2.8"
+        "invoice-collector-app@0.2.0|@radix-ui/react-use-layout-effect@1.1.4",
+        "invoice-collector-app@0.2.0|@types/react@19.2.18",
+        "invoice-collector-app@0.2.0|react@19.2.8"
       ]
     },
     {
-      "ref": "invoice-collector-app@0.0.0|@radix-ui/react-id@1.1.4",
+      "ref": "invoice-collector-app@0.2.0|@radix-ui/react-portal@1.1.17",
       "dependsOn": [
-        "invoice-collector-app@0.0.0|@radix-ui/react-use-layout-effect@1.1.4",
-        "invoice-collector-app@0.0.0|@types/react@19.2.18",
-        "invoice-collector-app@0.0.0|react@19.2.8"
+        "invoice-collector-app@0.2.0|@radix-ui/react-primitive@2.1.10",
+        "invoice-collector-app@0.2.0|@radix-ui/react-use-layout-effect@1.1.4",
+        "invoice-collector-app@0.2.0|@types/react-dom@19.2.7",
+        "invoice-collector-app@0.2.0|@types/react@19.2.18",
+        "invoice-collector-app@0.2.0|react-dom@19.2.8",
+        "invoice-collector-app@0.2.0|react@19.2.8"
       ]
     },
     {
-      "ref": "invoice-collector-app@0.0.0|@radix-ui/react-portal@1.1.17",
+      "ref": "invoice-collector-app@0.2.0|@radix-ui/react-use-layout-effect@1.1.4",
       "dependsOn": [
-        "invoice-collector-app@0.0.0|@radix-ui/react-primitive@2.1.10",
-        "invoice-collector-app@0.0.0|@radix-ui/react-use-layout-effect@1.1.4",
-        "invoice-collector-app@0.0.0|@types/react-dom@19.2.7",
-        "invoice-collector-app@0.0.0|@types/react@19.2.18",
-        "invoice-collector-app@0.0.0|react-dom@19.2.8",
-        "invoice-collector-app@0.0.0|react@19.2.8"
+        "invoice-collector-app@0.2.0|@types/react@19.2.18",
+        "invoice-collector-app@0.2.0|react@19.2.8"
       ]
     },
     {
-      "ref": "invoice-collector-app@0.0.0|@radix-ui/react-use-layout-effect@1.1.4",
+      "ref": "invoice-collector-app@0.2.0|aria-hidden@1.2.6",
       "dependsOn": [
-        "invoice-collector-app@0.0.0|@types/react@19.2.18",
-        "invoice-collector-app@0.0.0|react@19.2.8"
+        "invoice-collector-app@0.2.0|tslib@2.8.1"
       ]
     },
     {
-      "ref": "invoice-collector-app@0.0.0|aria-hidden@1.2.6",
+      "ref": "invoice-collector-app@0.2.0|react-remove-scroll@2.7.2",
       "dependsOn": [
-        "invoice-collector-app@0.0.0|tslib@2.8.1"
+        "invoice-collector-app@0.2.0|@types/react@19.2.18",
+        "invoice-collector-app@0.2.0|react-remove-scroll-bar@2.3.8",
+        "invoice-collector-app@0.2.0|react-style-singleton@2.2.3",
+        "invoice-collector-app@0.2.0|react@19.2.8",
+        "invoice-collector-app@0.2.0|tslib@2.8.1",
+        "invoice-collector-app@0.2.0|use-callback-ref@1.3.3",
+        "invoice-collector-app@0.2.0|use-sidecar@1.1.3"
       ]
     },
     {
-      "ref": "invoice-collector-app@0.0.0|react-remove-scroll@2.7.2",
+      "ref": "invoice-collector-app@0.2.0|@radix-ui/react-menu@2.1.24",
       "dependsOn": [
-        "invoice-collector-app@0.0.0|@types/react@19.2.18",
-        "invoice-collector-app@0.0.0|react-remove-scroll-bar@2.3.8",
-        "invoice-collector-app@0.0.0|react-style-singleton@2.2.3",
-        "invoice-collector-app@0.0.0|react@19.2.8",
-        "invoice-collector-app@0.0.0|tslib@2.8.1",
-        "invoice-collector-app@0.0.0|use-callback-ref@1.3.3",
-        "invoice-collector-app@0.0.0|use-sidecar@1.1.3"
+        "invoice-collector-app@0.2.0|@radix-ui/primitive@1.1.7",
+        "invoice-collector-app@0.2.0|@radix-ui/react-collection@1.1.15",
+        "invoice-collector-app@0.2.0|@radix-ui/react-compose-refs@1.1.5",
+        "invoice-collector-app@0.2.0|@radix-ui/react-context@1.2.2",
+        "invoice-collector-app@0.2.0|@radix-ui/react-direction@1.1.4",
+        "invoice-collector-app@0.2.0|@radix-ui/react-dismissable-layer@1.1.19",
+        "invoice-collector-app@0.2.0|@radix-ui/react-focus-guards@1.1.6",
+        "invoice-collector-app@0.2.0|@radix-ui/react-focus-scope@1.1.16",
+        "invoice-collector-app@0.2.0|@radix-ui/react-id@1.1.4",
+        "invoice-collector-app@0.2.0|@radix-ui/react-popper@1.3.7",
+        "invoice-collector-app@0.2.0|@radix-ui/react-portal@1.1.17",
+        "invoice-collector-app@0.2.0|@radix-ui/react-presence@1.1.10",
+        "invoice-collector-app@0.2.0|@radix-ui/react-primitive@2.1.10",
+        "invoice-collector-app@0.2.0|@radix-ui/react-roving-focus@1.1.19",
+        "invoice-collector-app@0.2.0|@radix-ui/react-slot@1.3.3",
+        "invoice-collector-app@0.2.0|@radix-ui/react-use-callback-ref@1.1.4",
+        "invoice-collector-app@0.2.0|@types/react-dom@19.2.7",
+        "invoice-collector-app@0.2.0|@types/react@19.2.18",
+        "invoice-collector-app@0.2.0|aria-hidden@1.2.6",
+        "invoice-collector-app@0.2.0|react-dom@19.2.8",
+        "invoice-collector-app@0.2.0|react-remove-scroll@2.7.2",
+        "invoice-collector-app@0.2.0|react@19.2.8"
       ]
+    },
+    {
+      "ref": "invoice-collector-app@0.2.0|@radix-ui/number@1.1.3"
     },
     {
-      "ref": "invoice-collector-app@0.0.0|@radix-ui/react-menu@2.1.24",
+      "ref": "invoice-collector-app@0.2.0|@radix-ui/react-direction@1.1.4",
       "dependsOn": [
-        "invoice-collector-app@0.0.0|@radix-ui/primitive@1.1.7",
-        "invoice-collector-app@0.0.0|@radix-ui/react-collection@1.1.15",
-        "invoice-collector-app@0.0.0|@radix-ui/react-compose-refs@1.1.5",
-        "invoice-collector-app@0.0.0|@radix-ui/react-context@1.2.2",
-        "invoice-collector-app@0.0.0|@radix-ui/react-direction@1.1.4",
-        "invoice-collector-app@0.0.0|@radix-ui/react-dismissable-layer@1.1.19",
-        "invoice-collector-app@0.0.0|@radix-ui/react-focus-guards@1.1.6",
-        "invoice-collector-app@0.0.0|@radix-ui/react-focus-scope@1.1.16",
-        "invoice-collector-app@0.0.0|@radix-ui/react-id@1.1.4",
-        "invoice-collector-app@0.0.0|@radix-ui/react-popper@1.3.7",
-        "invoice-collector-app@0.0.0|@radix-ui/react-portal@1.1.17",
-        "invoice-collector-app@0.0.0|@radix-ui/react-presence@1.1.10",
-        "invoice-collector-app@0.0.0|@radix-ui/react-primitive@2.1.10",
-        "invoice-collector-app@0.0.0|@radix-ui/react-roving-focus@1.1.19",
-        "invoice-collector-app@0.0.0|@radix-ui/react-slot@1.3.3",
-        "invoice-collector-app@0.0.0|@radix-ui/react-use-callback-ref@1.1.4",
-        "invoice-collector-app@0.0.0|@types/react-dom@19.2.7",
-        "invoice-collector-app@0.0.0|@types/react@19.2.18",
-        "invoice-collector-app@0.0.0|aria-hidden@1.2.6",
-        "invoice-collector-app@0.0.0|react-dom@19.2.8",
-        "invoice-collector-app@0.0.0|react-remove-scroll@2.7.2",
-        "invoice-collector-app@0.0.0|react@19.2.8"
+        "invoice-collector-app@0.2.0|@types/react@19.2.18",
+        "invoice-collector-app@0.2.0|react@19.2.8"
       ]
     },
     {
-      "ref": "invoice-collector-app@0.0.0|@radix-ui/number@1.1.3"
+      "ref": "invoice-collector-app@0.2.0|@radix-ui/react-use-callback-ref@1.1.4",
+      "dependsOn": [
+        "invoice-collector-app@0.2.0|@types/react@19.2.18",
+        "invoice-collector-app@0.2.0|react@19.2.8"
+      ]
     },
     {
-      "ref": "invoice-collector-app@0.0.0|@radix-ui/react-direction@1.1.4",
+      "ref": "invoice-collector-app@0.2.0|@radix-ui/react-collection@1.1.15",
       "dependsOn": [
-        "invoice-collector-app@0.0.0|@types/react@19.2.18",
-        "invoice-collector-app@0.0.0|react@19.2.8"
+        "invoice-collector-app@0.2.0|@radix-ui/react-compose-refs@1.1.5",
+        "invoice-collector-app@0.2.0|@radix-ui/react-context@1.2.2",
+        "invoice-collector-app@0.2.0|@radix-ui/react-primitive@2.1.10",
+        "invoice-collector-app@0.2.0|@radix-ui/react-slot@1.3.3",
+        "invoice-collector-app@0.2.0|@types/react-dom@19.2.7",
+        "invoice-collector-app@0.2.0|@types/react@19.2.18",
+        "invoice-collector-app@0.2.0|react-dom@19.2.8",
+        "invoice-collector-app@0.2.0|react@19.2.8"
       ]
     },
     {
-      "ref": "invoice-collector-app@0.0.0|@radix-ui/react-use-callback-ref@1.1.4",
+      "ref": "invoice-collector-app@0.2.0|@radix-ui/react-popper@1.3.7",
       "dependsOn": [
-        "invoice-collector-app@0.0.0|@types/react@19.2.18",
-        "invoice-collector-app@0.0.0|react@19.2.8"
+        "invoice-collector-app@0.2.0|@floating-ui/react-dom@2.1.9",
+        "invoice-collector-app@0.2.0|@radix-ui/react-arrow@1.1.15",
+        "invoice-collector-app@0.2.0|@radix-ui/react-compose-refs@1.1.5",
+        "invoice-collector-app@0.2.0|@radix-ui/react-context@1.2.2",
+        "invoice-collector-app@0.2.0|@radix-ui/react-primitive@2.1.10",
+        "invoice-collector-app@0.2.0|@radix-ui/react-use-callback-ref@1.1.4",
+        "invoice-collector-app@0.2.0|@radix-ui/react-use-layout-effect@1.1.4",
+        "invoice-collector-app@0.2.0|@radix-ui/react-use-rect@1.1.4",
+        "invoice-collector-app@0.2.0|@radix-ui/react-use-size@1.1.4",
+        "invoice-collector-app@0.2.0|@radix-ui/rect@1.1.3",
+        "invoice-collector-app@0.2.0|@types/react-dom@19.2.7",
+        "invoice-collector-app@0.2.0|@types/react@19.2.18",
+        "invoice-collector-app@0.2.0|react-dom@19.2.8",
+        "invoice-collector-app@0.2.0|react@19.2.8"
       ]
     },
     {
-      "ref": "invoice-collector-app@0.0.0|@radix-ui/react-collection@1.1.15",
+      "ref": "invoice-collector-app@0.2.0|@radix-ui/react-use-previous@1.1.4",
       "dependsOn": [
-        "invoice-collector-app@0.0.0|@radix-ui/react-compose-refs@1.1.5",
-        "invoice-collector-app@0.0.0|@radix-ui/react-context@1.2.2",
-        "invoice-collector-app@0.0.0|@radix-ui/react-primitive@2.1.10",
-        "invoice-collector-app@0.0.0|@radix-ui/react-slot@1.3.3",
-        "invoice-collector-app@0.0.0|@types/react-dom@19.2.7",
-        "invoice-collector-app@0.0.0|@types/react@19.2.18",
-        "invoice-collector-app@0.0.0|react-dom@19.2.8",
-        "invoice-collector-app@0.0.0|react@19.2.8"
+        "invoice-collector-app@0.2.0|@types/react@19.2.18",
+        "invoice-collector-app@0.2.0|react@19.2.8"
       ]
     },
     {
-      "ref": "invoice-collector-app@0.0.0|@radix-ui/react-popper@1.3.7",
+      "ref": "invoice-collector-app@0.2.0|@radix-ui/react-visually-hidden@1.2.11",
       "dependsOn": [
-        "invoice-collector-app@0.0.0|@floating-ui/react-dom@2.1.9",
-        "invoice-collector-app@0.0.0|@radix-ui/react-arrow@1.1.15",
-        "invoice-collector-app@0.0.0|@radix-ui/react-compose-refs@1.1.5",
-        "invoice-collector-app@0.0.0|@radix-ui/react-context@1.2.2",
-        "invoice-collector-app@0.0.0|@radix-ui/react-primitive@2.1.10",
-        "invoice-collector-app@0.0.0|@radix-ui/react-use-callback-ref@1.1.4",
-        "invoice-collector-app@0.0.0|@radix-ui/react-use-layout-effect@1.1.4",
-        "invoice-collector-app@0.0.0|@radix-ui/react-use-rect@1.1.4",
-        "invoice-collector-app@0.0.0|@radix-ui/react-use-size@1.1.4",
-        "invoice-collector-app@0.0.0|@radix-ui/rect@1.1.3",
-        "invoice-collector-app@0.0.0|@types/react-dom@19.2.7",
-        "invoice-collector-app@0.0.0|@types/react@19.2.18",
-        "invoice-collector-app@0.0.0|react-dom@19.2.8",
-        "invoice-collector-app@0.0.0|react@19.2.8"
+        "invoice-collector-app@0.2.0|@radix-ui/react-primitive@2.1.10",
+        "invoice-collector-app@0.2.0|@types/react-dom@19.2.7",
+        "invoice-collector-app@0.2.0|@types/react@19.2.18",
+        "invoice-collector-app@0.2.0|react-dom@19.2.8",
+        "invoice-collector-app@0.2.0|react@19.2.8"
       ]
     },
     {
-      "ref": "invoice-collector-app@0.0.0|@radix-ui/react-use-previous@1.1.4",
+      "ref": "invoice-collector-app@0.2.0|@radix-ui/react-roving-focus@1.1.19",
       "dependsOn": [
-        "invoice-collector-app@0.0.0|@types/react@19.2.18",
-        "invoice-collector-app@0.0.0|react@19.2.8"
+        "invoice-collector-app@0.2.0|@radix-ui/primitive@1.1.7",
+        "invoice-collector-app@0.2.0|@radix-ui/react-collection@1.1.15",
+        "invoice-collector-app@0.2.0|@radix-ui/react-compose-refs@1.1.5",
+        "invoice-collector-app@0.2.0|@radix-ui/react-context@1.2.2",
+        "invoice-collector-app@0.2.0|@radix-ui/react-direction@1.1.4",
+        "invoice-collector-app@0.2.0|@radix-ui/react-id@1.1.4",
+        "invoice-collector-app@0.2.0|@radix-ui/react-primitive@2.1.10",
+        "invoice-collector-app@0.2.0|@radix-ui/react-use-callback-ref@1.1.4",
+        "invoice-collector-app@0.2.0|@radix-ui/react-use-controllable-state@1.2.6",
+        "invoice-collector-app@0.2.0|@radix-ui/react-use-is-hydrated@0.1.3",
+        "invoice-collector-app@0.2.0|@radix-ui/react-use-layout-effect@1.1.4",
+        "invoice-collector-app@0.2.0|@types/react-dom@19.2.7",
+        "invoice-collector-app@0.2.0|@types/react@19.2.18",
+        "invoice-collector-app@0.2.0|react-dom@19.2.8",
+        "invoice-collector-app@0.2.0|react@19.2.8"
       ]
     },
     {
-      "ref": "invoice-collector-app@0.0.0|@radix-ui/react-visually-hidden@1.2.11",
+      "ref": "invoice-collector-app@0.2.0|@napi-rs/canvas@0.1.80",
       "dependsOn": [
-        "invoice-collector-app@0.0.0|@radix-ui/react-primitive@2.1.10",
-        "invoice-collector-app@0.0.0|@types/react-dom@19.2.7",
-        "invoice-collector-app@0.0.0|@types/react@19.2.18",
-        "invoice-collector-app@0.0.0|react-dom@19.2.8",
-        "invoice-collector-app@0.0.0|react@19.2.8"
+        "invoice-collector-app@0.2.0|@napi-rs/canvas-darwin-arm64@0.1.80"
       ]
     },
     {
-      "ref": "invoice-collector-app@0.0.0|@radix-ui/react-roving-focus@1.1.19",
+      "ref": "invoice-collector-app@0.2.0|pdfjs-dist@5.4.296",
       "dependsOn": [
-        "invoice-collector-app@0.0.0|@radix-ui/primitive@1.1.7",
-        "invoice-collector-app@0.0.0|@radix-ui/react-collection@1.1.15",
-        "invoice-collector-app@0.0.0|@radix-ui/react-compose-refs@1.1.5",
-        "invoice-collector-app@0.0.0|@radix-ui/react-context@1.2.2",
-        "invoice-collector-app@0.0.0|@radix-ui/react-direction@1.1.4",
-        "invoice-collector-app@0.0.0|@radix-ui/react-id@1.1.4",
-        "invoice-collector-app@0.0.0|@radix-ui/react-primitive@2.1.10",
-        "invoice-collector-app@0.0.0|@radix-ui/react-use-callback-ref@1.1.4",
-        "invoice-collector-app@0.0.0|@radix-ui/react-use-controllable-state@1.2.6",
-        "invoice-collector-app@0.0.0|@radix-ui/react-use-is-hydrated@0.1.3",
-        "invoice-collector-app@0.0.0|@radix-ui/react-use-layout-effect@1.1.4",
-        "invoice-collector-app@0.0.0|@types/react-dom@19.2.7",
-        "invoice-collector-app@0.0.0|@types/react@19.2.18",
-        "invoice-collector-app@0.0.0|react-dom@19.2.8",
-        "invoice-collector-app@0.0.0|react@19.2.8"
+        "invoice-collector-app@0.2.0|@napi-rs/canvas@0.1.80"
       ]
     },
     {
-      "ref": "invoice-collector-app@0.0.0|scheduler@0.27.0"
+      "ref": "invoice-collector-app@0.2.0|scheduler@0.27.0"
     },
     {
-      "ref": "invoice-collector-app@0.0.0|@sigstore/bundle@4.0.0",
+      "ref": "invoice-collector-app@0.2.0|@sigstore/bundle@4.0.0",
       "dependsOn": [
-        "invoice-collector-app@0.0.0|@sigstore/protobuf-specs@0.5.2"
+        "invoice-collector-app@0.2.0|@sigstore/protobuf-specs@0.5.2"
       ]
     },
     {
-      "ref": "invoice-collector-app@0.0.0|@sigstore/core@3.2.1"
+      "ref": "invoice-collector-app@0.2.0|@sigstore/core@3.2.1"
     },
     {
-      "ref": "invoice-collector-app@0.0.0|@sigstore/protobuf-specs@0.5.2"
+      "ref": "invoice-collector-app@0.2.0|@sigstore/protobuf-specs@0.5.2"
     },
     {
-      "ref": "invoice-collector-app@0.0.0|@sigstore/sign@4.1.1",
+      "ref": "invoice-collector-app@0.2.0|@sigstore/sign@4.1.1",
       "dependsOn": [
-        "invoice-collector-app@0.0.0|@gar/promise-retry@1.0.3",
-        "invoice-collector-app@0.0.0|@sigstore/bundle@4.0.0",
-        "invoice-collector-app@0.0.0|@sigstore/core@3.2.1",
-        "invoice-collector-app@0.0.0|@sigstore/protobuf-specs@0.5.2",
-        "invoice-collector-app@0.0.0|make-fetch-happen@15.0.6",
-        "invoice-collector-app@0.0.0|proc-log@6.1.0"
+        "invoice-collector-app@0.2.0|@gar/promise-retry@1.0.3",
+        "invoice-collector-app@0.2.0|@sigstore/bundle@4.0.0",
+        "invoice-collector-app@0.2.0|@sigstore/core@3.2.1",
+        "invoice-collector-app@0.2.0|@sigstore/protobuf-specs@0.5.2",
+        "invoice-collector-app@0.2.0|make-fetch-happen@15.0.6",
+        "invoice-collector-app@0.2.0|proc-log@6.1.0"
       ]
     },
     {
-      "ref": "invoice-collector-app@0.0.0|@sigstore/tuf@4.0.2",
+      "ref": "invoice-collector-app@0.2.0|@sigstore/tuf@4.0.2",
       "dependsOn": [
-        "invoice-collector-app@0.0.0|@sigstore/protobuf-specs@0.5.2",
-        "invoice-collector-app@0.0.0|tuf-js@4.1.0"
+        "invoice-collector-app@0.2.0|@sigstore/protobuf-specs@0.5.2",
+        "invoice-collector-app@0.2.0|tuf-js@4.1.0"
       ]
     },
     {
-      "ref": "invoice-collector-app@0.0.0|@sigstore/verify@3.1.1",
+      "ref": "invoice-collector-app@0.2.0|@sigstore/verify@3.1.1",
       "dependsOn": [
-        "invoice-collector-app@0.0.0|@sigstore/bundle@4.0.0",
-        "invoice-collector-app@0.0.0|@sigstore/core@3.2.1",
-        "invoice-collector-app@0.0.0|@sigstore/protobuf-specs@0.5.2"
+        "invoice-collector-app@0.2.0|@sigstore/bundle@4.0.0",
+        "invoice-collector-app@0.2.0|@sigstore/core@3.2.1",
+        "invoice-collector-app@0.2.0|@sigstore/protobuf-specs@0.5.2"
       ]
     },
     {
-      "ref": "invoice-collector-app@0.0.0|@radix-ui/react-use-effect-event@0.0.5",
+      "ref": "invoice-collector-app@0.2.0|@radix-ui/react-use-effect-event@0.0.5",
       "dependsOn": [
-        "invoice-collector-app@0.0.0|@radix-ui/react-use-layout-effect@1.1.4",
-        "invoice-collector-app@0.0.0|@types/react@19.2.18",
-        "invoice-collector-app@0.0.0|react@19.2.8"
+        "invoice-collector-app@0.2.0|@radix-ui/react-use-layout-effect@1.1.4",
+        "invoice-collector-app@0.2.0|@types/react@19.2.18",
+        "invoice-collector-app@0.2.0|react@19.2.8"
       ]
     },
     {
-      "ref": "invoice-collector-app@0.0.0|csstype@3.2.3"
+      "ref": "invoice-collector-app@0.2.0|csstype@3.2.3"
     },
     {
-      "ref": "invoice-collector-app@0.0.0|tslib@2.8.1"
+      "ref": "invoice-collector-app@0.2.0|tslib@2.8.1"
     },
     {
-      "ref": "invoice-collector-app@0.0.0|react-remove-scroll-bar@2.3.8",
+      "ref": "invoice-collector-app@0.2.0|react-remove-scroll-bar@2.3.8",
       "dependsOn": [
-        "invoice-collector-app@0.0.0|@types/react@19.2.18",
-        "invoice-collector-app@0.0.0|react-style-singleton@2.2.3",
-        "invoice-collector-app@0.0.0|react@19.2.8",
-        "invoice-collector-app@0.0.0|tslib@2.8.1"
+        "invoice-collector-app@0.2.0|@types/react@19.2.18",
+        "invoice-collector-app@0.2.0|react-style-singleton@2.2.3",
+        "invoice-collector-app@0.2.0|react@19.2.8",
+        "invoice-collector-app@0.2.0|tslib@2.8.1"
       ]
     },
     {
-      "ref": "invoice-collector-app@0.0.0|react-style-singleton@2.2.3",
+      "ref": "invoice-collector-app@0.2.0|react-style-singleton@2.2.3",
       "dependsOn": [
-        "invoice-collector-app@0.0.0|@types/react@19.2.18",
-        "invoice-collector-app@0.0.0|get-nonce@1.0.1",
-        "invoice-collector-app@0.0.0|react@19.2.8",
-        "invoice-collector-app@0.0.0|tslib@2.8.1"
+        "invoice-collector-app@0.2.0|@types/react@19.2.18",
+        "invoice-collector-app@0.2.0|get-nonce@1.0.1",
+        "invoice-collector-app@0.2.0|react@19.2.8",
+        "invoice-collector-app@0.2.0|tslib@2.8.1"
       ]
     },
     {
-      "ref": "invoice-collector-app@0.0.0|use-callback-ref@1.3.3",
+      "ref": "invoice-collector-app@0.2.0|use-callback-ref@1.3.3",
       "dependsOn": [
-        "invoice-collector-app@0.0.0|@types/react@19.2.18",
-        "invoice-collector-app@0.0.0|react@19.2.8",
-        "invoice-collector-app@0.0.0|tslib@2.8.1"
+        "invoice-collector-app@0.2.0|@types/react@19.2.18",
+        "invoice-collector-app@0.2.0|react@19.2.8",
+        "invoice-collector-app@0.2.0|tslib@2.8.1"
       ]
     },
     {
-      "ref": "invoice-collector-app@0.0.0|use-sidecar@1.1.3",
+      "ref": "invoice-collector-app@0.2.0|use-sidecar@1.1.3",
       "dependsOn": [
-        "invoice-collector-app@0.0.0|@types/react@19.2.18",
-        "invoice-collector-app@0.0.0|detect-node-es@1.1.0",
-        "invoice-collector-app@0.0.0|react@19.2.8",
-        "invoice-collector-app@0.0.0|tslib@2.8.1"
+        "invoice-collector-app@0.2.0|@types/react@19.2.18",
+        "invoice-collector-app@0.2.0|detect-node-es@1.1.0",
+        "invoice-collector-app@0.2.0|react@19.2.8",
+        "invoice-collector-app@0.2.0|tslib@2.8.1"
       ]
     },
     {
-      "ref": "invoice-collector-app@0.0.0|@floating-ui/react-dom@2.1.9",
+      "ref": "invoice-collector-app@0.2.0|@floating-ui/react-dom@2.1.9",
       "dependsOn": [
-        "invoice-collector-app@0.0.0|@floating-ui/dom@1.8.0",
-        "invoice-collector-app@0.0.0|react-dom@19.2.8",
-        "invoice-collector-app@0.0.0|react@19.2.8"
+        "invoice-collector-app@0.2.0|@floating-ui/dom@1.8.0",
+        "invoice-collector-app@0.2.0|react-dom@19.2.8",
+        "invoice-collector-app@0.2.0|react@19.2.8"
       ]
     },
     {
-      "ref": "invoice-collector-app@0.0.0|@radix-ui/react-arrow@1.1.15",
+      "ref": "invoice-collector-app@0.2.0|@radix-ui/react-arrow@1.1.15",
       "dependsOn": [
-        "invoice-collector-app@0.0.0|@radix-ui/react-primitive@2.1.10",
-        "invoice-collector-app@0.0.0|@types/react-dom@19.2.7",
-        "invoice-collector-app@0.0.0|@types/react@19.2.18",
-        "invoice-collector-app@0.0.0|react-dom@19.2.8",
-        "invoice-collector-app@0.0.0|react@19.2.8"
+        "invoice-collector-app@0.2.0|@radix-ui/react-primitive@2.1.10",
+        "invoice-collector-app@0.2.0|@types/react-dom@19.2.7",
+        "invoice-collector-app@0.2.0|@types/react@19.2.18",
+        "invoice-collector-app@0.2.0|react-dom@19.2.8",
+        "invoice-collector-app@0.2.0|react@19.2.8"
       ]
     },
     {
-      "ref": "invoice-collector-app@0.0.0|@radix-ui/react-use-rect@1.1.4",
+      "ref": "invoice-collector-app@0.2.0|@radix-ui/react-use-rect@1.1.4",
       "dependsOn": [
-        "invoice-collector-app@0.0.0|@radix-ui/rect@1.1.3",
-        "invoice-collector-app@0.0.0|@types/react@19.2.18",
-        "invoice-collector-app@0.0.0|react@19.2.8"
+        "invoice-collector-app@0.2.0|@radix-ui/rect@1.1.3",
+        "invoice-collector-app@0.2.0|@types/react@19.2.18",
+        "invoice-collector-app@0.2.0|react@19.2.8"
       ]
     },
     {
-      "ref": "invoice-collector-app@0.0.0|@radix-ui/rect@1.1.3"
+      "ref": "invoice-collector-app@0.2.0|@radix-ui/rect@1.1.3"
     },
     {
-      "ref": "invoice-collector-app@0.0.0|@radix-ui/react-use-is-hydrated@0.1.3",
+      "ref": "invoice-collector-app@0.2.0|@radix-ui/react-use-is-hydrated@0.1.3",
       "dependsOn": [
-        "invoice-collector-app@0.0.0|@types/react@19.2.18",
-        "invoice-collector-app@0.0.0|react@19.2.8"
+        "invoice-collector-app@0.2.0|@types/react@19.2.18",
+        "invoice-collector-app@0.2.0|react@19.2.8"
       ]
+    },
+    {
+      "ref": "invoice-collector-app@0.2.0|@napi-rs/canvas-darwin-arm64@0.1.80"
     },
     {
-      "ref": "invoice-collector-app@0.0.0|@gar/promise-retry@1.0.3"
+      "ref": "invoice-collector-app@0.2.0|@gar/promise-retry@1.0.3"
     },
     {
-      "ref": "invoice-collector-app@0.0.0|make-fetch-happen@15.0.6",
+      "ref": "invoice-collector-app@0.2.0|make-fetch-happen@15.0.6",
       "dependsOn": [
-        "invoice-collector-app@0.0.0|@gar/promise-retry@1.0.3",
-        "invoice-collector-app@0.0.0|@npmcli/agent@4.0.2",
-        "invoice-collector-app@0.0.0|@npmcli/redact@4.0.0",
-        "invoice-collector-app@0.0.0|cacache@20.0.4",
-        "invoice-collector-app@0.0.0|http-cache-semantics@4.2.0",
-        "invoice-collector-app@0.0.0|minipass-fetch@5.0.2",
-        "invoice-collector-app@0.0.0|minipass-flush@1.0.7",
-        "invoice-collector-app@0.0.0|minipass-pipeline@1.2.4",
-        "invoice-collector-app@0.0.0|minipass@7.1.3",
-        "invoice-collector-app@0.0.0|negotiator@1.1.0",
-        "invoice-collector-app@0.0.0|proc-log@6.1.0",
-        "invoice-collector-app@0.0.0|ssri@13.0.1"
+        "invoice-collector-app@0.2.0|@gar/promise-retry@1.0.3",
+        "invoice-collector-app@0.2.0|@npmcli/agent@4.0.2",
+        "invoice-collector-app@0.2.0|@npmcli/redact@4.0.0",
+        "invoice-collector-app@0.2.0|cacache@20.0.4",
+        "invoice-collector-app@0.2.0|http-cache-semantics@4.2.0",
+        "invoice-collector-app@0.2.0|minipass-fetch@5.0.2",
+        "invoice-collector-app@0.2.0|minipass-flush@1.0.7",
+        "invoice-collector-app@0.2.0|minipass-pipeline@1.2.4",
+        "invoice-collector-app@0.2.0|minipass@7.1.3",
+        "invoice-collector-app@0.2.0|negotiator@1.1.0",
+        "invoice-collector-app@0.2.0|proc-log@6.1.0",
+        "invoice-collector-app@0.2.0|ssri@13.0.1"
       ]
     },
     {
-      "ref": "invoice-collector-app@0.0.0|proc-log@6.1.0"
+      "ref": "invoice-collector-app@0.2.0|proc-log@6.1.0"
     },
     {
-      "ref": "invoice-collector-app@0.0.0|tuf-js@4.1.0",
+      "ref": "invoice-collector-app@0.2.0|tuf-js@4.1.0",
       "dependsOn": [
-        "invoice-collector-app@0.0.0|@tufjs/models@4.1.0",
-        "invoice-collector-app@0.0.0|debug@4.4.3",
-        "invoice-collector-app@0.0.0|make-fetch-happen@15.0.6"
+        "invoice-collector-app@0.2.0|@tufjs/models@4.1.0",
+        "invoice-collector-app@0.2.0|debug@4.4.3",
+        "invoice-collector-app@0.2.0|make-fetch-happen@15.0.6"
       ]
     },
     {
-      "ref": "invoice-collector-app@0.0.0|get-nonce@1.0.1"
+      "ref": "invoice-collector-app@0.2.0|get-nonce@1.0.1"
     },
     {
-      "ref": "invoice-collector-app@0.0.0|detect-node-es@1.1.0"
+      "ref": "invoice-collector-app@0.2.0|detect-node-es@1.1.0"
     },
     {
-      "ref": "invoice-collector-app@0.0.0|@floating-ui/dom@1.8.0",
+      "ref": "invoice-collector-app@0.2.0|@floating-ui/dom@1.8.0",
       "dependsOn": [
-        "invoice-collector-app@0.0.0|@floating-ui/core@1.8.0",
-        "invoice-collector-app@0.0.0|@floating-ui/utils@0.2.12"
+        "invoice-collector-app@0.2.0|@floating-ui/core@1.8.0",
+        "invoice-collector-app@0.2.0|@floating-ui/utils@0.2.12"
       ]
     },
     {
-      "ref": "invoice-collector-app@0.0.0|@npmcli/agent@4.0.2",
+      "ref": "invoice-collector-app@0.2.0|@npmcli/agent@4.0.2",
       "dependsOn": [
-        "invoice-collector-app@0.0.0|agent-base@7.1.4",
-        "invoice-collector-app@0.0.0|http-proxy-agent@7.0.2",
-        "invoice-collector-app@0.0.0|https-proxy-agent@7.0.6",
-        "invoice-collector-app@0.0.0|lru-cache@11.5.2",
-        "invoice-collector-app@0.0.0|socks-proxy-agent@8.0.5"
+        "invoice-collector-app@0.2.0|agent-base@7.1.4",
+        "invoice-collector-app@0.2.0|http-proxy-agent@7.0.2",
+        "invoice-collector-app@0.2.0|https-proxy-agent@7.0.6",
+        "invoice-collector-app@0.2.0|lru-cache@11.5.2",
+        "invoice-collector-app@0.2.0|socks-proxy-agent@8.0.5"
       ]
     },
     {
-      "ref": "invoice-collector-app@0.0.0|@npmcli/redact@4.0.0"
+      "ref": "invoice-collector-app@0.2.0|@npmcli/redact@4.0.0"
     },
     {
-      "ref": "invoice-collector-app@0.0.0|cacache@20.0.4",
+      "ref": "invoice-collector-app@0.2.0|cacache@20.0.4",
       "dependsOn": [
-        "invoice-collector-app@0.0.0|@npmcli/fs@5.0.0",
-        "invoice-collector-app@0.0.0|fs-minipass@3.0.3",
-        "invoice-collector-app@0.0.0|glob@13.0.6",
-        "invoice-collector-app@0.0.0|lru-cache@11.5.2",
-        "invoice-collector-app@0.0.0|minipass-collect@2.0.1",
-        "invoice-collector-app@0.0.0|minipass-flush@1.0.7",
-        "invoice-collector-app@0.0.0|minipass-pipeline@1.2.4",
-        "invoice-collector-app@0.0.0|minipass@7.1.3",
-        "invoice-collector-app@0.0.0|p-map@7.0.7",
-        "invoice-collector-app@0.0.0|ssri@13.0.1"
+        "invoice-collector-app@0.2.0|@npmcli/fs@5.0.0",
+        "invoice-collector-app@0.2.0|fs-minipass@3.0.3",
+        "invoice-collector-app@0.2.0|glob@13.0.6",
+        "invoice-collector-app@0.2.0|lru-cache@11.5.2",
+        "invoice-collector-app@0.2.0|minipass-collect@2.0.1",
+        "invoice-collector-app@0.2.0|minipass-flush@1.0.7",
+        "invoice-collector-app@0.2.0|minipass-pipeline@1.2.4",
+        "invoice-collector-app@0.2.0|minipass@7.1.3",
+        "invoice-collector-app@0.2.0|p-map@7.0.7",
+        "invoice-collector-app@0.2.0|ssri@13.0.1"
       ]
     },
     {
-      "ref": "invoice-collector-app@0.0.0|http-cache-semantics@4.2.0"
+      "ref": "invoice-collector-app@0.2.0|http-cache-semantics@4.2.0"
     },
     {
-      "ref": "invoice-collector-app@0.0.0|minipass-fetch@5.0.2",
+      "ref": "invoice-collector-app@0.2.0|minipass-fetch@5.0.2",
       "dependsOn": [
-        "invoice-collector-app@0.0.0|iconv-lite@0.7.3",
-        "invoice-collector-app@0.0.0|minipass-sized@2.0.0",
-        "invoice-collector-app@0.0.0|minipass@7.1.3",
-        "invoice-collector-app@0.0.0|minizlib@3.1.0"
+        "invoice-collector-app@0.2.0|iconv-lite@0.7.3",
+        "invoice-collector-app@0.2.0|minipass-sized@2.0.0",
+        "invoice-collector-app@0.2.0|minipass@7.1.3",
+        "invoice-collector-app@0.2.0|minizlib@3.1.0"
       ]
     },
     {
-      "ref": "invoice-collector-app@0.0.0|minipass-flush@1.0.7",
+      "ref": "invoice-collector-app@0.2.0|minipass-flush@1.0.7",
       "dependsOn": [
-        "invoice-collector-app@0.0.0|minipass-flush@1.0.7|minipass@3.3.6"
+        "invoice-collector-app@0.2.0|minipass-flush@1.0.7|minipass@3.3.6"
       ]
     },
     {
-      "ref": "invoice-collector-app@0.0.0|minipass-flush@1.0.7|minipass@3.3.6",
+      "ref": "invoice-collector-app@0.2.0|minipass-flush@1.0.7|minipass@3.3.6",
       "dependsOn": [
-        "invoice-collector-app@0.0.0|minipass-flush@1.0.7|yallist@4.0.0"
+        "invoice-collector-app@0.2.0|minipass-flush@1.0.7|yallist@4.0.0"
       ]
     },
     {
-      "ref": "invoice-collector-app@0.0.0|minipass-flush@1.0.7|yallist@4.0.0"
+      "ref": "invoice-collector-app@0.2.0|minipass-flush@1.0.7|yallist@4.0.0"
     },
     {
-      "ref": "invoice-collector-app@0.0.0|minipass-pipeline@1.2.4",
+      "ref": "invoice-collector-app@0.2.0|minipass-pipeline@1.2.4",
       "dependsOn": [
-        "invoice-collector-app@0.0.0|minipass-pipeline@1.2.4|minipass@3.3.6"
+        "invoice-collector-app@0.2.0|minipass-pipeline@1.2.4|minipass@3.3.6"
       ]
     },
     {
-      "ref": "invoice-collector-app@0.0.0|minipass-pipeline@1.2.4|minipass@3.3.6",
+      "ref": "invoice-collector-app@0.2.0|minipass-pipeline@1.2.4|minipass@3.3.6",
       "dependsOn": [
-        "invoice-collector-app@0.0.0|minipass-pipeline@1.2.4|yallist@4.0.0"
+        "invoice-collector-app@0.2.0|minipass-pipeline@1.2.4|yallist@4.0.0"
       ]
     },
     {
-      "ref": "invoice-collector-app@0.0.0|minipass-pipeline@1.2.4|yallist@4.0.0"
+      "ref": "invoice-collector-app@0.2.0|minipass-pipeline@1.2.4|yallist@4.0.0"
     },
     {
-      "ref": "invoice-collector-app@0.0.0|minipass@7.1.3"
+      "ref": "invoice-collector-app@0.2.0|minipass@7.1.3"
     },
     {
-      "ref": "invoice-collector-app@0.0.0|negotiator@1.1.0",
+      "ref": "invoice-collector-app@0.2.0|negotiator@1.1.0",
       "dependsOn": [
-        "invoice-collector-app@0.0.0|content-type@2.1.0"
+        "invoice-collector-app@0.2.0|content-type@2.1.0"
       ]
     },
     {
-      "ref": "invoice-collector-app@0.0.0|ssri@13.0.1",
+      "ref": "invoice-collector-app@0.2.0|ssri@13.0.1",
       "dependsOn": [
-        "invoice-collector-app@0.0.0|minipass@7.1.3"
+        "invoice-collector-app@0.2.0|minipass@7.1.3"
       ]
     },
     {
-      "ref": "invoice-collector-app@0.0.0|@tufjs/models@4.1.0",
+      "ref": "invoice-collector-app@0.2.0|@tufjs/models@4.1.0",
       "dependsOn": [
-        "invoice-collector-app@0.0.0|@tufjs/canonical-json@2.0.0",
-        "invoice-collector-app@0.0.0|minimatch@10.2.6"
+        "invoice-collector-app@0.2.0|@tufjs/canonical-json@2.0.0",
+        "invoice-collector-app@0.2.0|minimatch@10.2.6"
       ]
     },
     {
-      "ref": "invoice-collector-app@0.0.0|debug@4.4.3",
+      "ref": "invoice-collector-app@0.2.0|debug@4.4.3",
       "dependsOn": [
-        "invoice-collector-app@0.0.0|ms@2.1.3"
+        "invoice-collector-app@0.2.0|ms@2.1.3"
       ]
     },
     {
-      "ref": "invoice-collector-app@0.0.0|@floating-ui/core@1.8.0",
+      "ref": "invoice-collector-app@0.2.0|@floating-ui/core@1.8.0",
       "dependsOn": [
-        "invoice-collector-app@0.0.0|@floating-ui/utils@0.2.12"
+        "invoice-collector-app@0.2.0|@floating-ui/utils@0.2.12"
       ]
     },
     {
-      "ref": "invoice-collector-app@0.0.0|@floating-ui/utils@0.2.12"
+      "ref": "invoice-collector-app@0.2.0|@floating-ui/utils@0.2.12"
     },
     {
-      "ref": "invoice-collector-app@0.0.0|agent-base@7.1.4"
+      "ref": "invoice-collector-app@0.2.0|agent-base@7.1.4"
     },
     {
-      "ref": "invoice-collector-app@0.0.0|http-proxy-agent@7.0.2",
+      "ref": "invoice-collector-app@0.2.0|http-proxy-agent@7.0.2",
       "dependsOn": [
-        "invoice-collector-app@0.0.0|agent-base@7.1.4",
-        "invoice-collector-app@0.0.0|debug@4.4.3"
+        "invoice-collector-app@0.2.0|agent-base@7.1.4",
+        "invoice-collector-app@0.2.0|debug@4.4.3"
       ]
     },
     {
-      "ref": "invoice-collector-app@0.0.0|https-proxy-agent@7.0.6",
+      "ref": "invoice-collector-app@0.2.0|https-proxy-agent@7.0.6",
       "dependsOn": [
-        "invoice-collector-app@0.0.0|agent-base@7.1.4",
-        "invoice-collector-app@0.0.0|debug@4.4.3"
+        "invoice-collector-app@0.2.0|agent-base@7.1.4",
+        "invoice-collector-app@0.2.0|debug@4.4.3"
       ]
     },
     {
-      "ref": "invoice-collector-app@0.0.0|lru-cache@11.5.2"
+      "ref": "invoice-collector-app@0.2.0|lru-cache@11.5.2"
     },
     {
-      "ref": "invoice-collector-app@0.0.0|socks-proxy-agent@8.0.5",
+      "ref": "invoice-collector-app@0.2.0|socks-proxy-agent@8.0.5",
       "dependsOn": [
-        "invoice-collector-app@0.0.0|agent-base@7.1.4",
-        "invoice-collector-app@0.0.0|debug@4.4.3",
-        "invoice-collector-app@0.0.0|socks@2.8.10"
+        "invoice-collector-app@0.2.0|agent-base@7.1.4",
+        "invoice-collector-app@0.2.0|debug@4.4.3",
+        "invoice-collector-app@0.2.0|socks@2.8.10"
       ]
     },
     {
-      "ref": "invoice-collector-app@0.0.0|@npmcli/fs@5.0.0",
+      "ref": "invoice-collector-app@0.2.0|@npmcli/fs@5.0.0",
       "dependsOn": [
-        "invoice-collector-app@0.0.0|semver@7.8.5"
+        "invoice-collector-app@0.2.0|semver@7.8.5"
       ]
     },
     {
-      "ref": "invoice-collector-app@0.0.0|fs-minipass@3.0.3",
+      "ref": "invoice-collector-app@0.2.0|fs-minipass@3.0.3",
       "dependsOn": [
-        "invoice-collector-app@0.0.0|minipass@7.1.3"
+        "invoice-collector-app@0.2.0|minipass@7.1.3"
       ]
     },
     {
-      "ref": "invoice-collector-app@0.0.0|glob@13.0.6",
+      "ref": "invoice-collector-app@0.2.0|glob@13.0.6",
       "dependsOn": [
-        "invoice-collector-app@0.0.0|minimatch@10.2.6",
-        "invoice-collector-app@0.0.0|minipass@7.1.3",
-        "invoice-collector-app@0.0.0|path-scurry@2.0.2"
+        "invoice-collector-app@0.2.0|minimatch@10.2.6",
+        "invoice-collector-app@0.2.0|minipass@7.1.3",
+        "invoice-collector-app@0.2.0|path-scurry@2.0.2"
       ]
     },
     {
-      "ref": "invoice-collector-app@0.0.0|minipass-collect@2.0.1",
+      "ref": "invoice-collector-app@0.2.0|minipass-collect@2.0.1",
       "dependsOn": [
-        "invoice-collector-app@0.0.0|minipass@7.1.3"
+        "invoice-collector-app@0.2.0|minipass@7.1.3"
       ]
     },
     {
-      "ref": "invoice-collector-app@0.0.0|p-map@7.0.7"
+      "ref": "invoice-collector-app@0.2.0|p-map@7.0.7"
     },
     {
-      "ref": "invoice-collector-app@0.0.0|iconv-lite@0.7.3",
+      "ref": "invoice-collector-app@0.2.0|iconv-lite@0.7.3",
       "dependsOn": [
-        "invoice-collector-app@0.0.0|safer-buffer@2.1.2"
+        "invoice-collector-app@0.2.0|safer-buffer@2.1.2"
       ]
     },
     {
-      "ref": "invoice-collector-app@0.0.0|minipass-sized@2.0.0",
+      "ref": "invoice-collector-app@0.2.0|minipass-sized@2.0.0",
       "dependsOn": [
-        "invoice-collector-app@0.0.0|minipass@7.1.3"
+        "invoice-collector-app@0.2.0|minipass@7.1.3"
       ]
     },
     {
-      "ref": "invoice-collector-app@0.0.0|minizlib@3.1.0",
+      "ref": "invoice-collector-app@0.2.0|minizlib@3.1.0",
       "dependsOn": [
-        "invoice-collector-app@0.0.0|minipass@7.1.3"
+        "invoice-collector-app@0.2.0|minipass@7.1.3"
       ]
     },
     {
-      "ref": "invoice-collector-app@0.0.0|content-type@2.1.0"
+      "ref": "invoice-collector-app@0.2.0|content-type@2.1.0"
     },
     {
-      "ref": "invoice-collector-app@0.0.0|@tufjs/canonical-json@2.0.0"
+      "ref": "invoice-collector-app@0.2.0|@tufjs/canonical-json@2.0.0"
     },
     {
-      "ref": "invoice-collector-app@0.0.0|minimatch@10.2.6",
+      "ref": "invoice-collector-app@0.2.0|minimatch@10.2.6",
       "dependsOn": [
-        "invoice-collector-app@0.0.0|brace-expansion@5.0.9"
+        "invoice-collector-app@0.2.0|brace-expansion@5.0.9"
       ]
     },
     {
-      "ref": "invoice-collector-app@0.0.0|ms@2.1.3"
+      "ref": "invoice-collector-app@0.2.0|ms@2.1.3"
     },
     {
-      "ref": "invoice-collector-app@0.0.0|socks@2.8.10",
+      "ref": "invoice-collector-app@0.2.0|socks@2.8.10",
       "dependsOn": [
-        "invoice-collector-app@0.0.0|ip-address@10.7.0",
-        "invoice-collector-app@0.0.0|smart-buffer@4.2.0"
+        "invoice-collector-app@0.2.0|ip-address@10.7.0",
+        "invoice-collector-app@0.2.0|smart-buffer@4.2.0"
       ]
     },
     {
-      "ref": "invoice-collector-app@0.0.0|path-scurry@2.0.2",
+      "ref": "invoice-collector-app@0.2.0|path-scurry@2.0.2",
       "dependsOn": [
-        "invoice-collector-app@0.0.0|lru-cache@11.5.2",
-        "invoice-collector-app@0.0.0|minipass@7.1.3"
+        "invoice-collector-app@0.2.0|lru-cache@11.5.2",
+        "invoice-collector-app@0.2.0|minipass@7.1.3"
       ]
     },
     {
-      "ref": "invoice-collector-app@0.0.0|safer-buffer@2.1.2"
+      "ref": "invoice-collector-app@0.2.0|safer-buffer@2.1.2"
     },
     {
-      "ref": "invoice-collector-app@0.0.0|brace-expansion@5.0.9",
+      "ref": "invoice-collector-app@0.2.0|brace-expansion@5.0.9",
       "dependsOn": [
-        "invoice-collector-app@0.0.0|balanced-match@4.0.4"
+        "invoice-collector-app@0.2.0|balanced-match@4.0.4"
       ]
     },
     {
-      "ref": "invoice-collector-app@0.0.0|ip-address@10.7.0"
+      "ref": "invoice-collector-app@0.2.0|ip-address@10.7.0"
     },
     {
-      "ref": "invoice-collector-app@0.0.0|smart-buffer@4.2.0"
+      "ref": "invoice-collector-app@0.2.0|smart-buffer@4.2.0"
     },
     {
-      "ref": "invoice-collector-app@0.0.0|balanced-match@4.0.4"
+      "ref": "invoice-collector-app@0.2.0|balanced-match@4.0.4"
     }
   ]
 }

@@ -1,3 +1,4 @@
+import { PDFParse } from 'pdf-parse';
 import type { HttpApi, HttpRequestInput, HttpResponse, PluginContext, Session } from 'invoice-collector-plugin-sdk';
 import { describe, expect, it, vi } from 'vitest';
 import plugin from './plugin.js';
@@ -17,6 +18,21 @@ function dispatchingHttp(routes: Array<{ match: string; response: HttpResponse }
   return { request };
 }
 
+// `pdf-parse` is a real `devDependency` here, never a runtime one (phase 1.19's own fix —
+// PdfApi's doc comment in the SDK explains why: it ships a native binding, and core now provides
+// it as a real PluginContext capability instead of every plugin bundling its own copy). Real
+// here on purpose — these tests feed genuine PDF bytes through discover()/fetchContent() and
+// assert on the actually-extracted field values, not just that some string was returned.
+async function extractTextForTest(bytes: Uint8Array): Promise<string> {
+  const parser = new PDFParse({ data: bytes });
+  try {
+    const result = await parser.getText();
+    return result.text;
+  } finally {
+    await parser.destroy();
+  }
+}
+
 function fakeContext(http: HttpApi): PluginContext {
   return {
     sessions: { list: vi.fn(), get: vi.fn(), create: vi.fn(), reconnect: vi.fn() } as never,
@@ -25,6 +41,7 @@ function fakeContext(http: HttpApi): PluginContext {
     http,
     log: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
     progress: { report: vi.fn() },
+    pdf: { extractText: vi.fn(extractTextForTest) },
   };
 }
 

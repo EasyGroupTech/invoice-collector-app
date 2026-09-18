@@ -28,6 +28,7 @@ import { renderHtmlToPdf } from './htmlToPdf.js';
 import { createInvoiceHistory } from '../../src/invoice-history.js';
 import { createJobRunner } from '../../src/job-runner.js';
 import { advancedSettingsFile, appLogFile, auditLogFile, pluginActivationFile, pluginsDir, profilePaths } from '../../src/paths.js';
+import { createPdfApi } from '../../src/pdf-api.js';
 import { createPluginLog } from '../../src/plugin-log.js';
 import { createPluginRegistry } from '../../src/plugin-registry.js';
 import { createPackageWideStorage, createPluginStorage } from '../../src/plugin-storage.js';
@@ -163,6 +164,9 @@ const sessionAuthResolver: SessionAuthResolver = {
   recoverSession: (pluginId, sessionId) => sessionsRegistry.recoverSession(pluginId, sessionId),
 };
 
+// Stateless — one shared instance for every plugin, same reasoning as sessionAuthResolver above.
+const pdfApi = createPdfApi();
+
 function createPluginServices(pluginId: string) {
   const paths = profilePaths(profileManager.getActiveProfileDir());
   const log = createPluginLog(appLogFile(app.getPath('userData')), pluginId);
@@ -179,6 +183,7 @@ function createPluginServices(pluginId: string) {
     // Default sink for a ctx.progress.report() call with no live job listening (e.g. the
     // scheduler's own background refresh) — recorded, not dropped silently.
     progress: { report: (message: string, data?: Record<string, unknown>) => log.info(message, data) },
+    pdf: pdfApi,
   };
 }
 

@@ -18,6 +18,7 @@ import { createHttpApi } from '../../../src/http-client.js';
 import { createInvoiceHistory } from '../../../src/invoice-history.js';
 import { createJobRunner } from '../../../src/job-runner.js';
 import { profilePaths } from '../../../src/paths.js';
+import { createPdfApi } from '../../../src/pdf-api.js';
 import { createPluginLog } from '../../../src/plugin-log.js';
 import { createPluginRegistry } from '../../../src/plugin-registry.js';
 import { createPluginStorage } from '../../../src/plugin-storage.js';
@@ -79,6 +80,7 @@ export async function createTestBackend(): Promise<TestBackend> {
   const jobRunner = createJobRunner();
   const collectGuard = createCollectJobGuard(jobRunner);
   const invoiceHistory = createInvoiceHistory(paths.invoiceHistoryFile);
+  const pdfApi = createPdfApi();
 
   function createPluginServices(pluginId: string): Omit<PluginContext, 'sessions'> {
     return {
@@ -87,6 +89,7 @@ export async function createTestBackend(): Promise<TestBackend> {
       http: createHttpApi(pluginId, { sessionsRegistry: sessionAuthResolver, fetchImpl: forbiddenFetch }),
       log: createPluginLog(path.join(tmpDir, 'app.log'), pluginId),
       progress: { report: () => {} },
+      pdf: pdfApi,
     };
   }
 

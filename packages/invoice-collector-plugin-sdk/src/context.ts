@@ -28,6 +28,22 @@ export interface PluginProgressApi {
 }
 
 /**
+ * PDF-to-text extraction, backed by core's own real implementation (`pdf-parse`, which ships a
+ * native, platform-specific binding for its rendering path) — deliberately exposed as a
+ * `PluginContext` capability rather than left for a plugin to bundle itself. Core is already
+ * built once per real target platform (§11); a plugin bundling its own copy of a native-binding
+ * dependency would have to be too, and a plugin's own standalone downloadable artifact (§11 item
+ * 2) is built once, not per platform — confirmed live: a plugin bundling `pdf-parse` directly
+ * broke on any platform other than whichever one built that particular release. Any plugin
+ * needing this now depends on core providing it correctly for the platform core itself runs on,
+ * never needs to resolve a native binding of its own at all.
+ */
+export interface PdfApi {
+  /** Extracted text of every page, concatenated. */
+  extractText(bytes: Uint8Array): Promise<string>;
+}
+
+/**
  * Scoped, not a security boundary (plugins run in-process) — but the contract every plugin is
  * expected to use rather than reaching past it.
  */
@@ -47,6 +63,7 @@ export interface PluginContext {
   http: HttpApi;
   log: PluginLogApi;
   progress: PluginProgressApi;
+  pdf: PdfApi;
   /**
    * The exact URL this plugin's own package was installed from (§9.1) — undefined for a plugin
    * bundled directly into core rather than installed through the generic pipeline. A commercial
