@@ -6,7 +6,14 @@
 // (phase 1.17), which stages the *same shape* directly into the packaged app's own resources —
 // this script's own output is the thing a user (or `installPlugin()`, via a plain https:// link)
 // actually downloads.
-import { execFileSync } from 'node:child_process';
+//
+// Pure JS, no runtime npm install needed — real, confirmed-live bug this fixes for good (phase
+// 1.19's own follow-up): this zip used to bundle `pdf-parse` directly, which ships a native,
+// platform-specific binding; built once on whichever CI runner happened to build a given release,
+// it broke outright on any *other* platform trying to install it. Fixed at the root — `pdf-parse`
+// is `ic-core`'s own dependency now, exposed to any plugin as a real `PluginContext.pdf`
+// capability instead (see the SDK's own `PdfApi` doc comment) — so this plugin has no runtime npm
+// dependency of its own left to stage at all, and this same zip genuinely works on every platform.
 import { mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -35,15 +42,6 @@ await Promise.all(
 
 await writeFile(path.join(stagingDir, 'manifest.json'), JSON.stringify(PACKAGE_MANIFEST, null, 2));
 await writeFile(path.join(stagingDir, 'sbom.cdx.json'), await readFile(path.join(pluginDir, 'sbom.cdx.json')));
-
-// The one real runtime dependency (pdf-parse, for the PDF text-extraction fallback) ships a
-// native binding — a real `npm install`, never a hand copy of this repo's own (possibly
-// differently-resolved) node_modules, exactly the same reasoning stage-bundled-plugin.mjs's own
-// file-level comment already documents. Pinned to the version this monorepo's own
-// package-lock.json already resolves.
-execFileSync('npm', ['install', 'pdf-parse@2.4.5', '--omit=dev', '--no-save', '--no-package-lock', '--prefix', stagingDir], {
-  stdio: 'inherit',
-});
 
 async function collectFiles(dir, prefix, files) {
   for (const entry of await readdir(dir, { withFileTypes: true })) {

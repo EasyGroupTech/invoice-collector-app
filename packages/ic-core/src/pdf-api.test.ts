@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { extractPdfText } from './pdf-text.js';
+import { createPdfApi } from './pdf-api.js';
 
 /**
  * A hand-built, minimal-but-genuinely-valid PDF — no third-party PDF-writing library, no
- * captured real invoice (per this phase's own "synthetic fixtures only" rule, §10). Deliberately
- * has no proper xref table; pdf.js's own recovery mode (which every real-world malformed PDF
- * relies on in practice) reconstructs it from the `obj`/`endobj` markers, confirmed empirically
- * against the actual installed pdf-parse before relying on this in a test.
+ * captured real invoice (§10's "synthetic fixtures only" rule). Deliberately has no proper xref
+ * table; pdf.js's own recovery mode (which every real-world malformed PDF relies on in practice)
+ * reconstructs it from the `obj`/`endobj` markers, confirmed empirically against the actual
+ * installed pdf-parse before relying on this in a test. Moved here from
+ * ic-email-to-downloads/src/pdf-text.test.ts (phase 1.19's own follow-up) along with the real
+ * pdf-parse-backed implementation it exercises — see PdfApi's own doc comment in the SDK for why.
  */
 function buildMinimalPdf(lines: string[]): Uint8Array {
   const content = lines.map((line, index) => `BT /F1 12 Tf 10 ${140 - index * 20} Td (${line}) Tj ET`).join('\n');
@@ -25,17 +27,17 @@ trailer<</Size 6/Root 1 0 R>>
   return new TextEncoder().encode(pdf);
 }
 
-describe('extractPdfText', () => {
+describe('createPdfApi', () => {
   it('extracts the text content of a real (if minimal) PDF', async () => {
     const bytes = buildMinimalPdf(['Invoice Number: INV-9001', 'Amount: $250.00 USD']);
-    const text = await extractPdfText(bytes);
+    const text = await createPdfApi().extractText(bytes);
     expect(text).toContain('Invoice Number: INV-9001');
     expect(text).toContain('Amount: $250.00 USD');
   });
 
   it('preserves line separation between distinct text lines', async () => {
     const bytes = buildMinimalPdf(['First line', 'Second line']);
-    const text = await extractPdfText(bytes);
+    const text = await createPdfApi().extractText(bytes);
     const firstIndex = text.indexOf('First line');
     const secondIndex = text.indexOf('Second line');
     expect(firstIndex).toBeGreaterThanOrEqual(0);

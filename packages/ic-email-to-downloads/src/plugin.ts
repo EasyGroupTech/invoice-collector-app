@@ -14,7 +14,6 @@ import { getAttachmentBytes, getMessageDetail, getSignedInMailboxAddress, listAt
 import { htmlToText, parseInvoiceFields, type ParsedInvoiceFields } from './invoice-text-parsing.js';
 import { extractFieldsWithRules } from './mail-field-rules.js';
 import { matchesMailFilter, type MailSourceConfig } from './mail-filter.js';
-import { extractPdfText } from './pdf-text.js';
 
 const SESSION_TYPE_ID = 'microsoft-entra-delegated-device-code';
 const REQUIRED_SCOPES = ['Mail.Read'];
@@ -115,7 +114,7 @@ async function resolveFieldRuleSample(ctx: PluginContext, request: WizardListDat
     if (fileAttachment) {
       try {
         const bytes = await getAttachmentBytes(ctx.http, request.sessionId, message.id, fileAttachment.id, signal);
-        pdfText = await extractPdfText(bytes);
+        pdfText = await ctx.pdf.extractText(bytes);
         if (isComplete(parseInvoiceFields(pdfText))) continue;
       } catch (err) {
         ctx.log.warn('Could not extract text from the attached PDF while sampling for field-rule capture', {
@@ -171,7 +170,7 @@ async function extractInvoiceFields(
   if (fileAttachment) {
     try {
       const bytes = await getAttachmentBytes(ctx.http, sessionId, messageId, fileAttachment.id, signal);
-      pdfText = await extractPdfText(bytes);
+      pdfText = await ctx.pdf.extractText(bytes);
       const pdfFields = parseInvoiceFields(pdfText);
       if (isComplete(pdfFields)) return pdfFields;
     } catch (err) {

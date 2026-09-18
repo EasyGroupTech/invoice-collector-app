@@ -1,6 +1,6 @@
 {
   "name": "invoice-collector-plugin-sdk",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Plugin interface/contract package for Invoice Collector — types, session contracts, declarative UI descriptor types, the microsoft-entra-delegated-device-code built-in session implementation, and the generate-sbom build helper",
   "type": "module",
   "license": "MIT",

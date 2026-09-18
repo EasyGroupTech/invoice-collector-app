@@ -26,6 +26,7 @@ export type {
   PluginStorageApi,
   PluginLogApi,
   PluginProgressApi,
+  PdfApi,
   PluginContext,
 } from './context.js';
 

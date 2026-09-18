@@ -79,6 +79,7 @@ function pluginServices(): Omit<PluginContext, 'sessions'> {
     http: { request: vi.fn() },
     log: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
     progress: { report: vi.fn() },
+    pdf: { extractText: vi.fn() },
   };
 }
 

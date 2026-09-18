@@ -2,7 +2,6 @@ export const PACKAGE_NAME = 'ic-email-to-downloads';
 
 export * from './graph-mail.js';
 export * from './invoice-text-parsing.js';
-export * from './pdf-text.js';
 export * from './mail-filter.js';
 export * from './file-naming.js';
 export * from './package-manifest.js';

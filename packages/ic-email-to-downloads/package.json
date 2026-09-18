@@ -1,6 +1,6 @@
 {
   "name": "ic-email-to-downloads",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "Invoice Collector OSS reference plugin: graph-mail source + local-folder destination",
   "type": "module",
@@ -12,11 +12,11 @@
     "package": "node scripts/package-plugin.mjs"
   },
   "dependencies": {
-    "invoice-collector-plugin-sdk": "*",
-    "pdf-parse": "^2.4.5"
+    "invoice-collector-plugin-sdk": "*"
   },
   "devDependencies": {
     "electron": "^43.2.0",
-    "fflate": "^0.8.3"
+    "fflate": "^0.8.3",
+    "pdf-parse": "^2.4.5"
   }
 }

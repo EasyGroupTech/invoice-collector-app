@@ -24,6 +24,7 @@ function stubPluginServices(_pluginId: string): Omit<PluginContext, 'sessions'> 
     http: { request: vi.fn() },
     log: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
     progress: { report: vi.fn() },
+    pdf: { extractText: vi.fn() },
   };
 }
 
@@ -788,6 +789,7 @@ describe('SessionsRegistry', () => {
           http: { request: httpRequest },
           log: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
           progress: { report: vi.fn() },
+          pdf: { extractText: vi.fn() },
         }),
       });
       integrationRegistry.registerSessionPlugin(microsoftEntraDelegatedDeviceCodeSessionPlugin);
