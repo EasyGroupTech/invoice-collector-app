@@ -1,7 +1,7 @@
 {
   "name": "invoice-collector-app",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Open-source core app, plugin SDK, and reference plugin for Invoice Collector",
   "license": "MIT",
   "type": "module",

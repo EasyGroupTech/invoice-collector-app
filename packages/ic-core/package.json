@@ -1,7 +1,7 @@
 {
   "name": "ic-core",
   "productName": "Invoice Collector",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "description": "Invoice Collector core app shell — no built-in source/destination integrations",
   "type": "module",
