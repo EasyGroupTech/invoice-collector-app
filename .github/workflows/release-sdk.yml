@@ -12,6 +12,19 @@ name: Release SDK
 # maintainer's own machine; every one after this is configured, at
 # https://www.npmjs.com/package/invoice-collector-plugin-sdk/access, to trust exactly this repo +
 # this workflow file.
+#
+# STAGED, NOT DIRECT — this job only ever runs `npm stage publish`, never `npm publish`, matching
+# the trusted-publisher config's own "staged publishing only" setting (npm's own recommended,
+# more secure default — confirmed live: a config left open to direct `npm publish` got a real
+# `403 OIDC permission denied for this action`, deliberately kept restricted rather than relaxed
+# to work around it). Staging never needs 2FA, even from unattended CI, because it can't make
+# anything public by itself — a *human* still has to review and approve the staged tarball
+# afterward, on https://www.npmjs.com/package/invoice-collector-plugin-sdk (the "Staged Packages"
+# tab) or via `npm stage approve <stage-id>`, and *that* step does require real 2FA (a security
+# key taps fine there — it's a live, interactive action, unlike an unattended CI publish).
+#
+# ⚠️ REMEMBER: pushing an sdk-v* tag alone does NOT actually release anything — this workflow only
+# gets the release as far as "staged." Nothing is live on npm until someone approves it by hand.
 on:
   push:
     tags:
@@ -48,6 +61,15 @@ jobs:
 
       # prepack (package.json's own hook) copies the root LICENSE in. No NODE_AUTH_TOKEN — the
       # npm CLI auto-detects the OIDC environment and authenticates via the trusted-publisher
-      # config instead; it also generates and publishes a real provenance attestation
-      # automatically, with no --provenance flag needed.
-      - run: npm publish -w invoice-collector-plugin-sdk --access public
+      # config instead. `npm stage publish`, not `npm publish` — see the file-level comment above
+      # for why; this only ever gets the release as far as "staged," never live on its own.
+      - run: npm stage publish -w invoice-collector-plugin-sdk --access public
+
+      # Default (not `if: always()`) — only worth reminding about approval if staging itself
+      # actually succeeded; a failed `npm stage publish` left nothing to go approve at all.
+      - name: Remind that a human still needs to approve this
+        run: |
+          echo "## ⚠️ Action required: approve the staged SDK release" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "This workflow only staged the release — nothing is live on npm yet." >> "$GITHUB_STEP_SUMMARY"
+          echo "Go to https://www.npmjs.com/package/invoice-collector-plugin-sdk (Staged Packages tab) and approve it, or run \`npm stage approve <stage-id>\` yourself (2FA required either way)." >> "$GITHUB_STEP_SUMMARY"
