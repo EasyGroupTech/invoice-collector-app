@@ -24,6 +24,15 @@ jobs:
           cache: npm
 
       - run: npm ci
+
+      # Real, confirmed-live failure otherwise: ic-email-to-downloads depends on
+      # invoice-collector-plugin-sdk via the npm workspace symlink, resolved against its *built*
+      # dist/ output, not its source — `npm run typecheck -w ic-email-to-downloads` run on its
+      # own (unlike the root `typecheck` script, which builds the SDK first) hit a real
+      # "Cannot find module 'invoice-collector-plugin-sdk'" on a fresh CI checkout with no dist/
+      # yet.
+      - run: npm run build -w invoice-collector-plugin-sdk
+
       - run: npm run typecheck -w ic-email-to-downloads
       - run: npm test -w ic-email-to-downloads
       - run: npm run package:plugin
