@@ -79,7 +79,16 @@ function runCyclonedxNpm(cwd: string, outputFile: string, workspace: string | un
     if (ignoreNpmErrors) {
       args.push('--ignore-npm-errors');
     }
-    const child = spawn(process.platform === 'win32' ? 'npx.cmd' : 'npx', args, { cwd, stdio: 'inherit' });
+    // On Windows, spawning a .cmd file directly requires shell: true — Node's fix for the
+    // batch-file argument-injection vulnerability (CVE-2024-27980) makes a direct spawn of
+    // npx.cmd throw EINVAL otherwise (confirmed live: exactly this failure on a GitHub Actions
+    // windows runner). shell: true also means npx.cmd itself doesn't need quoting/escaping here —
+    // Node's shell-argument quoting on Windows already handles each arg in `args` safely.
+    const child = spawn(process.platform === 'win32' ? 'npx.cmd' : 'npx', args, {
+      cwd,
+      stdio: 'inherit',
+      shell: process.platform === 'win32',
+    });
     child.on('error', reject);
     child.on('exit', (code) => {
       if (code === 0) {
