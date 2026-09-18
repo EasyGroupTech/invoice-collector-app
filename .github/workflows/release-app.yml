@@ -1,0 +1,75 @@
+name: Release app
+
+# The primary, user-facing deliverable — the bare vX.Y.Z tag, unprefixed, unlike sdk-v*/plugin-v*
+# (§11). Real mac signing + notarization (electron-builder's own env-var-driven mechanism, same
+# one confirmed working locally in phase 1.17 — CI just needs the credentials as real secrets
+# instead of the local keychain/environment). Windows ships genuinely unsigned for now — SignPath
+# Foundation's application still hasn't been submitted (docs/implementation-plan.md §0 item 4) —
+# but for the first time built as real x64 on a real windows-latest runner, not the arm64-on-Mac
+# guess 1.17 never got to verify on real hardware.
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  mac:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run package
+        env:
+          # CSC_LINK accepts base64-encoded .p12 data directly (electron-builder's own documented
+          # mechanism) — no manual `security import`/temporary-keychain scripting needed, unlike
+          # a hand-rolled codesign setup.
+          CSC_LINK: ${{ secrets.APPLE_CERTIFICATE_P12_BASE64 }}
+          CSC_KEY_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mac-installers
+          path: |
+            packages/ic-core/release/*.dmg
+            packages/ic-core/release/*.zip
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run package
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer
+          path: packages/ic-core/release/*.exe
+
+  release:
+    needs: [mac, windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ github.ref_name }}" \
+            artifacts/mac-installers/* \
+            artifacts/windows-installer/* \
+            --title "Invoice Collector ${{ github.ref_name }}" \
+            --generate-notes

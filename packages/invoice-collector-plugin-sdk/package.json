@@ -1,19 +1,29 @@
 {
   "name": "invoice-collector-plugin-sdk",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.1.0",
   "description": "Plugin interface/contract package for Invoice Collector — types, session contracts, declarative UI descriptor types, the microsoft-entra-delegated-device-code built-in session implementation, and the generate-sbom build helper",
   "type": "module",
   "license": "MIT",
+  "author": "Mikhail Bobkov",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/EasyGroupTech/invoice-collector-app.git",
+    "directory": "packages/invoice-collector-plugin-sdk"
+  },
+  "homepage": "https://github.com/EasyGroupTech/invoice-collector-app/tree/main/packages/invoice-collector-plugin-sdk#readme",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
     "generate-sbom": "./dist/generate-sbom-cli.js"
   },
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "typecheck": "tsc --noEmit",
     "build": "tsc -p tsconfig.build.json",
-    "test": "vitest run"
+    "test": "vitest run",
+    "prepack": "node scripts/copy-package-files.mjs"
   },
   "devDependencies": {
     "@cyclonedx/cyclonedx-npm": "6.0.1"

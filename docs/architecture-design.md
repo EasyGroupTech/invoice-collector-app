@@ -986,9 +986,33 @@ produced standalone or folded into the app bundle) produces its own, and
 `invoice-collector-plugin-sdk`'s published package includes the `generate-sbom` build helper (§13)
 every plugin author is expected to run as part of *their* build.
 
+### 11.1 Release tag structure (phase 1.19)
+
+Three independent tag prefixes, one per independently-versioned output above, each its own
+GitHub Actions workflow (`release-sdk.yml`/`release-plugin.yml`/`release-app.yml`) — matching this
+section's own "versioned independently" design rather than inventing a fourth, separate scheme:
+
+| Component | Tag pattern | Triggers |
+|---|---|---|
+| `ic-core` (the app) | `vX.Y.Z` — bare, no prefix | Real mac (signed + notarized) and Windows (unsigned — no signing backend yet, §0 item 4) builds, both attached to one GitHub Release |
+| `ic-email-to-downloads` | `plugin-vX.Y.Z` | The standalone zip + a real GitHub Artifact Attestation for it, its own GitHub Release |
+| `invoice-collector-plugin-sdk` | `sdk-vX.Y.Z` | `npm publish` only — no GitHub Release; npm is its real distribution channel |
+
+The app gets the bare tag since it's the primary, user-facing deliverable; the SDK/plugin are
+secondary, library-shaped artifacts, hence the prefix. Nothing about this scheme changes the
+compatibility contract between them — that's already `plugin-api-version.ts`'s
+`isPluginApiVersionSupported()` (§5/§9.1's "core supports the last two SDK majors"), unrelated to
+which tag pattern triggered which build. `ic-core`'s own `CORE_SDK_VERSION` is derived at build
+time from the real, currently-checked-out `invoice-collector-plugin-sdk/package.json` version
+(via real Node module resolution) rather than a hand-maintained literal, specifically so a `v*`
+app release can never silently drift out of sync with the SDK it was actually built against.
+
 ## 12. Distribution & website
 
-- Discovery and download both happen on a project website, not an in-app marketplace/catalog.
+- Discovery and download both happen on a project website, not an in-app marketplace/catalog —
+  **deferred past the first public release (phase 1.19)**: building and hosting a real site is
+  its own separate effort; GitHub Releases (for the app and the plugin bundle) and npm (for the
+  SDK) are the real distribution surface for now.
 - Pages for `ic-core`/the app releases, `invoice-collector-plugin-sdk` (npm + docs), and
   `ic-email-to-downloads`, each with donation links.
 - **Site ownership**: the site is personally owned by the maintainer, designed/branded to present

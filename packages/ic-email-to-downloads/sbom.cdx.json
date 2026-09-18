@@ -3,9 +3,9 @@
   "bomFormat": "CycloneDX",
   "specVersion": "1.6",
   "version": 1,
-  "serialNumber": "urn:uuid:2e0bcd62-d3a5-4496-8758-6473e0f4c464",
+  "serialNumber": "urn:uuid:dae1f59f-2d44-4ea6-bf7b-9a6cb33bc933",
   "metadata": {
-    "timestamp": "2026-09-17T15:42:09.597Z",
+    "timestamp": "2026-09-18T05:41:19.549Z",
     "tools": {
       "components": [
         {
@@ -98,8 +98,8 @@
     "component": {
       "type": "application",
       "name": "invoice-collector-app",
-      "version": "0.0.0",
-      "bom-ref": "invoice-collector-app@0.0.0",
+      "version": "0.1.0",
+      "bom-ref": "invoice-collector-app@0.1.0",
       "description": "Open-source core app, plugin SDK, and reference plugin for Invoice Collector",
       "licenses": [
         {
@@ -109,11 +109,11 @@
           }
         }
       ],
-      "purl": "pkg:npm/invoice-collector-app@0.0.0",
+      "purl": "pkg:npm/invoice-collector-app@0.1.0",
       "properties": [
         {
           "name": "cdx:npm:package:constraint:engine:node",
-          "value": ">=20"
+          "value": ">=22"
         },
         {
           "name": "cdx:npm:package:private",
@@ -130,8 +130,8 @@
     {
       "type": "library",
       "name": "ic-email-to-downloads",
-      "version": "0.0.0",
-      "bom-ref": "invoice-collector-app@0.0.0|ic-email-to-downloads@0.0.0",
+      "version": "0.1.0",
+      "bom-ref": "invoice-collector-app@0.1.0|ic-email-to-downloads@0.1.0",
       "description": "Invoice Collector OSS reference plugin: graph-mail source + local-folder destination",
       "licenses": [
         {
@@ -141,7 +141,7 @@
           }
         }
       ],
-      "purl": "pkg:npm/ic-email-to-downloads@0.0.0",
+      "purl": "pkg:npm/ic-email-to-downloads@0.1.0",
       "properties": [
         {
           "name": "cdx:npm:package:private",
@@ -156,8 +156,9 @@
     {
       "type": "library",
       "name": "invoice-collector-plugin-sdk",
-      "version": "0.0.0",
-      "bom-ref": "invoice-collector-app@0.0.0|invoice-collector-plugin-sdk@0.0.0",
+      "version": "0.1.0",
+      "bom-ref": "invoice-collector-app@0.1.0|invoice-collector-plugin-sdk@0.1.0",
+      "author": "Mikhail Bobkov",
       "description": "Plugin interface/contract package for Invoice Collector — types, session contracts, declarative UI descriptor types, the microsoft-entra-delegated-device-code built-in session implementation, and the generate-sbom build helper",
       "licenses": [
         {
@@ -167,12 +168,25 @@
           }
         }
       ],
-      "purl": "pkg:npm/invoice-collector-plugin-sdk@0.0.0",
-      "properties": [
+      "purl": "pkg:npm/invoice-collector-plugin-sdk@0.1.0",
+      "externalReferences": [
         {
-          "name": "cdx:npm:package:private",
-          "value": "true"
+          "url": "git+https://github.com/EasyGroupTech/invoice-collector-app.git#packages/invoice-collector-plugin-sdk",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\" and \"repository.directory\""
         },
+        {
+          "url": "https://github.com/EasyGroupTech/invoice-collector-app/tree/main/packages/invoice-collector-plugin-sdk#readme",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/EasyGroupTech/invoice-collector-app/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        }
+      ],
+      "properties": [
         {
           "name": "cdx:npm:package:path",
           "value": "node_modules/invoice-collector-plugin-sdk"
@@ -183,7 +197,7 @@
       "type": "library",
       "name": "pdf-parse",
       "version": "2.4.5",
-      "bom-ref": "invoice-collector-app@0.0.0|pdf-parse@2.4.5",
+      "bom-ref": "invoice-collector-app@0.1.0|pdf-parse@2.4.5",
       "author": "Mehmet Kozan",
       "description": "Pure TypeScript, cross-platform module for extracting text, images, and tabular data from PDFs. Run directly in your browser or in Node!",
       "licenses": [
@@ -214,7 +228,13 @@
         {
           "url": "https://registry.npmjs.org/pdf-parse/-/pdf-parse-2.4.5.tgz",
           "type": "distribution",
-          "comment": "as detected from npm-ls property \"resolved\""
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "98753cf471a1eeffb8bb6b9b7e77af274de598f810e565380b10159934a1fecc554c40d87757abfdd292fc0eaf83becd5f8eca4c4a2286af236412ebf02c6ec2"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
         }
       ],
       "properties": [
@@ -233,7 +253,7 @@
       "name": "canvas",
       "group": "@napi-rs",
       "version": "0.1.80",
-      "bom-ref": "invoice-collector-app@0.0.0|@napi-rs/canvas@0.1.80",
+      "bom-ref": "invoice-collector-app@0.1.0|@napi-rs/canvas@0.1.80",
       "description": "Canvas for Node.js with skia backend",
       "licenses": [
         {
@@ -263,7 +283,13 @@
         {
           "url": "https://registry.npmjs.org/@napi-rs/canvas/-/canvas-0.1.80.tgz",
           "type": "distribution",
-          "comment": "as detected from npm-ls property \"resolved\""
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "0f1b93d4296720fb6cd64431f05066924e014034df239908cf2c0068c8d04977cd9eb6b950553d3f0bab5eb97e25eddb27a046b29ff39ac8555456c29b223ec3"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
         }
       ],
       "properties": [
@@ -281,7 +307,7 @@
       "type": "library",
       "name": "pdfjs-dist",
       "version": "5.4.296",
-      "bom-ref": "invoice-collector-app@0.0.0|pdfjs-dist@5.4.296",
+      "bom-ref": "invoice-collector-app@0.1.0|pdfjs-dist@5.4.296",
       "description": "Generic build of Mozilla's PDF.js library.",
       "licenses": [
         {
@@ -311,7 +337,13 @@
         {
           "url": "https://registry.npmjs.org/pdfjs-dist/-/pdfjs-dist-5.4.296.tgz",
           "type": "distribution",
-          "comment": "as detected from npm-ls property \"resolved\""
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "0e53b37add073bb3849e652607ac16189aeb76f6f224a7ed2356e1322b4aeced8df16da073be7bcb26016c8372f480da7d7015f7098aafdb7bc6c4da34a446e5"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
         }
       ],
       "properties": [
@@ -327,11 +359,48 @@
     },
     {
       "type": "library",
+      "name": "canvas-android-arm64",
+      "group": "@napi-rs",
+      "version": "0.1.80",
+      "bom-ref": "invoice-collector-app@0.1.0|@napi-rs/canvas-android-arm64@0.1.80",
+      "scope": "excluded",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/%40napi-rs/canvas-android-arm64@0.1.80",
+      "externalReferences": [
+        {
+          "url": "https://registry.npmjs.org/@napi-rs/canvas-android-arm64/-/canvas-android-arm64-0.1.80.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "b24ef184dfcca177ae13196081ff75a4dce20712cf554a85d820159c1e7b28b1bfa73efe5394ca1bc79775cde99b477b39dd16ade07a64a2e3dfbb17f66b8639"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@napi-rs/canvas-android-arm64"
+        }
+      ]
+    },
+    {
+      "type": "library",
       "name": "canvas-darwin-arm64",
       "group": "@napi-rs",
       "version": "0.1.80",
-      "bom-ref": "invoice-collector-app@0.0.0|@napi-rs/canvas-darwin-arm64@0.1.80",
+      "bom-ref": "invoice-collector-app@0.1.0|@napi-rs/canvas-darwin-arm64@0.1.80",
       "description": "Canvas for Node.js with skia backend",
+      "scope": "optional",
       "licenses": [
         {
           "license": {
@@ -360,7 +429,13 @@
         {
           "url": "https://registry.npmjs.org/@napi-rs/canvas-darwin-arm64/-/canvas-darwin-arm64-0.1.80.tgz",
           "type": "distribution",
-          "comment": "as detected from npm-ls property \"resolved\""
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "3bae003d14d7454880cf43fc804ae47c4af7962a4b26033aa63013c1abd9db679b863625fd251ba60334c5c58f40134c3f59f6f5a7c00bf52ce4f5f5be0f8935"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
         }
       ],
       "properties": [
@@ -373,46 +448,370 @@
           "value": "node_modules/@napi-rs/canvas-darwin-arm64"
         }
       ]
+    },
+    {
+      "type": "library",
+      "name": "canvas-darwin-x64",
+      "group": "@napi-rs",
+      "version": "0.1.80",
+      "bom-ref": "invoice-collector-app@0.1.0|@napi-rs/canvas-darwin-x64@0.1.80",
+      "scope": "excluded",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/%40napi-rs/canvas-darwin-x64@0.1.80",
+      "externalReferences": [
+        {
+          "url": "https://registry.npmjs.org/@napi-rs/canvas-darwin-x64/-/canvas-darwin-x64-0.1.80.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "16aa9253ba8571ed02a77a709d38d590a8e33adc4ca917ba96620dc6921961a64d9d52341f916db1aada649dfa4a24c7363665501ebdfc78713434f501a6bdbc"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@napi-rs/canvas-darwin-x64"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "canvas-linux-arm-gnueabihf",
+      "group": "@napi-rs",
+      "version": "0.1.80",
+      "bom-ref": "invoice-collector-app@0.1.0|@napi-rs/canvas-linux-arm-gnueabihf@0.1.80",
+      "scope": "excluded",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/%40napi-rs/canvas-linux-arm-gnueabihf@0.1.80",
+      "externalReferences": [
+        {
+          "url": "https://registry.npmjs.org/@napi-rs/canvas-linux-arm-gnueabihf/-/canvas-linux-arm-gnueabihf-0.1.80.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "7b25b3d1d7410d073bfc96c0b58e0eb59e52a4af2d47826c0981198c2137748f29aa85940bca0cc1848118261fb31db0e3b7108100a03154554c58a23b7f211d"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@napi-rs/canvas-linux-arm-gnueabihf"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "canvas-linux-arm64-gnu",
+      "group": "@napi-rs",
+      "version": "0.1.80",
+      "bom-ref": "invoice-collector-app@0.1.0|@napi-rs/canvas-linux-arm64-gnu@0.1.80",
+      "scope": "excluded",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/%40napi-rs/canvas-linux-arm64-gnu@0.1.80",
+      "externalReferences": [
+        {
+          "url": "https://registry.npmjs.org/@napi-rs/canvas-linux-arm64-gnu/-/canvas-linux-arm64-gnu-0.1.80.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "ab003adedf00f3a6e7c61b80fc6c0e90ade3bdbf974d069389530bd2f016a07ca86584e336cec1ce838e3438139cdb6bf3fc87aeaeb85d7cd4a0ba83cd4f94bb"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@napi-rs/canvas-linux-arm64-gnu"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "canvas-linux-arm64-musl",
+      "group": "@napi-rs",
+      "version": "0.1.80",
+      "bom-ref": "invoice-collector-app@0.1.0|@napi-rs/canvas-linux-arm64-musl@0.1.80",
+      "scope": "excluded",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/%40napi-rs/canvas-linux-arm64-musl@0.1.80",
+      "externalReferences": [
+        {
+          "url": "https://registry.npmjs.org/@napi-rs/canvas-linux-arm64-musl/-/canvas-linux-arm64-musl-0.1.80.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "d576c23b3ff29a18f6e2515a217b569f0bffe9e1475c3ae33f48d891cea21d0f6af285cacd45f52dce9bbbec2e1a22e11a1d864bfd8995f3910b965c5e299172"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@napi-rs/canvas-linux-arm64-musl"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "canvas-linux-riscv64-gnu",
+      "group": "@napi-rs",
+      "version": "0.1.80",
+      "bom-ref": "invoice-collector-app@0.1.0|@napi-rs/canvas-linux-riscv64-gnu@0.1.80",
+      "scope": "excluded",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/%40napi-rs/canvas-linux-riscv64-gnu@0.1.80",
+      "externalReferences": [
+        {
+          "url": "https://registry.npmjs.org/@napi-rs/canvas-linux-riscv64-gnu/-/canvas-linux-riscv64-gnu-0.1.80.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "5d3cd1d76e70e5932cd2525cc51952d4adcfe51699f51994b0fb5dd6e1adf847c3c9832ee1ce92111398b31c9ab5b6eeff6fa53deecc3c738eff46b4c7b2ff83"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@napi-rs/canvas-linux-riscv64-gnu"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "canvas-linux-x64-gnu",
+      "group": "@napi-rs",
+      "version": "0.1.80",
+      "bom-ref": "invoice-collector-app@0.1.0|@napi-rs/canvas-linux-x64-gnu@0.1.80",
+      "scope": "excluded",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/%40napi-rs/canvas-linux-x64-gnu@0.1.80",
+      "externalReferences": [
+        {
+          "url": "https://registry.npmjs.org/@napi-rs/canvas-linux-x64-gnu/-/canvas-linux-x64-gnu-0.1.80.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "05e5c09a12a0d645f7502ac9b186dd41dde120c0c7fcae879cffe91b62ee21369785706235d87ffd35555550816c9cd541a57980aff864e08cad05bd9afb93a8"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@napi-rs/canvas-linux-x64-gnu"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "canvas-linux-x64-musl",
+      "group": "@napi-rs",
+      "version": "0.1.80",
+      "bom-ref": "invoice-collector-app@0.1.0|@napi-rs/canvas-linux-x64-musl@0.1.80",
+      "scope": "excluded",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/%40napi-rs/canvas-linux-x64-musl@0.1.80",
+      "externalReferences": [
+        {
+          "url": "https://registry.npmjs.org/@napi-rs/canvas-linux-x64-musl/-/canvas-linux-x64-musl-0.1.80.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "c745ef6567476e481d82e709b11c69ad7ff8a38b0479deeaa3dac2400f6e8224bda84d90bcfd1122212e82d6617cb1f773223e8c844524757816ecfed411c732"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@napi-rs/canvas-linux-x64-musl"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "canvas-win32-x64-msvc",
+      "group": "@napi-rs",
+      "version": "0.1.80",
+      "bom-ref": "invoice-collector-app@0.1.0|@napi-rs/canvas-win32-x64-msvc@0.1.80",
+      "scope": "excluded",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/%40napi-rs/canvas-win32-x64-msvc@0.1.80",
+      "externalReferences": [
+        {
+          "url": "https://registry.npmjs.org/@napi-rs/canvas-win32-x64-msvc/-/canvas-win32-x64-msvc-0.1.80.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "67c8cfb0ce9d7f957c0751eb087074e7e6c3882c6313d400fffdd8ae42887550c4c27e5129aa8ec42243449925e3c7096f295cac96d6e07c596d3b5ef23bae3e"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@napi-rs/canvas-win32-x64-msvc"
+        }
+      ]
     }
   ],
   "dependencies": [
     {
-      "ref": "invoice-collector-app@0.0.0",
+      "ref": "invoice-collector-app@0.1.0",
       "dependsOn": [
-        "invoice-collector-app@0.0.0|ic-email-to-downloads@0.0.0"
+        "invoice-collector-app@0.1.0|ic-email-to-downloads@0.1.0"
       ]
     },
     {
-      "ref": "invoice-collector-app@0.0.0|ic-email-to-downloads@0.0.0",
+      "ref": "invoice-collector-app@0.1.0|ic-email-to-downloads@0.1.0",
       "dependsOn": [
-        "invoice-collector-app@0.0.0|invoice-collector-plugin-sdk@0.0.0",
-        "invoice-collector-app@0.0.0|pdf-parse@2.4.5"
+        "invoice-collector-app@0.1.0|invoice-collector-plugin-sdk@0.1.0",
+        "invoice-collector-app@0.1.0|pdf-parse@2.4.5"
       ]
     },
     {
-      "ref": "invoice-collector-app@0.0.0|invoice-collector-plugin-sdk@0.0.0"
+      "ref": "invoice-collector-app@0.1.0|invoice-collector-plugin-sdk@0.1.0"
     },
     {
-      "ref": "invoice-collector-app@0.0.0|pdf-parse@2.4.5",
+      "ref": "invoice-collector-app@0.1.0|pdf-parse@2.4.5",
       "dependsOn": [
-        "invoice-collector-app@0.0.0|@napi-rs/canvas@0.1.80",
-        "invoice-collector-app@0.0.0|pdfjs-dist@5.4.296"
+        "invoice-collector-app@0.1.0|@napi-rs/canvas@0.1.80",
+        "invoice-collector-app@0.1.0|pdfjs-dist@5.4.296"
       ]
     },
     {
-      "ref": "invoice-collector-app@0.0.0|@napi-rs/canvas@0.1.80",
+      "ref": "invoice-collector-app@0.1.0|@napi-rs/canvas@0.1.80",
       "dependsOn": [
-        "invoice-collector-app@0.0.0|@napi-rs/canvas-darwin-arm64@0.1.80"
+        "invoice-collector-app@0.1.0|@napi-rs/canvas-android-arm64@0.1.80",
+        "invoice-collector-app@0.1.0|@napi-rs/canvas-darwin-arm64@0.1.80",
+        "invoice-collector-app@0.1.0|@napi-rs/canvas-darwin-x64@0.1.80",
+        "invoice-collector-app@0.1.0|@napi-rs/canvas-linux-arm-gnueabihf@0.1.80",
+        "invoice-collector-app@0.1.0|@napi-rs/canvas-linux-arm64-gnu@0.1.80",
+        "invoice-collector-app@0.1.0|@napi-rs/canvas-linux-arm64-musl@0.1.80",
+        "invoice-collector-app@0.1.0|@napi-rs/canvas-linux-riscv64-gnu@0.1.80",
+        "invoice-collector-app@0.1.0|@napi-rs/canvas-linux-x64-gnu@0.1.80",
+        "invoice-collector-app@0.1.0|@napi-rs/canvas-linux-x64-musl@0.1.80",
+        "invoice-collector-app@0.1.0|@napi-rs/canvas-win32-x64-msvc@0.1.80"
       ]
     },
     {
-      "ref": "invoice-collector-app@0.0.0|pdfjs-dist@5.4.296",
+      "ref": "invoice-collector-app@0.1.0|pdfjs-dist@5.4.296",
       "dependsOn": [
-        "invoice-collector-app@0.0.0|@napi-rs/canvas@0.1.80"
+        "invoice-collector-app@0.1.0|@napi-rs/canvas@0.1.80"
       ]
     },
     {
-      "ref": "invoice-collector-app@0.0.0|@napi-rs/canvas-darwin-arm64@0.1.80"
+      "ref": "invoice-collector-app@0.1.0|@napi-rs/canvas-android-arm64@0.1.80"
+    },
+    {
+      "ref": "invoice-collector-app@0.1.0|@napi-rs/canvas-darwin-arm64@0.1.80"
+    },
+    {
+      "ref": "invoice-collector-app@0.1.0|@napi-rs/canvas-darwin-x64@0.1.80"
+    },
+    {
+      "ref": "invoice-collector-app@0.1.0|@napi-rs/canvas-linux-arm-gnueabihf@0.1.80"
+    },
+    {
+      "ref": "invoice-collector-app@0.1.0|@napi-rs/canvas-linux-arm64-gnu@0.1.80"
+    },
+    {
+      "ref": "invoice-collector-app@0.1.0|@napi-rs/canvas-linux-arm64-musl@0.1.80"
+    },
+    {
+      "ref": "invoice-collector-app@0.1.0|@napi-rs/canvas-linux-riscv64-gnu@0.1.80"
+    },
+    {
+      "ref": "invoice-collector-app@0.1.0|@napi-rs/canvas-linux-x64-gnu@0.1.80"
+    },
+    {
+      "ref": "invoice-collector-app@0.1.0|@napi-rs/canvas-linux-x64-musl@0.1.80"
+    },
+    {
+      "ref": "invoice-collector-app@0.1.0|@napi-rs/canvas-win32-x64-msvc@0.1.80"
     }
   ]
 }

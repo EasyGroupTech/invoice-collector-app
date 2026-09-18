@@ -1,7 +1,7 @@
 {
   "name": "invoice-collector-app",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Open-source core app, plugin SDK, and reference plugin for Invoice Collector",
   "license": "MIT",
   "type": "module",
@@ -19,7 +19,8 @@
     "generate-sbom:ic-core": "generate-sbom --workspace ic-core --output packages/ic-core/sbom.cdx.json",
     "generate-sbom:sdk": "generate-sbom --workspace invoice-collector-plugin-sdk --output packages/invoice-collector-plugin-sdk/sbom.cdx.json",
     "generate-sbom:email-to-downloads": "generate-sbom --workspace ic-email-to-downloads --output packages/ic-email-to-downloads/sbom.cdx.json",
-    "package": "npm run build && npm run generate-sbom:ic-core && npm run generate-sbom:email-to-downloads && npm run build:app -w ic-core && npm run package -w ic-core"
+    "package": "npm run build && npm run generate-sbom:ic-core && npm run generate-sbom:email-to-downloads && npm run build:app -w ic-core && npm run package -w ic-core",
+    "package:plugin": "npm run build && npm run generate-sbom:email-to-downloads && npm run package -w ic-email-to-downloads"
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",

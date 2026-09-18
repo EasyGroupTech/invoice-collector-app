@@ -39,7 +39,10 @@ mac:
   hardenedRuntime: true
   # No explicit identity configured here — electron-builder's own default,
   # CSC_IDENTITY_AUTO_DISCOVERY, picks up a real "Developer ID Application" certificate from the
-  # login keychain automatically when one exists.
+  # login keychain automatically when one exists (true locally, never true on a fresh CI runner).
+  # On CI (phase 1.19's release-app.yml), CSC_LINK/CSC_KEY_PASSWORD (a base64-encoded .p12 +
+  # its export password, as real GitHub Actions secrets) take over instead — electron-builder's
+  # own documented mechanism, no manual `security import`/temporary-keychain scripting needed.
   #
   # Notarization: electron-builder's own default afterSign hook (@electron/notarize) auto-submits
   # to Apple's real, production notarization service whenever APPLE_ID/
