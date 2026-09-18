@@ -13,7 +13,7 @@
     "test": "vitest run",
     "electron:dev": "electron-vite dev",
     "build:app": "electron-vite build",
-    "package": "node scripts/stage-bundled-plugin.mjs && electron-builder"
+    "package": "node scripts/stage-bundled-plugin.mjs && electron-builder --publish never"
   },
   "dependencies": {
     "@radix-ui/react-checkbox": "^1.3.9",
