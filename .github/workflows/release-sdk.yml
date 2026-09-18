@@ -33,12 +33,21 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
 
       - run: npm ci
+
+      # Real, confirmed-live failure otherwise: `node-version: 22` only guarantees whatever npm
+      # ships bundled with that Node release, which can predate the 11.5.1 minimum trusted
+      # publishing actually needs — the CLI then silently skips the OIDC exchange and attempts a
+      # plain unauthenticated publish, which the registry reports back as a plain 404 (not a
+      # clearer auth error). Pin a known-good npm explicitly rather than trusting whatever Node
+      # 22 happens to bundle this month.
+      - run: npm install -g npm@latest
+
       - run: npm run typecheck -w invoice-collector-plugin-sdk
       - run: npm run build -w invoice-collector-plugin-sdk
       - run: npm test -w invoice-collector-plugin-sdk
 
       # prepack (package.json's own hook) copies the root LICENSE in. No NODE_AUTH_TOKEN — the
-      # npm CLI (11.5.1+, bundled with this Node version) auto-detects the OIDC environment and
-      # authenticates via the trusted-publisher config instead; it also generates and publishes
-      # a real provenance attestation automatically, with no --provenance flag needed.
+      # npm CLI auto-detects the OIDC environment and authenticates via the trusted-publisher
+      # config instead; it also generates and publishes a real provenance attestation
+      # automatically, with no --provenance flag needed.
       - run: npm publish -w invoice-collector-plugin-sdk --access public
