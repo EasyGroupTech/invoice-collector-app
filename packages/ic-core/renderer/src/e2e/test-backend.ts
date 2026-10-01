@@ -184,6 +184,7 @@ export async function createTestBackend(): Promise<TestBackend> {
       await saveConfigFile(filePath, { ...store, [key]: upsertRecord(store[key], updated) });
       return updated;
     },
+    configUpdateRecord: notImplemented('configUpdateRecord'),
     configExportAll: notImplemented('configExportAll'),
     configPickImportFile: notImplemented('configPickImportFile'),
     configImportAll: notImplemented('configImportAll'),
@@ -203,6 +204,7 @@ export async function createTestBackend(): Promise<TestBackend> {
       });
       return Promise.resolve(handle);
     },
+    sessionsUsage: notImplemented('sessionsUsage'),
     sessionsReconnect: (input) =>
       Promise.resolve(
         jobRunner.runJob('session-reconnect', async (report, signal) =>

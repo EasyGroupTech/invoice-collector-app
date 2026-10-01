@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { AdvancedSettings } from '../../../electron/shared/ipcContracts';
+import { AdvancedConfigurationSection } from './AdvancedConfigurationSection';
 
 // Same debounce window WizardSteps.tsx's own auto-apply-on-change fields use — long enough that a
 // still-typing user doesn't fire a save per keystroke, short enough that autosave still feels
@@ -37,7 +38,12 @@ const AUTOSAVE_DEBOUNCE_MS = 400;
  * true of the whole card as it is of each field inside it. The collapsed description summarizes
  * both subsections' current values so there's still something to glance at without expanding.
  */
-export function AdvancedSettingsSection() {
+interface AdvancedSettingsSectionProps {
+  /** Forwarded to the Advanced configuration subsection — see its own prop doc. */
+  onSessionsChanged?: () => void;
+}
+
+export function AdvancedSettingsSection({ onSessionsChanged }: AdvancedSettingsSectionProps) {
   const [settings, setSettings] = useState<AdvancedSettings | undefined>(undefined);
   const [retentionMonths, setRetentionMonths] = useState<number | undefined>(undefined);
   const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
@@ -164,6 +170,8 @@ export function AdvancedSettingsSection() {
                 <span className="text-xs text-muted-foreground">Removes every collected-invoice record — useful for clearing out test data.</span>
               </div>
             </div>
+
+            <AdvancedConfigurationSection onSessionsChanged={onSessionsChanged} />
           </CardContent>
         )}
       </Card>

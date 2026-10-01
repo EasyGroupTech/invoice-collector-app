@@ -235,6 +235,65 @@ describe('SessionsRegistry', () => {
     await expect(other.reconnect(created.id)).rejects.toThrow(/session not found/i);
   });
 
+  describe('reconnect() with requiredScopes', () => {
+    function scopePlugin() {
+      const create = vi.fn(async (_ctx, input: unknown): Promise<SessionCreateResult> => ({
+        label: 'Sign-in',
+        secret: { token: 't', scope: (input as { scope: string }).scope },
+      }));
+      const refresh = vi.fn(async (): Promise<SessionRefreshResult> => ({ secret: { token: 'r', scope: 'Mail.Read' } }));
+      const plugin = fakeSessionPlugin(BUILT_IN_TYPE, {
+        create,
+        refresh,
+        scopesOf: (secret) => (secret as { scope: string }).scope.split(' '),
+        withRequiredScopes: (input, scopes) => ({ ...(input as object), scope: [...(input as { scope: string }).scope.split(' '), ...scopes].join(' ') }),
+      });
+      return { plugin, create, refresh };
+    }
+
+    it('records granted scopes on the session at create()', async () => {
+      const { plugin } = scopePlugin();
+      registry.registerSessionPlugin(plugin);
+      const created = await registry.forPlugin('p').create(BUILT_IN_TYPE, { scope: 'Mail.Read' });
+      expect(created.scopes).toEqual(['Mail.Read']);
+    });
+
+    it('skips the silent refresh and signs in again with the widened scope set when not covered', async () => {
+      const { plugin, create, refresh } = scopePlugin();
+      registry.registerSessionPlugin(plugin);
+      const api = registry.forPlugin('p');
+      const created = await api.create(BUILT_IN_TYPE, { scope: 'Mail.Read' });
+
+      const reconnected = await api.reconnect(created.id, undefined, undefined, { requiredScopes: ['Sites.ReadWrite.All'] });
+
+      expect(refresh).not.toHaveBeenCalled();
+      expect(create).toHaveBeenLastCalledWith(expect.anything(), { scope: 'Mail.Read Sites.ReadWrite.All' }, expect.anything());
+      expect(reconnected.scopes).toEqual(['Mail.Read', 'Sites.ReadWrite.All']);
+    });
+
+    it('still prefers the silent refresh when the granted scopes already cover what is required', async () => {
+      const { plugin, create, refresh } = scopePlugin();
+      registry.registerSessionPlugin(plugin);
+      const api = registry.forPlugin('p');
+      const created = await api.create(BUILT_IN_TYPE, { scope: 'Mail.Read' });
+      create.mockClear();
+
+      await api.reconnect(created.id, undefined, undefined, { requiredScopes: ['mail.read'] });
+
+      expect(refresh).toHaveBeenCalledTimes(1);
+      expect(create).not.toHaveBeenCalled();
+    });
+
+    it('ignores requiredScopes for a session type with no scope concept', async () => {
+      const refresh = vi.fn(async (): Promise<SessionRefreshResult> => ({ secret: { token: 'r' } }));
+      registry.registerSessionPlugin(fakeSessionPlugin(CUSTOM_TYPE, { refresh }));
+      const api = registry.forPlugin('p');
+      const created = await api.create(CUSTOM_TYPE, { label: 'Keys' });
+      await api.reconnect(created.id, undefined, undefined, { requiredScopes: ['whatever'] });
+      expect(refresh).toHaveBeenCalledTimes(1);
+    });
+  });
+
   describe('reconnect() prefers a silent refresh over a new interactive sign-in', () => {
     it('renews via refresh() and never calls create() when refresh succeeds', async () => {
       const create = vi.fn(async (_ctx, input: unknown): Promise<SessionCreateResult> => ({

@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import {
   KNOWN_BUILT_IN_SESSION_TYPE_IDS,
+  scopesCover,
   type HttpRequestInput,
   type PluginContext,
   type Session,
@@ -120,6 +121,19 @@ export function createSessionsRegistry(options: SessionsRegistryOptions): Sessio
     return isBuiltInSessionType(stored.sessionTypeId) || stored.createdByPluginId === pluginId;
   }
 
+  function scopesOfSecret(sessionTypeId: string, secret: unknown): string[] | undefined {
+    return plugins.get(sessionTypeId)?.scopesOf?.(secret);
+  }
+
+  /** `toPublicSession` plus a lazy `scopes` backfill for a session persisted before scopes were
+   * tracked — derived from its decrypted secret on read, never written back. */
+  function publicSession(stored: StoredSession): Session {
+    const session = toPublicSession(stored);
+    if (session.scopes || !stored.secretCiphertext) return session;
+    const scopes = scopesOfSecret(stored.sessionTypeId, JSON.parse(decryptField(options.encryptor, stored.secretCiphertext)) as unknown);
+    return scopes ? { ...session, scopes } : session;
+  }
+
   function clearTimerFor(sessionId: string): void {
     const timer = timers.get(sessionId);
     if (timer) {
@@ -187,6 +201,7 @@ export function createSessionsRegistry(options: SessionsRegistryOptions): Sessio
         status: 'active',
         updatedAt: now().toISOString(),
         expiresAt: result.expiresAt,
+        scopes: scopesOfSecret(stored.sessionTypeId, result.secret) ?? stored.scopes,
         secretCiphertext: encryptField(options.encryptor, JSON.stringify(result.secret)),
       };
       return { kind: 'refreshed', updated };
@@ -272,7 +287,7 @@ export function createSessionsRegistry(options: SessionsRegistryOptions): Sessio
         return current.sessions
           .filter((s) => visibleTo(s, pluginId))
           .filter((s) => !sessionTypeId || s.sessionTypeId === sessionTypeId)
-          .map(toPublicSession);
+          .map(publicSession);
       },
 
       async get(sessionId) {
@@ -280,7 +295,7 @@ export function createSessionsRegistry(options: SessionsRegistryOptions): Sessio
         const stored = current.sessions.find((s) => s.id === sessionId);
         if (!stored || !visibleTo(stored, pluginId)) return undefined;
         return {
-          session: toPublicSession(stored),
+          session: publicSession(stored),
           // Logged out (§6) — no secret to decrypt. A plugin's own refresh()/upload()/discover()
           // reading this back gets `undefined` and fails on its own terms (e.g.
           // local-folder-session.ts's refresh() already throws "No stored folder path found" for
@@ -310,6 +325,7 @@ export function createSessionsRegistry(options: SessionsRegistryOptions): Sessio
           status: 'active',
           expiresAt: result.expiresAt,
           keepAliveIntervalMs: result.keepAliveIntervalMs,
+          scopes: scopesOfSecret(sessionTypeId, result.secret),
           secretCiphertext: encryptField(options.encryptor, JSON.stringify(result.secret)),
           createInputCiphertext: encryptField(options.encryptor, JSON.stringify(input)),
         };
@@ -320,7 +336,7 @@ export function createSessionsRegistry(options: SessionsRegistryOptions): Sessio
         return toPublicSession(stored);
       },
 
-      async reconnect(sessionId, signal, onProgress) {
+      async reconnect(sessionId, signal, onProgress, reconnectOptions) {
         const current = await state();
         const stored = current.sessions.find((s) => s.id === sessionId);
         if (!stored || !visibleTo(stored, pluginId)) {
@@ -332,7 +348,14 @@ export function createSessionsRegistry(options: SessionsRegistryOptions): Sessio
         // (a brand new device-code sign-in, for the built-in) when there's no refresh mechanism or
         // it actually failed — a user-facing Reconnect click shouldn't force a new sign-in prompt
         // when the existing refresh token still works.
-        const refreshOutcome = await attemptRefresh(stored);
+        //
+        // Except when the caller says the session must now cover more than it was granted: a
+        // refresh can't widen consent, so that case goes straight to the interactive sign-in.
+        const requiredScopes = reconnectOptions?.requiredScopes ?? [];
+        const grantedScopes = publicSession(stored).scopes;
+        const needsWiderScopes =
+          requiredScopes.length > 0 && plugins.get(stored.sessionTypeId)?.withRequiredScopes !== undefined && !(grantedScopes && scopesCover(grantedScopes, requiredScopes));
+        const refreshOutcome = needsWiderScopes ? ({ kind: 'failed', updated: stored } as const) : await attemptRefresh(stored);
         if (refreshOutcome.kind === 'refreshed' || refreshOutcome.kind === 'unchanged') {
           const latest = await state();
           await persist({ ...latest, sessions: upsert(latest.sessions, refreshOutcome.updated) });
@@ -345,7 +368,8 @@ export function createSessionsRegistry(options: SessionsRegistryOptions): Sessio
           throw new Error(`No SessionPlugin registered for session type "${stored.sessionTypeId}"`);
         }
 
-        const input = JSON.parse(decryptField(options.encryptor, stored.createInputCiphertext)) as unknown;
+        const storedInput = JSON.parse(decryptField(options.encryptor, stored.createInputCiphertext)) as unknown;
+        const input = requiredScopes.length > 0 && plugin.withRequiredScopes ? plugin.withRequiredScopes(storedInput, requiredScopes) : storedInput;
         const ctx = buildContext(stored.createdByPluginId, onProgress);
         const result = await plugin.create(ctx, input, signal ?? new AbortController().signal);
 
@@ -356,7 +380,10 @@ export function createSessionsRegistry(options: SessionsRegistryOptions): Sessio
           updatedAt: now().toISOString(),
           expiresAt: result.expiresAt,
           keepAliveIntervalMs: result.keepAliveIntervalMs,
+          scopes: scopesOfSecret(stored.sessionTypeId, result.secret),
           secretCiphertext: encryptField(options.encryptor, JSON.stringify(result.secret)),
+          // Keep the widened input so a later plain reconnect() keeps asking for the wider set.
+          createInputCiphertext: encryptField(options.encryptor, JSON.stringify(input)),
         };
         await persist({ ...current, sessions: upsert(current.sessions, updated) });
         scheduleFor(updated);
@@ -386,6 +413,7 @@ export function createSessionsRegistry(options: SessionsRegistryOptions): Sessio
           updatedAt: now().toISOString(),
           expiresAt: result.expiresAt,
           keepAliveIntervalMs: result.keepAliveIntervalMs,
+          scopes: scopesOfSecret(stored.sessionTypeId, result.secret),
           secretCiphertext: encryptField(options.encryptor, JSON.stringify(result.secret)),
           // The new input replaces what create() was originally called with — a later plain
           // reconnect() (if create() ever needs replaying again) should use the fresh one, not
@@ -425,7 +453,7 @@ export function createSessionsRegistry(options: SessionsRegistryOptions): Sessio
 
     async listAll() {
       const current = await state();
-      return current.sessions.map(toPublicSession);
+      return current.sessions.map(publicSession);
     },
 
     async removeSession(sessionId) {

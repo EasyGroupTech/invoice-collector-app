@@ -42,7 +42,14 @@ function ImportResultList({ title, items }: { title: string; items: ImportResult
  * active profile, both collapsed and expanded, so switching context away from Settings and back
  * still shows which profile is live without having to expand anything.
  */
-export function ProfileManagementSection() {
+interface ProfileManagementSectionProps {
+  /** Called after anything that changes the active profile's data (switch, create-and-switch,
+   * delete, config import) — every other Settings section fetches its own profile-scoped data
+   * once on mount and has no other way to learn it just went stale. */
+  onProfileChanged?: () => void;
+}
+
+export function ProfileManagementSection({ onProfileChanged }: ProfileManagementSectionProps) {
   const [collapsed, setCollapsed] = useState(true);
 
   const [profiles, setProfiles] = useState<ProfileSummary[]>([]);
@@ -71,6 +78,7 @@ export function ProfileManagementSection() {
     try {
       await window.api.profilesSwitch(id);
       await refreshProfiles();
+      onProfileChanged?.();
       toast.success('Switched profile');
     } catch (err) {
       toast.error(err instanceof Error ? err.message : String(err));
@@ -84,6 +92,7 @@ export function ProfileManagementSection() {
     try {
       await window.api.profilesDelete(id);
       await refreshProfiles();
+      onProfileChanged?.();
       toast(`Removed profile "${name}"`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : String(err));
@@ -101,6 +110,7 @@ export function ProfileManagementSection() {
       // whichever profile was active before and having to find+click the new one separately.
       await window.api.profilesSwitch(created.id);
       await refreshProfiles();
+      onProfileChanged?.();
       toast.success(`Created and switched to profile "${newProfileName}"`);
       setNewProfileOpen(false);
       setNewProfileName('');
@@ -137,6 +147,7 @@ export function ProfileManagementSection() {
     try {
       const result = await window.api.configImportAll(importFile, password);
       setImportResult(result);
+      onProfileChanged?.();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : String(err));
     } finally {

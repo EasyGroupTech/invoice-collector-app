@@ -9,6 +9,15 @@ export type {
 export {
   KNOWN_BUILT_IN_SESSION_TYPE_IDS,
 } from './session.js';
+export {
+  GRAPH_AUDIENCE,
+  audienceLabel,
+  audienceOfScope,
+  audiencesOfScopes,
+  scopesCover,
+  splitScopeString,
+  unionScopes,
+} from './scopes.js';
 export type {
   BuiltInSessionTypeId,
   SessionTypeDescriptor,

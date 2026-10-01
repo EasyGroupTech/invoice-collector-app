@@ -36,10 +36,12 @@ import {
   type RunCollectResult,
   type SbomEntry,
   type Session,
+  type SessionUsage,
   type SuggestSessionLabelInput,
   type SuggestSourceNameInput,
   type SuggestWizardValuesInput,
   type UpdateFlowInput,
+  type UpdateRecordInput,
   type WizardListDataResult,
 } from '../shared/ipcContracts.js';
 
@@ -64,6 +66,7 @@ contextBridge.exposeInMainWorld('api', {
   flowsUpdate: (input: UpdateFlowInput): Promise<PluginBackedRecord> => ipcRenderer.invoke(Channels.FlowsUpdate, input),
   flowsSweepOrphans: (): Promise<void> => ipcRenderer.invoke(Channels.FlowsSweepOrphans),
   configAssignSession: (input: AssignSessionInput): Promise<PluginBackedRecord> => ipcRenderer.invoke(Channels.ConfigAssignSession, input),
+  configUpdateRecord: (input: UpdateRecordInput): Promise<PluginBackedRecord> => ipcRenderer.invoke(Channels.ConfigUpdateRecord, input),
   configExportAll: (password: string): Promise<FileExportResult> => ipcRenderer.invoke(Channels.ConfigExportAll, password),
   configPickImportFile: (): Promise<EncryptedConfigExportFile | undefined> => ipcRenderer.invoke(Channels.ConfigPickImportFile),
   configImportAll: (file: EncryptedConfigExportFile, password: string): Promise<ConfigImportResult> =>
@@ -76,6 +79,7 @@ contextBridge.exposeInMainWorld('api', {
 
   sessionsList: (): Promise<Session[]> => ipcRenderer.invoke(Channels.SessionsList),
   sessionsCreate: (input: CreateSessionInput): Promise<JobHandle> => ipcRenderer.invoke(Channels.SessionsCreate, input),
+  sessionsUsage: (sessionId: string): Promise<SessionUsage> => ipcRenderer.invoke(Channels.SessionsUsage, sessionId),
   sessionsReconnect: (input: ReconnectSessionInput): Promise<JobHandle> => ipcRenderer.invoke(Channels.SessionsReconnect, input),
   sessionsRefresh: (input: ReconnectSessionInput): Promise<Session> => ipcRenderer.invoke(Channels.SessionsRefresh, input),
   sessionsLogout: (sessionId: string): Promise<void> => ipcRenderer.invoke(Channels.SessionsLogout, sessionId),

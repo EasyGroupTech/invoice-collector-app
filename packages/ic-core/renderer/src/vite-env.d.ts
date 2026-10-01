@@ -41,10 +41,12 @@ import type {
   RunCollectResult,
   SbomEntry,
   Session,
+  SessionUsage,
   SuggestSessionLabelInput,
   SuggestSourceNameInput,
   SuggestWizardValuesInput,
   UpdateFlowInput,
+  UpdateRecordInput,
   WizardListDataResult,
 } from '../../electron/shared/ipcContracts';
 
@@ -59,6 +61,7 @@ declare global {
       flowsUpdate(input: UpdateFlowInput): Promise<PluginBackedRecord>;
       flowsSweepOrphans(): Promise<void>;
       configAssignSession(input: AssignSessionInput): Promise<PluginBackedRecord>;
+      configUpdateRecord(input: UpdateRecordInput): Promise<PluginBackedRecord>;
       configExportAll(password: string): Promise<FileExportResult>;
       configPickImportFile(): Promise<EncryptedConfigExportFile | undefined>;
       configImportAll(file: EncryptedConfigExportFile, password: string): Promise<ConfigImportResult>;
@@ -70,6 +73,7 @@ declare global {
 
       sessionsList(): Promise<Session[]>;
       sessionsCreate(input: CreateSessionInput): Promise<JobHandle>;
+      sessionsUsage(sessionId: string): Promise<SessionUsage>;
       sessionsReconnect(input: ReconnectSessionInput): Promise<JobHandle>;
       sessionsRefresh(input: ReconnectSessionInput): Promise<Session>;
       sessionsLogout(sessionId: string): Promise<void>;

@@ -40,6 +40,13 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
   const [sessionsVersion, setSessionsVersion] = useState(0);
   const bumpSessionsVersion = useCallback(() => setSessionsVersion((v) => v + 1), []);
 
+  // Bumped by ProfileManagementSection after a profile switch/create/delete or config import.
+  // Used as a React `key` on every profile-scoped section so they remount and refetch — each loads
+  // its data once on mount and would otherwise keep showing the previous profile's sessions,
+  // flows, sources and destinations.
+  const [profileVersion, setProfileVersion] = useState(0);
+  const bumpProfileVersion = useCallback(() => setProfileVersion((v) => v + 1), []);
+
   return (
     <div className="flex flex-col gap-8">
       <div className="flex items-center justify-between">
@@ -51,13 +58,13 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
           <ArrowLeft className="size-6" />
         </Button>
       </div>
-      <ProfileManagementSection />
-      <SessionStatusSection refreshKey={sessionsVersion} />
+      <ProfileManagementSection onProfileChanged={bumpProfileVersion} />
+      <SessionStatusSection key={`sessions-${profileVersion}`} refreshKey={sessionsVersion} />
       <LogsSection />
       <AuditLogSection />
-      <CollectionFlowsSection onSessionsChanged={bumpSessionsVersion} />
+      <CollectionFlowsSection key={`flows-${profileVersion}`} onSessionsChanged={bumpSessionsVersion} />
       <PluginsSection />
-      <AdvancedSettingsSection />
+      <AdvancedSettingsSection key={`advanced-${profileVersion}`} onSessionsChanged={bumpSessionsVersion} />
     </div>
   );
 }

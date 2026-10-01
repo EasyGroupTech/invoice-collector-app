@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { InstalledPluginSummary as PluginSummary, SessionRequirement } from '../../../electron/shared/ipcContracts';
+import { sessionServesRequirement } from '../../../src/session-usage.js';
 import { validateWizardValues, type WizardFieldValues } from '../../../src/wizard-form-state.js';
 import { WizardSteps } from '../descriptors/WizardSteps';
 import { useJob } from '../hooks/useJob';
@@ -24,7 +25,14 @@ type ConnectRow =
   | { kind: 'reuse'; plugin: PluginSummary; requirement: SessionRequirement; sessions: Session[] };
 
 function compatibleSessionsFor(plugin: PluginSummary, sessions: Session[], requirement: SessionRequirement): Session[] {
-  return sessions.filter((s) => s.sessionTypeId === requirement.sessionTypeId && (requirement.confirmsBuiltIn || s.createdByPluginId === plugin.manifest.id));
+  return sessions.filter(
+    (s) =>
+      s.sessionTypeId === requirement.sessionTypeId &&
+      (requirement.confirmsBuiltIn || s.createdByPluginId === plugin.manifest.id) &&
+      // A Graph token is rejected by ARM with "Invalid audience" (and vice versa) — never offer a
+      // session whose token is issued for a different resource than this requirement needs.
+      sessionServesRequirement(s, requirement),
+  );
 }
 
 function buildConnectRows(plugins: PluginSummary[], sessions: Session[]): ConnectRow[] {
