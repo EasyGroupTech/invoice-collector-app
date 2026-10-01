@@ -17,6 +17,8 @@ export interface StoredSession {
   status: SessionStatus;
   expiresAt?: string;
   keepAliveIntervalMs?: number;
+  /** See `Session.scopes` — non-secret, so stored in the clear. */
+  scopes?: string[];
   /** Encrypted `SessionPlugin.create()`/`refresh()` result secret, base64 via an Encryptor. Unset
    * after a Logout (§6's "Logout only clears stored credentials, it doesn't delete the session" —
    * the record, its `createInputCiphertext`, and its identity/label all stay put; only the secret

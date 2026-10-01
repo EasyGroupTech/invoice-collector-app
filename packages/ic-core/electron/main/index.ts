@@ -39,6 +39,7 @@ import { resolveSessionCreateInput } from '../../src/session-create-input.js';
 import { suggestSessionLabel } from '../../src/session-label-suggest.js';
 import { suggestSourceName } from '../../src/source-name-suggest.js';
 import { notifySourceRenamed } from '../../src/source-rename-notify.js';
+import { computeSessionUsage, type SessionUsage } from '../../src/session-usage.js';
 import { createSessionsRegistry, type SessionsRegistry } from '../../src/sessions-registry.js';
 import { resolveWizardListData } from '../../src/wizard-data.js';
 import { suggestWizardValues } from '../../src/wizard-value-suggest.js';
@@ -64,6 +65,7 @@ import {
   type SuggestSourceNameInput,
   type SuggestWizardValuesInput,
   type UpdateFlowInput,
+  type UpdateRecordInput,
 } from '../shared/ipcContracts.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -374,6 +376,17 @@ ipcMain.handle(Channels.ConfigAssignSession, async (_event, input: AssignSession
   return updated;
 });
 
+ipcMain.handle(Channels.ConfigUpdateRecord, async (_event, input: UpdateRecordInput) => {
+  const filePath = await currentConfigFilePath();
+  const store = await loadConfigFile(filePath);
+  const key = input.kind === 'source' ? 'sources' : 'destinations';
+  const existing = store[key].find((r) => r.id === input.id);
+  if (!existing) throw new Error(`${input.kind} ${input.id} not found`);
+  const updated = { ...existing, name: input.name, config: input.config, updatedAt: new Date().toISOString() };
+  await saveConfigFile(filePath, { ...store, [key]: upsertRecord(store[key], updated) });
+  return updated;
+});
+
 // Save-dialog + write, same pattern as SbomExport/ReportExport below — the encrypted payload
 // itself is produced first regardless of whether the user actually picks a destination, since
 // there's no point prompting for a password only to then also cancel a save dialog.
@@ -439,12 +452,36 @@ ipcMain.handle(Channels.SessionsCreate, (_event, input: CreateSessionInput) => {
   });
 });
 
+// Who uses a session (Settings' session Info dialog) and, for a scope-based session, what they
+// collectively need from it. Also what Login (below) asks the sign-in for.
+async function sessionUsageFor(sessionId: string): Promise<SessionUsage | undefined> {
+  const session = (await sessionsRegistry.listAll()).find((s) => s.id === sessionId);
+  if (!session) return undefined;
+  const store = await loadConfigFile(await currentConfigFilePath());
+  return computeSessionUsage(session, store.sources, store.destinations, {
+    requirementFor: (pluginId, sessionTypeId) => pluginRegistry.get(pluginId)?.sessionRequirements.find((r) => r.sessionTypeId === sessionTypeId),
+    pluginName: (pluginId) => pluginRegistry.get(pluginId)?.manifest.name ?? pluginId,
+  });
+}
+
+ipcMain.handle(Channels.SessionsUsage, (_event, sessionId: string) => sessionUsageFor(sessionId));
+
+// Login signs in for what every source/destination sharing this session needs (scopes → audience),
+// not just what the session was first created with — otherwise adding e.g. SharePoint to a session
+// first made for Graph Mail leaves it without the scopes SharePoint needs.
 ipcMain.handle(Channels.SessionsReconnect, (_event, input: ReconnectSessionInput) => {
-  return jobRunner.runJob('session-reconnect', async (report, signal) =>
-    sessionsRegistry
+  return jobRunner.runJob('session-reconnect', async (report, signal) => {
+    const usage = await sessionUsageFor(input.sessionId);
+    if (usage?.audienceConflict) {
+      throw new Error(
+        `This session is shared by ${usage.consumers.map((c) => `"${c.name}"`).join(', ')}, which need access to different APIs (${usage.audienceLabels.join(' and ')}). ` +
+          `One sign-in can only be valid for one of them — give one of them its own session (Settings → Advanced configuration).`,
+      );
+    }
+    return sessionsRegistry
       .forPlugin(input.pluginId)
-      .reconnect(input.sessionId, signal, (message, data) => report({ message, data })),
-  );
+      .reconnect(input.sessionId, signal, (message, data) => report({ message, data }), { requiredScopes: usage?.requiredScopes });
+  });
 });
 
 // Silent-only — no job/progress wrapping, unlike SessionsReconnect: recoverSession() never falls

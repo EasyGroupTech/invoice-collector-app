@@ -37,6 +37,10 @@ export interface Session {
   /** Set by a SessionPlugin whose session type needs periodic "still alive" activity rather
    * than a token-expiry renewal — core calls refresh() on this cadence. */
   keepAliveIntervalMs?: number;
+  /** Scopes this session's token was granted, for a scope-based session type (non-secret). Lets
+   * core tell which consumers a session can actually serve — a token is only valid for one
+   * audience. Unset for session types with no scope concept. */
+  scopes?: string[];
 }
 
 export interface SessionCreateResult {
@@ -78,6 +82,14 @@ export interface SessionPlugin {
    * cryptographic work, not just attaching a static credential). Required, same as create/test.
    */
   applyAuth(secret: unknown, request: HttpRequestInput): HttpRequestInput | Promise<HttpRequestInput>;
+  /** Scopes a decrypted secret was granted — omit for a session type with no scope concept. Core
+   * stores the result on `Session.scopes` (and backfills it for sessions created before it
+   * existed). */
+  scopesOf?(secret: unknown): string[] | undefined;
+  /** Returns `input` (the original `create()` input) widened to also request `scopes` — used by
+   * `reconnect(..., { requiredScopes })` so a shared session's sign-in asks for everything its
+   * consumers need. Omit for a session type with no scope concept. */
+  withRequiredScopes?(input: unknown, scopes: string[]): unknown;
 }
 
 export interface SessionRequirement {
@@ -217,8 +229,17 @@ export interface SessionsApi {
    * be forced through a brand new device-code sign-in when the existing refresh token still works;
    * `onProgress` only ever fires for the fallback path, since a successful refresh has nothing to
    * report.
+   *
+   * `options.requiredScopes` — what every consumer of this session needs. When the session's
+   * current `scopes` don't already cover them, the silent refresh is skipped (it can't widen
+   * consent) and the interactive sign-in requests the widened scope set instead.
    */
-  reconnect(sessionId: string, signal?: AbortSignal, onProgress?: (message: string, data?: Record<string, unknown>) => void): Promise<Session>;
+  reconnect(
+    sessionId: string,
+    signal?: AbortSignal,
+    onProgress?: (message: string, data?: Record<string, unknown>) => void,
+    options?: { requiredScopes?: string[] },
+  ): Promise<Session>;
   /**
    * Phase 1.21's session secret rotation — re-runs `create()` against an *existing* session's id
    * with fresh, user-supplied input. Unlike `reconnect()`, which only ever replays whatever input

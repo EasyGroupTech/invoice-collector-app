@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react';
 import type { Session } from 'invoice-collector-plugin-sdk';
-import { ChevronDown, ChevronRight, Download } from 'lucide-react';
+import { ChevronDown, ChevronRight, Download, Info } from 'lucide-react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { DeviceCodeSignInPrompt, extractDeviceCodeInfo } from '@/components/DeviceCodeSignInPrompt';
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import type { InstalledPluginSummary } from '../../../electron/shared/ipcContracts';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import type { InstalledPluginSummary, SessionUsage } from '../../../electron/shared/ipcContracts';
+import { sessionCoversScopes } from '../../../src/session-usage.js';
 import { validateWizardValues, type WizardFieldValues } from '../../../src/wizard-form-state.js';
 import { WizardSteps } from '../descriptors/WizardSteps';
 import { useJob } from '../hooks/useJob';
@@ -73,6 +74,19 @@ export function SessionStatusSection({ refreshKey }: SessionStatusSectionProps) 
   const rotateJob = useJob<Session>();
   const [rotateTarget, setRotateTarget] = useState<Session | undefined>(undefined);
   const [rotateValues, setRotateValues] = useState<WizardFieldValues>({});
+  const [infoTarget, setInfoTarget] = useState<Session | undefined>(undefined);
+  const [infoUsage, setInfoUsage] = useState<SessionUsage | undefined>(undefined);
+
+  async function openInfo(session: Session) {
+    setInfoTarget(session);
+    setInfoUsage(undefined);
+    try {
+      setInfoUsage(await window.api.sessionsUsage(session.id));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : String(err));
+      setInfoTarget(undefined);
+    }
+  }
 
   async function refresh() {
     setSessions(await window.api.sessionsList());
@@ -247,6 +261,9 @@ export function SessionStatusSection({ refreshKey }: SessionStatusSectionProps) 
                     <Badge variant={s.status === 'active' ? 'secondary' : 'destructive'}>{s.status}</Badge>
                   </span>
                   <div className="flex shrink-0 items-center gap-1">
+                    <Button size="icon" className="size-8" variant="ghost" aria-label={`Where ${s.label} is used`} title="Where is this session used?" onClick={() => void openInfo(s)}>
+                      <Info />
+                    </Button>
                     <Button size="sm" variant="outline" disabled={busySessionId !== undefined} onClick={() => void login(s)}>
                       {rowBusy && busyAction === 'login' ? 'Signing in…' : 'Login'}
                     </Button>
@@ -287,6 +304,71 @@ export function SessionStatusSection({ refreshKey }: SessionStatusSectionProps) 
           </DialogContent>
         </Dialog>
       ) : null}
+
+      {infoTarget && (
+        <Dialog open onOpenChange={(open) => !open && setInfoTarget(undefined)}>
+          <DialogContent className="flex max-h-[80vh] flex-col gap-4 overflow-y-auto sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle>{infoTarget.label}</DialogTitle>
+              <DialogDescription>Where this session is used, and what Login will ask for.</DialogDescription>
+            </DialogHeader>
+            {!infoUsage ? (
+              <p className="text-sm text-muted-foreground">Loading…</p>
+            ) : (
+              <div className="flex flex-col gap-4 text-sm">
+                {(['source', 'destination'] as const).map((kind) => {
+                  const consumers = infoUsage.consumers.filter((c) => c.kind === kind);
+                  return (
+                    <div key={kind} className="flex flex-col gap-1.5">
+                      <h4 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">{kind === 'source' ? 'Sources' : 'Destinations'}</h4>
+                      {consumers.length === 0 && <p className="text-muted-foreground">Not used by any {kind}.</p>}
+                      {consumers.map((c) => (
+                        <div key={c.id} className="flex flex-col gap-0.5 rounded-md border px-3 py-2">
+                          <span className="font-medium">
+                            {c.name} <span className="font-normal text-muted-foreground">· {c.pluginName}</span>
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            {c.flows.length > 0 ? `Collection flow${c.flows.length === 1 ? '' : 's'}: ${c.flows.join(', ')}` : 'Not part of any collection flow'}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })}
+                {infoTarget.scopes && (
+                  <div className="flex flex-col gap-1.5">
+                    <h4 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">Access</h4>
+                    <p>
+                      <span className="text-muted-foreground">Granted: </span>
+                      {infoTarget.scopes.join(', ')}
+                    </p>
+                    <p>
+                      <span className="text-muted-foreground">Needed by its consumers: </span>
+                      {infoUsage.requiredScopes.length > 0 ? infoUsage.requiredScopes.join(', ') : 'nothing declared'}
+                      {infoUsage.audienceLabels.length > 0 && ` (${infoUsage.audienceLabels.join(', ')})`}
+                    </p>
+                    {infoUsage.audienceConflict ? (
+                      <p className="text-destructive">
+                        These consumers need access to different APIs. One sign-in token is only valid for one of them, so Login will refuse — give one
+                        of them its own session (Settings → Advanced configuration).
+                      </p>
+                    ) : (
+                      !sessionCoversScopes(infoTarget, infoUsage.requiredScopes) && (
+                        <p className="text-muted-foreground">Login will sign in again to add the missing access.</p>
+                      )
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setInfoTarget(undefined)}>
+                Close
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {rotateTarget && (
         <Dialog open onOpenChange={(open) => !open && cancelRotate()}>

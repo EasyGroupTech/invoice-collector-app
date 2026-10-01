@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { PluginBackedRecord, Session } from 'invoice-collector-plugin-sdk';
 import { Button } from '@/components/ui/button';
 import type { InstalledPluginSummary } from '../../../electron/shared/ipcContracts';
+import { sessionServesRequirement } from '../../../src/session-usage.js';
 import { runJobAndWait } from '../jobs';
 
 export type RecordKind = 'source' | 'destination';
@@ -37,7 +38,10 @@ export function SessionEstablishPanel({ plugin, sessions, selectedSessionId, onS
   if (!requirement) return null;
 
   const compatibleSessions = sessions.filter(
-    (s) => s.sessionTypeId === requirement.sessionTypeId && (requirement.confirmsBuiltIn || s.createdByPluginId === plugin.manifest.id),
+    (s) =>
+      s.sessionTypeId === requirement.sessionTypeId &&
+      (requirement.confirmsBuiltIn || s.createdByPluginId === plugin.manifest.id) &&
+      sessionServesRequirement(s, requirement),
   );
 
   async function createSession() {

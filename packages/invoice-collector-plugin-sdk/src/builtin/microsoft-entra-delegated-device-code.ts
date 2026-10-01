@@ -1,5 +1,6 @@
 import type { PluginContext } from '../context.js';
 import type { HttpRequestInput } from '../http.js';
+import { splitScopeString, unionScopes } from '../scopes.js';
 import type { Session, SessionCreateResult, SessionPlugin, SessionRefreshResult } from '../session.js';
 
 /**
@@ -269,6 +270,15 @@ export const microsoftEntraDelegatedDeviceCodeSessionPlugin: SessionPlugin = {
       return 'error';
     }
     return new Date(session.expiresAt).getTime() > Date.now() ? 'ok' : 'expired';
+  },
+
+  scopesOf(secret: unknown): string[] | undefined {
+    return isStoredSecret(secret) && typeof secret.scope === 'string' ? splitScopeString(secret.scope) : undefined;
+  },
+
+  withRequiredScopes(input: unknown, scopes: string[]): unknown {
+    if (!isCreateInput(input)) return input;
+    return { ...input, scope: unionScopes(splitScopeString(input.scope), scopes).join(' ') };
   },
 
   applyAuth(secret: unknown, request: HttpRequestInput): HttpRequestInput {

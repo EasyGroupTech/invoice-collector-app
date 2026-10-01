@@ -22,6 +22,7 @@ import type { PluginInstallNeedsConfirmation, PluginInstallResult } from '../../
 import type { PluginUpdateCheckResult } from '../../src/plugin-update-check.js';
 import type { ProfileSummary } from '../../src/profiles.js';
 import type { SbomEntry } from '../../src/sbom-registry.js';
+import type { SessionConsumer, SessionUsage } from '../../src/session-usage.js';
 
 /**
  * The one shared source of truth for every IPC channel name and payload type — imported by main,
@@ -36,6 +37,7 @@ export const Channels = {
   ConfigCreateRecord: 'config:createRecord',
   ConfigRemoveRecord: 'config:removeRecord',
   ConfigAssignSession: 'config:assignSession',
+  ConfigUpdateRecord: 'config:updateRecord',
   ConfigExportAll: 'config:exportAll',
   ConfigPickImportFile: 'config:pickImportFile',
   ConfigImportAll: 'config:importAll',
@@ -57,6 +59,7 @@ export const Channels = {
   SessionsRotate: 'sessions:rotate',
   SessionsSuggestLabel: 'sessions:suggestLabel',
   SessionsRename: 'sessions:rename',
+  SessionsUsage: 'sessions:usage',
 
   AppOpenExternal: 'app:openExternal',
 
@@ -140,6 +143,17 @@ export interface UpdateFlowInput {
   scope?: string;
   config: unknown;
   destinationId?: string | null;
+}
+
+/** Advanced configuration's per-record editor (Settings) — unlike `UpdateFlowInput`, works on a
+ * destination too. A source's own edits still go through `FlowsUpdate` (it also handles the
+ * rename-the-destination-folder follow-up); this exists because a destination has no flow of its
+ * own to edit through. The record's plugin never changes. */
+export interface UpdateRecordInput {
+  kind: 'source' | 'destination';
+  id: string;
+  name: string;
+  config: unknown;
 }
 
 export interface CreateSessionInput {
@@ -329,7 +343,9 @@ export type {
   ProfileSummary,
   SbomEntry,
   Session,
+  SessionConsumer,
   SessionRequirement,
+  SessionUsage,
   SettingsPanelDescriptor,
   WizardListDataRequest,
   WizardListDataResult,
