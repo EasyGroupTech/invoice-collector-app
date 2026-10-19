@@ -734,13 +734,14 @@ ipcMain.handle(Channels.HistoryClearAll, () => invoiceHistory.clear());
 
 function buildSbomSources(): SbomSource[] {
   return [
-    { id: 'ic-core', label: 'Invoice Collector (core app)', filePath: IC_CORE_SBOM_PATH },
-    { id: 'invoice-collector-plugin-sdk', label: 'invoice-collector-plugin-sdk', filePath: SDK_SBOM_PATH },
+    { id: 'ic-core', label: 'Invoice Collector (core app)', version: app.getVersion(), filePath: IC_CORE_SBOM_PATH },
+    { id: 'invoice-collector-plugin-sdk', label: 'invoice-collector-plugin-sdk', version: CORE_SDK_VERSION, filePath: SDK_SBOM_PATH },
     // §9.4: one shared SBOM per installed *package*, not per implementation — a package that
     // bundles a source and a destination together still has just one dependency tree.
     ...pluginRegistry.listPackages().map((packageManifest) => ({
       id: packageManifest.id,
       label: packageManifest.name,
+      version: packageManifest.version,
       filePath: path.join(pluginsDir(app.getPath('userData')), packageManifest.id, packageManifest.sbom),
     })),
   ];
