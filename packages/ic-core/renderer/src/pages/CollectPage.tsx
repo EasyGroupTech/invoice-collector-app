@@ -44,9 +44,11 @@ const MONTH_NAMES = [
 ];
 
 /** The whole calendar month a Collect run's own `period` (§14) covers. */
-function periodForMonth(year: number, month: number): { start: string; end: string } {
+export function periodForMonth(year: number, month: number): { start: string; end: string } {
   const start = `${year}-${String(month).padStart(2, '0')}-01`;
-  const end = new Date(year, month, 0).toISOString().slice(0, 10);
+  // Date.UTC, not new Date(year, month, 0): that is local midnight, and .toISOString() converts it
+  // to UTC — one day early (the 29th/30th instead of the last day) in any timezone east of UTC.
+  const end = new Date(Date.UTC(year, month, 0)).toISOString().slice(0, 10);
   return { start, end };
 }
 
