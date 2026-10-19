@@ -6,12 +6,15 @@ import type { CycloneDxDocument } from 'invoice-collector-plugin-sdk';
 export interface SbomSource {
   id: string;
   label: string;
+  /** The module's own version, shown next to its name — not derivable from the SBOM itself. */
+  version?: string;
   filePath: string;
 }
 
 export interface SbomEntry {
   id: string;
   label: string;
+  version?: string;
   sbom?: CycloneDxDocument;
   /** Set instead of `sbom` when the file is missing or doesn't parse — one bad/missing file
    * (e.g. an installed plugin predating this feature) shouldn't blank the whole screen. */
@@ -29,9 +32,9 @@ export async function loadSboms(sources: SbomSource[], readFile: (filePath: stri
       try {
         const raw = await readFile(source.filePath);
         const sbom = JSON.parse(raw) as CycloneDxDocument;
-        return { id: source.id, label: source.label, sbom };
+        return { id: source.id, label: source.label, version: source.version, sbom };
       } catch (err) {
-        return { id: source.id, label: source.label, error: err instanceof Error ? err.message : String(err) };
+        return { id: source.id, label: source.label, version: source.version, error: err instanceof Error ? err.message : String(err) };
       }
     }),
   );

@@ -330,6 +330,7 @@ export function PluginsSection() {
                     <div className="flex items-center gap-2">
                       {isOpen ? <ChevronDown className="size-4 text-muted-foreground" /> : <ChevronRight className="size-4 text-muted-foreground" />}
                       <span className="text-sm font-medium">{entry.label}</span>
+                      {entry.version && <span className="text-sm text-muted-foreground">v{entry.version}</span>}
                       {entry.sbom && <span className="text-sm text-muted-foreground">({entry.sbom.components?.length ?? 0} components)</span>}
                     </div>
                     {entry.sbom && (

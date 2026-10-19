@@ -23,6 +23,24 @@ describe('loadSboms', () => {
     });
   });
 
+  it('carries each source\'s version through, on success and on error', async () => {
+    const readFile = vi.fn(async (filePath: string) => {
+      if (filePath.includes('bad')) throw new Error('ENOENT');
+      return JSON.stringify({ components: [] });
+    });
+
+    const entries = await loadSboms(
+      [
+        { id: 'a', label: 'A', version: '1.2.3', filePath: '/a/sbom.cdx.json' },
+        { id: 'bad', label: 'Bad', version: '0.0.1', filePath: '/bad/sbom.cdx.json' },
+      ],
+      readFile,
+    );
+
+    expect(entries[0].version).toBe('1.2.3');
+    expect(entries[1].version).toBe('0.0.1');
+  });
+
   it('reports an error for a source instead of throwing, when the file is missing', async () => {
     const readFile = vi.fn(async (filePath: string) => {
       if (filePath === sources[2].filePath) throw new Error('ENOENT: no such file');
